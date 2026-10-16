@@ -1,0 +1,393 @@
+Termius is an SSH client with a terminal, host vault, SFTP, port forwarding, snippets, and sync. Here's the stack I'd pick for "lightweight, fast, good UI":
+
+Recommended: Tauri 2 + Rust + React/Svelte
+
+Shell: Tauri 2
+
+Uses the OS webview, so installs are ~5-10 MB and idle RAM is a fraction of Electron's (which bundles Chromium, ~150 MB+ idle).
+Rust backend gives you native performance and safe handling of credentials and sockets.
+Tauri 2 also supports mobile (iOS/Android) if you ever want a Termius-style mobile app.
+
+SSH/SFTP: russh + russh-sftp (Rust)
+
+Pure Rust, async (tokio), no libssh2/OpenSSL linking pain.
+Supports port forwarding, agent forwarding, keys, jump hosts.
+Alternative: ssh2 crate (libssh2 bindings) is more battle-tested but synchronous and harder to cross-compile.
+
+Terminal: xterm.js
+
+The standard (VS Code uses it). Use the WebGL addon for fast rendering, plus the fit, search, unicode11, and web-links addons.
+Wire it to Rust via Tauri events/channels: PTY data flows as binary chunks, not JSON strings, for speed.
+
+Frontend: Svelte 5 or SolidJS (or React if you know it best)
+
+Svelte/Solid compile to tiny bundles with fine-grained reactivity, which suits a UI that updates constantly (tabs, transfer progress, host lists).
+React is fine, but you'll carry more runtime and re-render overhead.
+
+UI layer
+
+Tailwind CSS + shadcn-svelte / shadcn/ui (Radix-based) for polished, accessible components.
+cmdk-style command palette (Cmd+K) is a must for a "modern" feel.
+Icons: Lucide. Panels/splits: paneforge or react-resizable-panels.
+
+Storage and security
+
+SQLite via rusqlite or sqlx for hosts, groups, snippets, history.
+Encrypt secrets with age or chacha20poly1305, with a master key derived via Argon2. Store the unlock key in the OS keychain via the keyring crate.
+Never store private keys or passwords in plain SQLite.
+
+Sync (optional later)
+
+E2E-encrypted sync: encrypt client-side, then sync blobs via S3/R2, a tiny server, or CRDTs (automerge/yrs) if you want conflict-free merges.
+Architecture sketch
+UI (Svelte + xterm.js)
+   │  Tauri commands / channels (binary)
+Rust core
+   ├─ session manager (tokio tasks per connection)
+   ├─ russh client (shell, exec, SFTP, tunnels)
+   ├─ vault (SQLite + encryption + keyring)
+   └─ local PTY (portable-pty) for local terminals
+Alternatives
+Option	Pros	Cons
+Electron + node-ssh/ssh2	Fastest to build, huge ecosystem	Heavy RAM/disk, the thing you're trying to avoid
+Flutter + xterm.dart + dartssh2	Great native UI, mobile+desktop	Terminal rendering less mature, smaller ecosystem
+Pure native (Rust + egui/iced/GPUI)	Fastest, smallest	Terminal widget and polish are a lot of work
+Go + Wails	Simple, Go's x/crypto/ssh is excellent	Smaller UI ecosystem than Tauri
+Feature roadmap (build order)
+Single SSH session + xterm.js (get the data path fast first)
+Host vault + key/password auth + tabs
+Split panes, themes, fonts, command palette
+SFTP browser with drag-and-drop and a transfer queue
+Port forwarding (local/remote/dynamic) UI
+Snippets, multi-host command broadcast, jump hosts
+Import ~/.ssh/config, known_hosts verification
+Encrypted sync, then mobile
+Tips for speed
+Batch terminal output (e.g., flush every ~8-16 ms) rather than emitting per packet.
+Use WebGL renderer in xterm.js and keep scrollback reasonable.
+Keep SFTP transfers in Rust with streaming and a bounded queue; only send progress to the UI.
+Lazy-load heavy panels (SFTP, settings).
+
+If you tell me whether you prefer Rust or TypeScript-heavy work and whether mobile matters, I can narrow this down and sketch the first working SSH-to-xterm pipeline.
+
+list of features
+
+Feature List for a Termius-style SSH Client
+Core Terminal
+Multi-tab sessions and split panes (horizontal/vertical)
+GPU-accelerated rendering (WebGL), 256-color and truecolor
+Unicode, emoji, ligature support
+Scrollback with search (regex, case-sensitive)
+Copy on select, paste, bracketed paste, multi-line paste warning
+Clickable links and file paths
+Custom themes, fonts, font size, cursor styles, opacity/blur
+Local terminal (shell/PTY) alongside SSH
+Session logging and recording/replay
+Keyboard shortcuts, fully rebindable
+Terminal bell, notifications on command finish or disconnect
+Connection and Auth
+Password, private key, and SSH agent auth
+Keys with passphrase, hardware keys (FIDO2/YubiKey), SSH certificates
+Jump hosts / ProxyJump chains
+SOCKS and HTTP proxy support
+Telnet and serial console support
+Mosh support
+Auto-reconnect and keepalive
+Known-hosts verification with fingerprint prompts
+Key generation, import, export, and a key manager
+2FA/TOTP and keyboard-interactive prompts
+Host Management (Vault)
+Hosts organized in groups, folders, and tags
+Per-host settings (user, port, key, env vars, startup commands, theme)
+Search and fuzzy finder (command palette)
+Favorites, recents, and sorting
+Import ~/.ssh/config, PuTTY, and other clients; export too
+Bulk edit and duplicate hosts
+Host templates and inheritance from group defaults
+Cloud inventory import (AWS, GCP, Azure, DigitalOcean)
+Host status/ping indicators and notes per host
+SFTP / File Management
+Dual-pane file browser (local and remote)
+Drag-and-drop upload/download
+Transfer queue with progress, pause/resume, retry
+Edit remote files locally with auto-upload on save
+Permissions editor (chmod/chown)
+Folder sync and compare
+Archive/extract, rename, new file/folder
+Hidden files toggle, sorting, filters
+Transfer speed limits and resume of large files
+Quick preview for images/text
+Port Forwarding and Tunnels
+Local, remote, and dynamic (SOCKS) forwarding
+Saved tunnel rules with start/stop toggles
+Auto-start tunnels with a host
+Active tunnel dashboard with traffic stats
+Forwarding across jump hosts
+Productivity
+Snippets/command library with variables and placeholders
+Multi-host command broadcast (type once, run on many)
+Autocomplete from history and snippets
+Command history search across hosts
+Workspaces/saved layouts that restore tabs and splits
+Quick connect bar (user@host:port)
+Scripting and automation (run scripts on host groups)
+Tasks/scheduled commands
+Environment variable and secret injection
+Security
+Encrypted local vault (Argon2 + AES/ChaCha20)
+Master password, biometric unlock (Touch ID, Windows Hello)
+OS keychain integration
+Auto-lock on idle
+Secrets masked in UI and logs
+Audit log of connections and actions
+Zero-knowledge E2E-encrypted sync
+Sync and Collaboration
+Cross-device sync (desktop and mobile)
+Team vaults with shared hosts and credentials
+Role-based access and permissions
+Shared snippets and port-forwarding rules
+Session sharing (live collaborative terminal)
+SSO/SAML for teams
+Monitoring and Extras
+Live server stats (CPU, RAM, disk, network)
+Process viewer with kill actions
+Docker/Kubernetes container shell and log viewer
+Log tailing with highlighting and filters
+Connection history and uptime tracking
+UX and Platform
+Command palette (Cmd/Ctrl+K)
+Light/dark/auto themes and custom CSS
+Windows, macOS, Linux, iOS, Android
+Touch-friendly mobile UI with an extra keys row
+Native menus, tray icon, and global hotkey for a quick terminal
+Auto-updates
+CLI companion (yourapp connect host) and deep links
+Plugin/extension system
+Localization (i18n) and accessibility options
+AI Features (differentiator ideas)
+Natural language to command
+Explain a command or error output
+Smart autocomplete based on context
+Log and incident summarization
+Suggested MVP Cut
+
+Tabs and splits, host vault, key/password auth, xterm.js terminal, SFTP browser with transfer queue, port forwarding, snippets, ~/.ssh/config import, encrypted storage, and a command palette. Add sync, team features, and AI after that.
+
+Want me to turn this into a phased roadmap with estimated effort per feature?
+
+Thought for 7s
+Hopr UI Direction
+Pick one identity
+
+Most SSH clients look like "VS Code with a sidebar." To stand out, build the UI around Hopr's core idea: hopping. The path to a server is the star.
+
+Signature ideas (pick 2-3):
+
+Hop trail in the tab bar. Instead of a plain "prod-db" tab, show laptop › bastion › prod-db as a small breadcrumb. Jump-host chains become visible and clickable.
+Status as light, not badges. A soft glow or a thin colored edge on a tab or host row (green = live, amber = reconnecting, red = dropped) instead of tiny dots.
+Command-bar-first layout. A floating center palette (Ctrl+K) is the main way to move around. The sidebar can collapse to a thin icon rail.
+Floating panels, not boxed panes. Terminal fills the window edge to edge. SFTP, tunnels, and snippets slide in as translucent drawers over it and dismiss with Esc.
+Host "constellation" view (optional). A graph of hosts and jump relationships as an alternative to the list. It's a lot of work but very memorable.
+Design principles
+Terminal is the hero. UI chrome should recede: low contrast, thin borders, no heavy toolbars.
+Quiet by default, expressive on interaction. Calm resting state, with small motion and glow on hover, focus, and connect.
+Density is a setting. Compact, comfortable, and spacious presets that scale spacing tokens.
+Keyboard first, mouse friendly. Every action reachable from the palette, with shortcut hints shown inline.
+One accent color. Everything else is neutrals. Restraint reads as premium.
+Soft geometry. Consistent radius (6-10 px), 1 px hairline borders at about 8% opacity, and layered surfaces rather than shadows.
+Motion under 150-200 ms, ease-out, and respect reduced-motion.
+Color system
+
+Avoid pure black (#000) and the overused purple-to-blue gradient. Use warm or tinted near-blacks and one distinctive accent.
+
+Theme	Background	Accent	Feel
+Ember (default)	warm ink 
+#0F0E0D	amber 
+#F2A33A	cozy, distinctive
+Moss	deep green-black 
+#0B100E	lime 
+#B6F36A	hacker but refined
+Tide	blue-teal 
+#0A1114	aqua 
+#4FD1C5	calm, techy
+Paper	off-white 
+#F4F1EA	ink + vermilion 
+#E4572E	a rare light theme
+
+Define surfaces in 4 layers (base, raised, overlay, popover), each a few percent lighter. Use OKLCH so accents stay consistent across themes.
+
+Typography
+
+UI font (avoid Inter, which is the default everywhere):
+
+Geist Sans (clean, modern, free)
+General Sans (Fontshare, friendly geometric)
+Instrument Sans or Onest (neutral with a bit of character)
+
+Terminal font (ship 2-3, let users choose):
+
+JetBrains Mono (safe default, great ligatures)
+Commit Mono (distinctive, very readable)
+Geist Mono, Iosevka, Maple Mono (rounded, playful) as options
+Bundle fonts locally with a font picker that supports any installed font.
+
+Accent label font (optional, sparing): a pixel or mono face like Departure Mono for tiny uppercase labels, section titles, and status text. It adds personality at almost no cost.
+
+Scale: 12 / 13 / 14 / 16 / 20 px. Use 13 px as the UI base and tabular numerals for ports, IPs, and transfer speeds.
+
+Icons
+
+Lucide is what every shadcn app uses, so it reads as generic. Better options:
+
+Phosphor Icons is my pick. It has six weights (thin, light, regular, bold, fill, duotone), so icon weight becomes a user setting and instantly gives the UI a different feel.
+Tabler has the largest set, which helps for niche concepts like tunnels and keys.
+Iconoir and Solar are softer and more stylish.
+
+Draw 5-8 custom signature icons (the Hopr logo, hop/jump, tunnel, vault, and broadcast) in the same stroke style. A small custom set is what makes it feel owned rather than assembled. Keep one stroke width (1.5 px) and sizes at 16 and 20 px.
+
+What users should be able to configure
+
+Build everything on design tokens (CSS variables) and ship themes as JSON:
+
+json
+{
+  "name": "Ember",
+  "ui": {
+    "bg": "oklch(0.16 0.01 60)",
+    "surface": "oklch(0.2 0.012 60)",
+    "border": "oklch(1 0 0 / 0.08)",
+    "text": "oklch(0.93 0.01 80)",
+    "accent": "oklch(0.78 0.15 70)"
+  },
+  "radius": 8,
+  "density": "comfortable",
+  "iconWeight": "light",
+  "fontUi": "Geist",
+  "fontMono": "Commit Mono",
+  "blur": 12,
+  "glow": true,
+  "terminal": { "palette": "ember-ansi", "cursor": "bar", "opacity": 0.96 }
+}
+
+Configurable axes: accent color, density, corner radius, icon weight, UI and terminal fonts, blur/transparency, glow on/off, sidebar position (left, right, hidden), and tab style (top, vertical, hop-trail). Keep the terminal palette separate from the UI palette, since many people want their familiar ANSI theme inside a different UI. Support theme import/export (a single .json file) and community theme sharing later.
+
+Things to avoid
+Purple-blue AI gradients and heavy glassmorphism everywhere
+Pure black with pure white text (harsh); use tinted neutrals
+Thick borders, big drop shadows, and many accent colors
+Emoji as icons, and mixed icon styles
+Cramped tabs with tiny close buttons
+Suggested starting point
+
+Ember theme + Geist Sans + Commit Mono + Phosphor (light weight) + hop-trail tabs + floating drawers. That combination is already uncommon, and everything stays swappable through tokens.
+
+I can build a quick HTML mockup of the main Hopr window (tab bar with hop trail, host rail, terminal, command palette) in the Ember theme so you can see it before committing. Want that?
+
+coding practices (best one) and latest etch stack
+
+Thought for 3s
+Hopr: Tech Stack and Coding Practices
+
+I'm giving major versions only, since minors change fast. Run cargo add and pnpm add to pull the newest, and check release notes for russh and xterm.js before pinning.
+
+Latest Tech Stack
+
+Core
+
+Layer	Choice
+Shell	Tauri 2 (stable, mobile-capable)
+Backend language	Rust, 2024 edition, stable toolchain
+Async runtime	tokio
+SSH / SFTP	russh + russh-sftp
+Local PTY	portable-pty
+Storage	SQLite via sqlx (compile-time checked queries) or rusqlite
+Crypto	argon2, chacha20poly1305, zeroize, keyring
+Errors / logs	thiserror (libs), anyhow (app), tracing
+Serialization	serde, plus specta / tauri-specta for typed bindings
+
+Frontend
+
+Layer	Choice
+Framework	Svelte 5 (runes) with TypeScript
+Build	Vite
+Styling	Tailwind CSS v4 with CSS variables as design tokens
+Components	bits-ui / shadcn-svelte (headless, fully restyleable)
+Terminal	@xterm/xterm with the WebGL addon
+Icons	Phosphor
+State	Svelte runes and stores; TanStack Query only if you want caching for backend calls
+Command palette	cmdk-sv or a custom one
+Package manager	pnpm
+
+Tooling
+
+Biome (lint and format for TS) or ESLint plus Prettier
+clippy and rustfmt, with -D warnings in CI
+cargo-nextest (faster test runner), cargo-deny and cargo-audit (dependency and license checks)
+Vitest (unit) and Playwright (E2E)
+GitHub Actions with tauri-action for Windows, macOS, and Linux builds and auto-updates
+Changesets or release-plz for versioning
+Architecture Practices
+Thin UI, fat core. All SSH, crypto, and file logic lives in Rust. The frontend only renders state and sends intents.
+Split the Rust code into crates in a workspace so each part is testable alone:
+   hopr/
+   ├─ crates/
+   │  ├─ hopr-core      # session manager, domain types
+   │  ├─ hopr-ssh       # russh wrapper
+   │  ├─ hopr-sftp
+   │  ├─ hopr-vault     # encryption, keychain
+   │  └─ hopr-store     # sqlite, migrations
+   ├─ src-tauri/        # thin Tauri glue (commands only)
+   └─ src/              # Svelte app
+Typed IPC. Generate TypeScript types from Rust (tauri-specta) so a rename in Rust breaks the build in TS instead of at runtime.
+Hot path stays binary. Terminal data uses Tauri channels with raw bytes, not JSON events. Batch output every 8-16 ms.
+One actor per session. Each connection is a tokio task that owns its state and talks over mpsc channels. This avoids shared-mutex tangles.
+Feature modules on the frontend. Group by feature (features/terminal, features/sftp, features/vault) rather than by type (components/, hooks/).
+Design tokens only. No hardcoded colors or spacing in components, which is what makes theming and density settings free.
+Rust Practices
+Prefer types that make invalid states unrepresentable (enums for connection state: Connecting | Authenticating | Ready | Reconnecting | Closed).
+Avoid unwrap() and expect() outside tests. Return Result everywhere and map errors to user-friendly messages at the boundary.
+Never hold a lock across an .await.
+Bounded channels for backpressure (an unbounded queue plus a fast cat bigfile will eat your RAM).
+Wrap secrets in secrecy::SecretString and zeroize them on drop. Never log them, and add a test that checks logs don't contain credentials.
+Use #![forbid(unsafe_code)] in crates that don't need unsafe.
+Use tracing spans per session (session_id, host) so debugging is easy.
+TypeScript / Svelte Practices
+strict: true, and no any.
+Keep components small and presentational. Put logic in plain .ts modules that can be tested without the DOM.
+Debounce or throttle UI updates for transfer progress and stats (about 10 fps is plenty).
+Virtualize long lists (hosts, SFTP directories, history).
+Lazy-load heavy panels (SFTP, settings, graph view).
+Respect prefers-reduced-motion and prefers-color-scheme.
+Accessibility from the start: focus rings, ARIA roles, and keyboard paths for everything.
+Security Practices (critical for an SSH client)
+Strict Tauri capabilities and CSP. Allow only the commands and plugins you use, and load no remote content in the webview.
+Verify host keys (TOFU with a clear prompt, and a loud warning on change).
+Encrypt the vault at rest. Decrypt in memory only when needed.
+No telemetry by default, and opt-in only if you add it.
+Sign and notarize releases, and sign auto-update payloads.
+Pin dependencies with lockfiles, and run cargo-deny and Dependabot or Renovate.
+Treat remote output as hostile: sanitize anything rendered outside xterm (titles, file names, MOTDs).
+Testing Strategy
+Level	Tool	What
+Unit	cargo test / nextest, Vitest	Vault crypto, config parsing, ~/.ssh/config import
+Integration	testcontainers with an OpenSSH container	Real connect, auth, SFTP, tunnels, jump hosts
+E2E	Playwright (or tauri-driver)	Open the app, connect, type, copy and paste
+Property / fuzz	proptest, cargo-fuzz	Config and path parsers
+Perf	criterion	Terminal throughput, transfer speed
+
+The testcontainers setup is the highest-value piece, because it lets CI test against a real SSH server every time.
+
+Workflow Practices
+Trunk-based development with short-lived branches and small PRs.
+Conventional Commits (feat:, fix:) to drive changelogs.
+CI gates: format, clippy, tests, cargo-deny, typecheck, and a build on all three OSes.
+ADRs (short Architecture Decision Records in /docs/adr) for choices like "why russh over libssh2".
+Keep a justfile or Taskfile with just dev, just test, and just release so onboarding takes one command.
+Ship early: get SSH → xterm.js → fast working end to end first, then add layers.
+Where to Start
+Scaffold with pnpm create tauri-app (Svelte and TypeScript template)
+Set up the Cargo workspace and the hopr-ssh crate
+Build the minimal data path: one russh session streaming to xterm.js over a Tauri channel
+Add the design tokens file and the Ember theme before building any more UI
+
+I can sketch the folder layout with the initial Cargo.toml, the Tauri command and channel code for the SSH-to-terminal pipeline, or the CI workflow. Which one do you want first?

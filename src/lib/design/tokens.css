@@ -1,0 +1,107 @@
+/*
+ * Hopr design tokens. The ONLY place raw colors live (enforced by scripts/check-tokens.mjs).
+ * Surfaces step up in OKLCH lightness: base -> raised -> overlay -> popover.
+ * Any element can carry data-theme to preview another theme (used by theme cards).
+ */
+
+:root {
+  --density: 1;
+  --radius: 8px;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-lg: calc(var(--radius) + 4px);
+  --blur: 12px;
+
+  --dur-fast: 120ms;
+  --dur: 160ms;
+  --dur-slow: 200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --font-ui: "Geist Variable", system-ui, sans-serif;
+  --font-mono: "Commit Mono", "Geist Mono Variable", ui-monospace, monospace;
+  --font-label: "Departure Mono", "Geist Mono Variable", ui-monospace, monospace;
+}
+
+:root,
+[data-theme="ember"] {
+  --bg: oklch(0.165 0.006 60);
+  --surface-1: oklch(0.19 0.007 60);
+  --surface-2: oklch(0.215 0.008 60);
+  --surface-3: oklch(0.245 0.009 60);
+  --surface-4: oklch(0.275 0.01 60);
+  --border: oklch(1 0 0 / 0.08);
+  --border-strong: oklch(1 0 0 / 0.14);
+  --text: oklch(0.93 0.01 80);
+  --text-muted: oklch(0.74 0.012 75);
+  --text-faint: oklch(0.58 0.012 70);
+  --accent: oklch(0.78 0.15 70);
+  --accent-fg: oklch(0.2 0.02 60);
+  --success: oklch(0.78 0.16 145);
+  --warning: oklch(0.85 0.15 95);
+  --danger: oklch(0.66 0.19 28);
+  --scheme: dark;
+}
+
+[data-theme="moss"] {
+  --bg: oklch(0.155 0.01 160);
+  --surface-1: oklch(0.18 0.011 160);
+  --surface-2: oklch(0.205 0.012 160);
+  --surface-3: oklch(0.235 0.013 160);
+  --surface-4: oklch(0.265 0.014 160);
+  --border: oklch(1 0 0 / 0.08);
+  --border-strong: oklch(1 0 0 / 0.14);
+  --text: oklch(0.93 0.015 140);
+  --text-muted: oklch(0.74 0.015 140);
+  --text-faint: oklch(0.58 0.015 140);
+  --accent: oklch(0.9 0.19 130);
+  --accent-fg: oklch(0.2 0.03 140);
+  --success: oklch(0.8 0.16 155);
+  --warning: oklch(0.85 0.15 85);
+  --danger: oklch(0.66 0.19 25);
+  --scheme: dark;
+}
+
+[data-theme="tide"] {
+  --bg: oklch(0.16 0.015 225);
+  --surface-1: oklch(0.185 0.016 225);
+  --surface-2: oklch(0.21 0.017 225);
+  --surface-3: oklch(0.24 0.018 225);
+  --surface-4: oklch(0.27 0.019 225);
+  --border: oklch(1 0 0 / 0.08);
+  --border-strong: oklch(1 0 0 / 0.14);
+  --text: oklch(0.93 0.01 210);
+  --text-muted: oklch(0.74 0.014 215);
+  --text-faint: oklch(0.58 0.014 215);
+  --accent: oklch(0.8 0.12 185);
+  --accent-fg: oklch(0.2 0.03 200);
+  --success: oklch(0.79 0.15 150);
+  --warning: oklch(0.85 0.15 85);
+  --danger: oklch(0.67 0.18 25);
+  --scheme: dark;
+}
+
+[data-theme="paper"] {
+  --bg: oklch(0.96 0.012 85);
+  --surface-1: oklch(0.935 0.013 85);
+  --surface-2: oklch(0.91 0.014 85);
+  --surface-3: oklch(0.975 0.008 85);
+  --surface-4: oklch(0.99 0.005 85);
+  --border: oklch(0.2 0.02 60 / 0.12);
+  --border-strong: oklch(0.2 0.02 60 / 0.2);
+  --text: oklch(0.22 0.012 60);
+  --text-muted: oklch(0.42 0.012 60);
+  --text-faint: oklch(0.55 0.012 60);
+  --accent: oklch(0.6 0.19 35);
+  --accent-fg: oklch(0.98 0.01 85);
+  --success: oklch(0.52 0.14 150);
+  --warning: oklch(0.6 0.14 75);
+  --danger: oklch(0.55 0.2 28);
+  --scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}

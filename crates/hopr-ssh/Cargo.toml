@@ -1,0 +1,20 @@
+[package]
+name = "hopr-ssh"
+description = "Hopr SSH transport: russh-based session actor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hopr-core.workspace = true
+russh = { version = "0.64.1", default-features = false, features = ["ring", "flate2", "rsa"] }
+secrecy = "0.10"
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+rand = "0.10"
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

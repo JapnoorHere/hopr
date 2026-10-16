@@ -1,0 +1,7 @@
+# Bounded channels only: an unbounded queue plus a fast `cat bigfile` eats RAM.
+disallowed-methods = [
+  { path = "tokio::sync::mpsc::unbounded_channel", reason = "use a bounded channel for backpressure" },
+  { path = "std::sync::mpsc::channel", reason = "use a bounded channel for backpressure" },
+]
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
