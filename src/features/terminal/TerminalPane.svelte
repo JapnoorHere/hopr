@@ -11,6 +11,7 @@ import ConnectCard from "./ConnectCard.svelte";
 import ConnectRoute from "./ConnectRoute.svelte";
 import { advance, type Progress, START } from "./connect";
 import HostKeyCard from "./HostKeyCard.svelte";
+import { prefs } from "./prefs.svelte";
 import { sessions, type TerminalSession } from "./session.svelte";
 import { describeState, isBusy } from "./state";
 import Terminal from "./Terminal.svelte";
@@ -53,6 +54,24 @@ $effect(() => {
 });
 const names = $derived(session.hops);
 
+// Changing the font size (Ctrl+= / Ctrl+-) shows the new size for a moment.
+let sizeBadge = $state<number | null>(null);
+let sizeTimer: ReturnType<typeof setTimeout> | undefined;
+let lastSize = prefs.current.fontSize;
+$effect(() => {
+  const size = prefs.current.fontSize;
+  untrack(() => {
+    if (size === lastSize || !active) {
+      lastSize = size;
+      return;
+    }
+    lastSize = size;
+    sizeBadge = size;
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(() => (sizeBadge = null), 900);
+  });
+});
+
 // Production hosts: a badge in the corner for a few seconds after connecting.
 let prodBadge = $state(false);
 $effect(() => {
@@ -94,6 +113,11 @@ function onStripKey(e: KeyboardEvent) {
   data-broadcasting={broadcast.includes(session.key) ? "" : undefined}
 >
   <Terminal {session} {active} />
+  {#if sizeBadge !== null}
+    <span class="size-badge" in:blurFade={{ y: 0, scale: 0.9, blur: 2, duration: 160 }} out:sink={{ duration: 160 }}>
+      {sizeBadge} px
+    </span>
+  {/if}
   {#if prodBadge}
     <span class="prod-badge" in:blurFade={{ x: 12, y: 0, blur: 2 }} out:sink={{ x: 8, duration: 200 }}>Production</span>
   {/if}
@@ -208,6 +232,22 @@ function onStripKey(e: KeyboardEvent) {
   }
   .ended :global(.xterm) {
     filter: saturate(0.35) brightness(0.8);
+  }
+  .size-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 6;
+    padding: 6px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    background: color-mix(in oklab, var(--surface-3) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-pop);
+    translate: -50% -50%;
+    pointer-events: none;
   }
   .prod-badge {
     position: absolute;

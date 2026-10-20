@@ -1,7 +1,9 @@
 <script lang="ts">
+import { untrack } from "svelte";
 import { sessions, type Tab } from "$features/terminal/session.svelte";
 import TerminalPane from "$features/terminal/TerminalPane.svelte";
 import { blurFade } from "$lib/motion";
+import { motionLevel } from "$lib/platform";
 import { type Divider, dividers, ratioFor, rects } from "./layout";
 
 let { tab, visible }: { tab: Tab; visible: boolean } = $props();
@@ -10,6 +12,48 @@ let host: HTMLDivElement | undefined = $state();
 const boxes = $derived(rects(tab.layout));
 const lines = $derived(dividers(tab.layout));
 const multi = $derived(boxes.size > 1);
+
+// Zooming a pane in or out grows it from where it was (FLIP: the layout jumps once, a
+// transform covers the difference), so the terminal resizes once instead of every frame.
+const paneEls = new Map<string, HTMLElement>();
+let before = new Map<string, DOMRect>();
+function track(node: HTMLElement, key: string) {
+  paneEls.set(key, node);
+  return { destroy: () => paneEls.delete(key) };
+}
+$effect.pre(() => {
+  void tab.zoomed;
+  untrack(() => {
+    before = new Map([...paneEls].map(([k, el]) => [k, el.getBoundingClientRect()]));
+  });
+});
+$effect(() => {
+  void tab.zoomed;
+  untrack(() => {
+    if (motionLevel() !== "full" || !visible) return;
+    for (const [k, el] of paneEls) {
+      const a = before.get(k);
+      const b = el.getBoundingClientRect();
+      if (!a || !b.width || !b.height || !a.width) continue;
+      if (
+        Math.abs(a.width - b.width) < 1 &&
+        Math.abs(a.left - b.left) < 1 &&
+        Math.abs(a.top - b.top) < 1
+      )
+        continue;
+      el.animate(
+        [
+          {
+            transformOrigin: "0 0",
+            transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width}, ${a.height / b.height})`,
+          },
+          { transformOrigin: "0 0", transform: "none" },
+        ],
+        { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+    }
+  });
+});
 
 function style(id: string): string {
   const r = tab.zoomed === id ? { x: 0, y: 0, w: 1, h: 1 } : boxes.get(id);
@@ -58,6 +102,7 @@ function drag(e: PointerEvent, d: Divider) {
       onfocusin={() => sessions.focus(s)}
       onpointerdown={() => sessions.focus(s)}
       in:blurFade={{ scale: 0.98, y: 0, blur: 3, duration: 220 }}
+      use:track={s.key}
     >
       <TerminalPane session={s} active={visible && tab.focused === s.key} />
     </div>

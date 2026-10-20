@@ -5,7 +5,18 @@ import { cubicOut } from "svelte/easing";
 import type { TransitionConfig } from "svelte/transition";
 import { crumbs } from "$features/hosts/chain";
 import { inTauri } from "$lib/ipc";
+import { wiggle } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
+
+/** A background tab wiggles when its bell rings. */
+function ringing(node: HTMLElement, _at: number) {
+  return {
+    update(at: number) {
+      if (at && !node.classList.contains("active")) wiggle(node);
+    },
+  };
+}
+
 import IconButton from "$lib/ui/IconButton.svelte";
 import { sessions } from "./session.svelte";
 import { describeState } from "./state";
@@ -48,6 +59,7 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
       in:grow
       out:grow={{ out: true }}
       animate:flip={{ duration: motion(200) }}
+      use:ringing={s.bellAt}
     >
       <button
         type="button"

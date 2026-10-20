@@ -20,7 +20,7 @@ import { untrack } from "svelte";
 import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { inTauri, type RemoteEntry } from "$lib/ipc";
-import { blurFade, sink } from "$lib/motion";
+import { blurFade, expand, sink } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import ClashBar from "./ClashBar.svelte";
@@ -281,7 +281,7 @@ const BITS = [
         <nav class="crumbs min-w-0 flex-1" aria-label="Path" ondblclick={editPath}>
           {#each crumbs(files.cwd) as c, i (c.path)}
             {#if i > 1}<span class="text-faint">/</span>{/if}
-            <button type="button" class="crumb" onclick={() => files.go(c.path)}>{c.name}</button>
+            <button type="button" class="crumb" onclick={() => files.go(c.path)} in:blurFade={{ x: 8, y: 0, blur: 0, duration: 160 }}>{c.name}</button>
           {/each}
           <button type="button" class="crumb text-faint" title="Type a path" onclick={editPath}>…</button>
         </nav>
@@ -345,7 +345,7 @@ const BITS = [
     </div>
 
     {#if naming}
-      <form class="flex flex-wrap gap-1" onsubmit={submitName} novalidate>
+      <form class="flex flex-wrap gap-1" onsubmit={submitName} novalidate transition:expand={{ duration: 160 }}>
         <!-- svelte-ignore a11y_autofocus -->
         <input
           class="input flex-1"

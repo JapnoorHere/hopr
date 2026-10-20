@@ -95,6 +95,8 @@ export class TerminalSession {
   readonly target: TabTarget;
   id = $state<string | null>(null);
   state = $state<SessionState>({ kind: "connecting", hop: 1, total: 1 });
+  /** When the terminal bell last rang (a background tab wiggles). */
+  bellAt = $state(0);
 
   // A quick-connect password is kept only until the session is ready, so Retry works.
   #password: string | null;

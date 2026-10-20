@@ -132,7 +132,15 @@
     border-radius: var(--radius-sm);
     transition:
       background var(--dur-fast) var(--ease-out),
-      color var(--dur-fast) var(--ease-out);
+      color var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+  /* Press feedback: every button dips a little when clicked. */
+  .btn-ghost:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-danger:active:not(:disabled) {
+    transform: scale(0.97);
   }
   .btn-ghost {
     color: var(--text-muted);

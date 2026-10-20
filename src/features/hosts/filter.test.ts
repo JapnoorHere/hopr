@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Host } from "$lib/ipc";
-import { matchesQuery, sectionHosts } from "./filter";
+import { highlight, matchesQuery, sectionHosts } from "./filter";
 
 function host(over: Partial<Host>): Host {
   return {
@@ -73,5 +73,21 @@ describe("sectionHosts", () => {
     expect(s).toEqual([
       { id: "results", title: "Results", hosts: [expect.objectContaining({ id: "b" })] },
     ]);
+  });
+});
+
+describe("highlight", () => {
+  it("marks every plain search word, merging overlaps", () => {
+    expect(highlight("api-prod-1", "prod")).toEqual([
+      { text: "api-", hit: false },
+      { text: "prod", hit: true },
+      { text: "-1", hit: false },
+    ]);
+    expect(highlight("Staging", "stag ging")).toEqual([{ text: "Staging", hit: true }]);
+  });
+
+  it("ignores field filters and leaves text without hits whole", () => {
+    expect(highlight("db-1", "env:prod")).toEqual([{ text: "db-1", hit: false }]);
+    expect(highlight("db-1", "")).toEqual([{ text: "db-1", hit: false }]);
   });
 });

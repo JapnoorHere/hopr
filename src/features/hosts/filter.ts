@@ -23,6 +23,41 @@ export function matchesQuery(host: Host, query: string): boolean {
   });
 }
 
+/**
+ * Split `text` into pieces that do and don't match the plain words of a search query
+ * (`tag:`, `env:` and `user:` words aren't about this text), for highlighting.
+ */
+export function highlight(text: string, query: string): { text: string; hit: boolean }[] {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w && !w.includes(":"));
+  const lower = text.toLowerCase();
+  const marks: [number, number][] = [];
+  for (const w of words) {
+    for (let at = lower.indexOf(w); at >= 0; at = lower.indexOf(w, at + w.length)) {
+      marks.push([at, at + w.length]);
+    }
+  }
+  if (marks.length === 0) return [{ text, hit: false }];
+  marks.sort((x, y) => x[0] - y[0]);
+  const merged: [number, number][] = [];
+  for (const m of marks) {
+    const last = merged.at(-1);
+    if (last && m[0] <= last[1]) last[1] = Math.max(last[1], m[1]);
+    else merged.push([m[0], m[1]]);
+  }
+  const out: { text: string; hit: boolean }[] = [];
+  let pos = 0;
+  for (const [from, to] of merged) {
+    if (from > pos) out.push({ text: text.slice(pos, from), hit: false });
+    out.push({ text: text.slice(from, to), hit: true });
+    pos = to;
+  }
+  if (pos < text.length) out.push({ text: text.slice(pos), hit: false });
+  return out;
+}
+
 export interface HostSection {
   id: string;
   title: string;

@@ -366,6 +366,15 @@ const hostName = $derived(library.host(hostId)?.label ?? "host");
     width: 60px;
     height: 18px;
   }
+  /* The traffic line is uncovered left to right when it first appears. */
+  .spark {
+    animation: spark-in var(--dur-story) var(--ease-out) 1 backwards;
+  }
+  @keyframes spark-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
   .spark polyline {
     fill: none;
     stroke: var(--accent);

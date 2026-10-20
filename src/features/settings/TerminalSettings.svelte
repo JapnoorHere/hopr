@@ -50,6 +50,17 @@ function on(e: Event): boolean {
   </div>
   <label class="check"><input type="checkbox" checked={p.cursorBlink} onchange={(e) => prefs.update({ cursorBlink: on(e) })} /> Blinking cursor</label>
   <label class="check"><input type="checkbox" checked={p.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: on(e) })} /> Copy on select</label>
+  <label class="check">
+    <input type="checkbox" checked={p.smartCopyPaste} onchange={(e) => prefs.update({ smartCopyPaste: on(e) })} />
+    Smart Ctrl+C / Ctrl+V
+  </label>
+  <p class="-mt-1 pl-6 text-xs text-faint">
+    Ctrl+C copies selected text, and interrupts when nothing is selected. Ctrl+V pastes. Ctrl+Shift+C / V always work.
+  </p>
+  <label class="check">
+    <input type="checkbox" checked={p.rightClickCopyPaste} onchange={(e) => prefs.update({ rightClickCopyPaste: on(e) })} />
+    Right-click copies or pastes
+  </label>
   <div class="grid grid-cols-2 gap-2">
     <label class="field">
       <span class="text-xs text-muted">Bell</span>

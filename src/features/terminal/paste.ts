@@ -14,3 +14,28 @@ export function checkPaste(text: string): PasteCheck {
   const multiline = /[\r\n]/.test(text);
   return { confirm: multiline || text.length > LONG_PASTE_CHARS, lines: Math.max(1, lines) };
 }
+
+/**
+ * Smart copy and paste, as in Windows Terminal: Ctrl+C copies when text is selected (and
+ * clears the selection, so the next Ctrl+C interrupts), otherwise it reaches the shell as
+ * an interrupt; Ctrl+V pastes. Returns what the key should do, or null to let it through.
+ */
+export function smartKey(
+  e: {
+    type: string;
+    key: string;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+  },
+  smart: boolean,
+  hasSelection: boolean,
+): "copy" | "paste" | null {
+  if (!smart || e.type !== "keydown" || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey)
+    return null;
+  const k = e.key.toLowerCase();
+  if (k === "c") return hasSelection ? "copy" : null;
+  if (k === "v") return "paste";
+  return null;
+}

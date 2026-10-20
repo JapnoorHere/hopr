@@ -1,5 +1,6 @@
 <script lang="ts">
 import { Check, Copy, PaperPlaneTilt, Trash } from "phosphor-svelte";
+import { tick } from "svelte";
 import { flip } from "svelte/animate";
 import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
@@ -11,7 +12,7 @@ import {
   type KeyAlgorithm,
   type KnownHost,
 } from "$lib/ipc";
-import { blurFade, pop } from "$lib/motion";
+import { blurFade, flash, pop } from "$lib/motion";
 import { motion } from "$lib/platform";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
@@ -72,6 +73,9 @@ async function added(label: string, id: string) {
   } else {
     toast.success(`Key “${label}” added`);
     reset("list");
+    // The new key glows as it lands in the list.
+    await tick();
+    flash(document.querySelector(`[data-key-id="${id}"]`));
   }
 }
 
@@ -196,7 +200,12 @@ function knownName(k: KnownHost): string {
     <section class="mt-4">
       <h3 class="label-caps mb-2 text-faint">Your keys</h3>
       {#each library.keys as k, i (k.id)}
-        <div class="item" in:blurFade={{ delay: i < 8 ? i * 20 : 0, y: 6, blur: 0, duration: 200 }} animate:flip={{ duration: motion(200) }}>
+        <div
+          class="item"
+          data-key-id={k.id}
+          in:blurFade={{ delay: i < 8 ? i * 20 : 0, y: 6, blur: 0, duration: 200 }}
+          animate:flip={{ duration: motion(200) }}
+        >
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm text-fg">{k.label}</p>
             <p class="truncate font-mono text-xs text-faint" title={k.fingerprint}>{k.fingerprint}</p>

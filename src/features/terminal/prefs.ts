@@ -11,6 +11,10 @@ export interface TerminalPrefs {
   cursorBlink: boolean;
   scrollback: number;
   copyOnSelect: boolean;
+  /** Ctrl+C copies a selection (else interrupts) and Ctrl+V pastes, like Windows Terminal. */
+  smartCopyPaste: boolean;
+  /** Right-click copies the selection, or pastes when nothing is selected. */
+  rightClickCopyPaste: boolean;
   bell: "none" | "visual" | "sound";
   /** What a remote program writing the clipboard (OSC 52) may do. */
   osc52: "deny" | "ask" | "allow";
@@ -24,6 +28,8 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   cursorBlink: true,
   scrollback: 10_000,
   copyOnSelect: false,
+  smartCopyPaste: true,
+  rightClickCopyPaste: true,
   bell: "visual",
   osc52: "ask",
 };
@@ -49,6 +55,8 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     cursorBlink: bool(r.cursorBlink, d.cursorBlink),
     scrollback: Math.round(clamp(r.scrollback, SCROLLBACK.min, SCROLLBACK.max, d.scrollback)),
     copyOnSelect: bool(r.copyOnSelect, d.copyOnSelect),
+    smartCopyPaste: bool(r.smartCopyPaste, d.smartCopyPaste),
+    rightClickCopyPaste: bool(r.rightClickCopyPaste, d.rightClickCopyPaste),
     bell: oneOf(r.bell, ["none", "visual", "sound"] as const, d.bell),
     osc52: oneOf(r.osc52, ["deny", "ask", "allow"] as const, d.osc52),
   };
