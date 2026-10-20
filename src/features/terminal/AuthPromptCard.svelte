@@ -1,6 +1,7 @@
 <script lang="ts">
 import { Key } from "phosphor-svelte";
 import type { AuthPrompt } from "$lib/ipc";
+import { shake } from "$lib/motion";
 
 let {
   prompt,
@@ -13,6 +14,13 @@ let {
 let values = $state<string[]>(prompt.fields.map(() => ""));
 let remember = $state(false);
 
+/** A prompt that comes back after a wrong answer ("Incorrect password…") shakes once. */
+function retried(node: HTMLElement) {
+  if (/incorrect|try again|denied|wrong/i.test(prompt.instructions)) {
+    requestAnimationFrame(() => shake(node, 7));
+  }
+}
+
 function submit(e: SubmitEvent) {
   e.preventDefault();
   const responses = values;
@@ -21,7 +29,7 @@ function submit(e: SubmitEvent) {
 }
 </script>
 
-<form class="panel w-96" onsubmit={submit} aria-label={prompt.title}>
+<form class="panel w-96" onsubmit={submit} aria-label={prompt.title} use:retried>
   <div class="flex items-start gap-3">
     <span class="mt-0.5 text-accent"><Key size={20} /></span>
     <div class="min-w-0 flex-1">

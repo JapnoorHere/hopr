@@ -13,6 +13,8 @@ let localEntries = $state<LocalEntry[]>([]);
 let localSel = $state<string[]>([]);
 let localErr = $state<string | null>(null);
 let over = $state<"local" | "remote" | null>(null);
+/** The side files are being dragged from: its selection dims while they travel. */
+let sending = $state<"local" | "remote" | null>(null);
 
 async function goLocal(path: string) {
   const r = await commands.localList(path);
@@ -53,6 +55,10 @@ function dragStart(e: DragEvent, from: "local" | "remote", path: string) {
   const sel = from === "local" ? localSel : files.selected;
   const paths = sel.includes(path) ? sel : [path];
   e.dataTransfer?.setData(DRAG, JSON.stringify({ from, paths }));
+  sending = from;
+  (e.currentTarget as HTMLElement | null)?.addEventListener("dragend", () => (sending = null), {
+    once: true,
+  });
   if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
 }
 
@@ -64,6 +70,7 @@ function dragOver(e: DragEvent, side: "local" | "remote") {
 
 async function drop(e: DragEvent, side: "local" | "remote") {
   over = null;
+  sending = null;
   const raw = e.dataTransfer?.getData(DRAG);
   if (!raw) return;
   e.preventDefault();
@@ -118,6 +125,8 @@ function pickHost(e: Event) {
     <div
       class="pane"
       class:over={over === "local"}
+      class:beam-border={over === "local"}
+      class:sending={sending === "local"}
       aria-label="Local files"
       role="region"
       ondragover={(e) => dragOver(e, "local")}
@@ -163,6 +172,8 @@ function pickHost(e: Event) {
     <div
       class="pane"
       class:over={over === "remote"}
+      class:beam-border={over === "remote"}
+      class:sending={sending === "remote"}
       aria-label="Remote files"
       role="region"
       ondragover={(e) => dragOver(e, "remote")}
@@ -238,6 +249,11 @@ function pickHost(e: Event) {
     flex-direction: column;
     border: 1px solid var(--border);
     border-radius: var(--radius);
+  }
+  /* Files on their way to the other side. */
+  .pane.sending :global(.selected) {
+    opacity: 0.5;
+    transition: opacity var(--dur) var(--ease-out);
   }
   .pane.over {
     border-color: var(--accent);

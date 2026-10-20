@@ -8,6 +8,7 @@ import { wrap } from "$features/vault/vault.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { terminalTheme } from "$lib/design/palettes";
 import { commands } from "$lib/ipc";
+import { sink, springIn } from "$lib/motion";
 import { type Cast, type CastEvent, findText, outputUntil, parseCast, squeezeIdle } from "./cast";
 import { history } from "./history.svelte";
 
@@ -236,7 +237,14 @@ $effect(() => {
 
 <svelte:window onkeydown={onKey} />
 
-<section class="replay" aria-label="Replay" tabindex="-1" bind:this={root}>
+<section
+  class="replay"
+  aria-label="Replay"
+  tabindex="-1"
+  bind:this={root}
+  in:springIn={{ y: 18, scale: 0.96 }}
+  out:sink={{ y: 10, scale: 0.97, duration: 160 }}
+>
   <header class="flex items-center gap-2 border-b border-border px-4 py-2">
     <h2 class="min-w-0 flex-1 truncate text-sm font-medium">
       Replay · {cast?.header.title ?? name}

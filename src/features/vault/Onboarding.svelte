@@ -53,7 +53,7 @@ function finish() {
 </script>
 
 <div class="m-auto flex w-full max-w-sm flex-col gap-6 px-6">
-  <span class="text-accent"><HoprMark size={40} /></span>
+  <span class="text-accent"><HoprMark size={40} animated /></span>
 
   {#if !recoveryKey}
     <form class="flex flex-col gap-4" onsubmit={create} novalidate bind:this={form}>

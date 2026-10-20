@@ -14,7 +14,8 @@ import { resolveCssColor, terminalTheme } from "$lib/design/palettes";
 import { inTauri } from "$lib/ipc";
 import { isMac } from "$lib/platform";
 import { shortcuts } from "$lib/shortcuts";
-import { checkPaste } from "./paste";
+import { toast } from "$lib/ui/toast.svelte";
+import { checkPaste, smartKey } from "./paste";
 import { decodeOsc52, type TerminalPrefs } from "./prefs";
 import { prefs } from "./prefs.svelte";
 import SearchBar from "./SearchBar.svelte";
@@ -95,6 +96,7 @@ function openLink(event: MouseEvent, uri: string) {
 }
 
 function bell() {
+  session.bellAt = Date.now();
   const mode = prefs.current.bell;
   if (mode === "visual") {
     flash = true;
@@ -149,9 +151,31 @@ $effect(() => {
     // key-up the handler below refuses: xterm clears the flag before asking, and a refused
     // key-up doesn't pull focus back to the terminal.
     let releasing = false;
+    /** Copy the selection and clear it, so the next Ctrl+C interrupts as usual. */
+    const copySelection = () => {
+      const text = t.getSelection();
+      if (!text) return false;
+      void navigator.clipboard.writeText(text);
+      t.clearSelection();
+      toast.success(`Copied ${text.length} character${text.length === 1 ? "" : "s"}`);
+      return true;
+    };
     t.attachCustomKeyEventHandler((e) => {
       if (releasing && e.type === "keyup") return false;
+      const smart = smartKey(e, prefs.current.smartCopyPaste, t.hasSelection());
+      if (smart) {
+        e.preventDefault();
+        if (smart === "copy") copySelection();
+        else void pasteFromClipboard();
+        return false;
+      }
       return !(e.type === "keydown" && shortcuts.find(e));
+    });
+    // Right-click: copy the selection, or paste when there is none (classic Windows console).
+    host.addEventListener("contextmenu", (e) => {
+      if (!prefs.current.rightClickCopyPaste) return;
+      e.preventDefault();
+      if (!copySelection()) void pasteFromClipboard();
     });
     t.textarea?.addEventListener("blur", () => {
       releasing = true;
@@ -449,6 +473,13 @@ function closeSearch() {
   :global(.hopr-exit) {
     pointer-events: none;
     border-left: 2px solid var(--success);
+    animation: exit-in var(--dur-slow) var(--ease-out) backwards;
+  }
+  @keyframes exit-in {
+    from {
+      opacity: 0;
+      transform: scaleY(0.4);
+    }
   }
   :global(.hopr-exit:not([data-exit="0"])) {
     border-left-color: var(--danger);

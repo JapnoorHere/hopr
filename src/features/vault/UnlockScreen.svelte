@@ -1,7 +1,7 @@
 <script lang="ts">
-import { LockSimple } from "phosphor-svelte";
+import { Fingerprint, LockSimple, LockSimpleOpen } from "phosphor-svelte";
 import HoprMark from "$lib/icons/HoprMark.svelte";
-import { blurFade } from "$lib/motion";
+import { blurFade, pop } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid } from "$lib/ui/form";
 import { vault } from "./vault.svelte";
@@ -26,7 +26,18 @@ const reason = $derived(
       : "Enter your master password",
 );
 
+let helloBusy = $state(false);
+
 async function hello() {
+  helloBusy = true;
+  try {
+    await helloInner();
+  } finally {
+    helloBusy = false;
+  }
+}
+
+async function helloInner() {
   errors = {};
   busy = true;
   const res = await vault.unlockBiometric();
@@ -92,13 +103,18 @@ function switchMode(m: typeof mode) {
   out:blurFade={{ y: 0, scale: 1.03, blur: 8, duration: 280 }}
 >
   <div class="m-auto flex w-full max-w-sm flex-col gap-6 px-6">
-    <span class="text-accent"><HoprMark size={40} /></span>
+    <span class="text-accent"><HoprMark size={40} animated /></span>
 
     {#if mode === "password"}
       <form class="flex flex-col gap-4" onsubmit={unlock} novalidate bind:this={form}>
         <div>
           <h1 class="flex items-center gap-2 text-xl font-medium text-fg">
-            <LockSimple size={20} class="text-muted" />
+            <!-- The lock opens as the screen fades away after unlocking. -->
+            {#if vault.unlocked}
+              <span class="grid text-success" in:pop><LockSimpleOpen size={20} /></span>
+            {:else}
+              <LockSimple size={20} class="text-muted" />
+            {/if}
             {reason}
           </h1>
           {#if vault.everUnlocked}
@@ -129,6 +145,7 @@ function switchMode(m: typeof mode) {
         </button>
         {#if vault.status?.biometric}
           <button type="button" class="btn-ghost" disabled={busy} onclick={hello}>
+            <Fingerprint size={16} class={helloBusy ? "hello-wait" : ""} />
             Unlock with Windows Hello
           </button>
         {/if}
@@ -192,3 +209,18 @@ function switchMode(m: typeof mode) {
     {/if}
   </div>
 </div>
+
+<style>
+  :global(.hello-wait) {
+    animation: hello-pulse 1.1s var(--ease-in-out) infinite;
+  }
+  @keyframes hello-pulse {
+    50% {
+      opacity: 0.4;
+      transform: scale(0.9);
+    }
+  }
+  :global(:root[data-motion="reduced"] .hello-wait) {
+    animation: none;
+  }
+</style>

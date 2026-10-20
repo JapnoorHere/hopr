@@ -214,6 +214,22 @@ export function slidingPill(node: HTMLElement) {
   };
 }
 
+/** A small wiggle that asks for attention (a background tab whose bell rang). */
+export function wiggle(el: Element | null | undefined) {
+  if (!el || motionLevel() !== "full" || typeof el.animate !== "function") return;
+  el.animate(
+    [
+      { transform: "rotate(0)" },
+      { transform: "rotate(-3deg)" },
+      { transform: "rotate(3deg)" },
+      { transform: "rotate(-2deg)" },
+      { transform: "rotate(1deg)" },
+      { transform: "rotate(0)" },
+    ],
+    { duration: 520, easing: "ease-out" },
+  );
+}
+
 /** Briefly glow an element with the accent colour (a row that was just added or reached). */
 export function flash(el: Element | null | undefined) {
   if (!el || motionLevel() === "off" || typeof el.animate !== "function") return;

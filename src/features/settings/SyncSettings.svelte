@@ -3,6 +3,7 @@ import { open as pickFolder } from "@tauri-apps/plugin-dialog";
 import { ArrowsClockwise } from "phosphor-svelte";
 import { syncStore } from "$features/sync/sync.svelte";
 import { inTauri } from "$lib/ipc";
+import { pop } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors } from "$lib/ui/form";
 import { toast } from "$lib/ui/toast.svelte";
@@ -81,10 +82,15 @@ function ago(iso: string | null): string {
         Syncing through <code class="text-xs">{s.folder}</code> as “{s.deviceName}”.
       </p>
       <p class="text-xs text-muted">
-        Last synced {ago(s.lastSync)}{s.devices.length
-          ? ` · with ${s.devices.map((d) => d.name).join(", ")}`
-          : " · no other devices yet"}.
+        Last synced {ago(s.lastSync)}{s.devices.length ? " · with" : " · no other devices yet."}
       </p>
+      {#if s.devices.length}
+        <div class="flex flex-wrap gap-1.5">
+          {#each s.devices as d, i (d.name)}
+            <span class="device" in:pop={{ delay: i * 60 }}>{d.name}</span>
+          {/each}
+        </div>
+      {/if}
       {#if s.lastError}<p class="text-xs text-danger" role="alert">{s.lastError}</p>{/if}
       {#if syncStore.last}
         <p class="text-xs text-muted" aria-label="Last sync result">
@@ -168,6 +174,13 @@ function ago(iso: string | null): string {
 {/if}
 
 <style>
+  .device {
+    padding: 1px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface-3);
+    border-radius: 999px;
+  }
   :global(.spin) {
     animation: sync-spin 0.9s linear infinite;
   }

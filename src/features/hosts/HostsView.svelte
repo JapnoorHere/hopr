@@ -33,7 +33,7 @@ import Count from "$lib/ui/Count.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
 import { sshCommand } from "./chain";
-import { sectionHosts } from "./filter";
+import { highlight, sectionHosts } from "./filter";
 import { library, PING_INTERVAL_MS } from "./library.svelte";
 
 let query = $state("");
@@ -357,7 +357,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
         if (!quick.trim()) quickError = null;
       }}
     />
-    <button type="submit" class="btn-primary shrink-0">
+    <button type="submit" class="go btn-primary shrink-0">
       Connect <ArrowRight size={14} />
     </button>
   </form>
@@ -392,7 +392,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
     </div>
   {:else if empty}
     <div class="m-auto flex max-w-sm flex-col items-center gap-4 px-6 text-center" in:blurFade={{ y: 10 }}>
-      <span class="text-faint" in:pop={{ delay: 80 }}><HoprMark size={40} /></span>
+      <span class="text-faint"><HoprMark size={40} animated /></span>
       <p class="text-lg text-fg">No saved hosts yet</p>
       <p class="text-sm text-muted">
         Add a host, import the ones in your <span class="font-mono">~/.ssh/config</span>, or quick
@@ -447,7 +447,9 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                   role="img"
                 ></span>
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-sm text-fg">{h.label}</span>
+                  <span class="block truncate text-sm text-fg">
+                    {#each highlight(h.label, query) as part, pi (pi)}{#if part.hit}<mark class="hit">{part.text}</mark>{:else}{part.text}{/if}{/each}
+                  </span>
                   <span class="tabular block truncate text-xs text-faint">
                     {#if h.protocol === "serial"}serial · {h.hostname} · {h.serial?.baud ?? 9600} baud{:else if h.protocol === "telnet"}telnet · {h.username ? `${h.username}@` : ""}{h.hostname}:{h.port}{:else}{h.username}@{h.hostname}{h.port === 22 ? "" : `:${h.port}`}{/if}{h.proxyCommand ? " · via ProxyCommand" : ""}{h.jumpHostId ? ` · via ${library.host(h.jumpHostId)?.label ?? "jump host"}` : ""}{h.proxy && !h.jumpHostId ? ` · via ${h.proxy.protocol} proxy` : ""}
                   </span>
@@ -592,6 +594,25 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   .row:focus-within .pick,
   .selecting .pick {
     opacity: 1;
+  }
+  /* The arrow leans toward where you're going. */
+  .go :global(svg) {
+    transition: translate var(--dur) var(--ease-spring);
+  }
+  .go:hover :global(svg) {
+    translate: 3px 0;
+  }
+  /* Letters that match the search light up, fading in as you type. */
+  .hit {
+    color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+    border-radius: 2px;
+    animation: hit-in var(--dur) var(--ease-out);
+  }
+  @keyframes hit-in {
+    from {
+      background: transparent;
+    }
   }
   .dot {
     width: 7px;
