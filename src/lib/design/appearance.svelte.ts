@@ -1,3 +1,5 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { inTauri } from "$lib/ipc";
 import {
   type Appearance,
   applyAppearance,
@@ -11,6 +13,7 @@ class AppearanceStore {
 
   init() {
     applyAppearance(this.current);
+    void this.#backdrop();
     // "System" motion follows Windows' animation setting live.
     try {
       globalThis
@@ -35,6 +38,22 @@ class AppearanceStore {
       apply();
     }
     saveAppearance(this.current, safeStorage());
+    if (patch.backdrop !== undefined || patch.theme !== undefined) void this.#backdrop();
+  }
+
+  /** Ask Windows for the Mica backdrop (or remove it), matching the theme's light/dark. */
+  async #backdrop() {
+    if (!inTauri) return;
+    try {
+      const win = getCurrentWindow();
+      const dark =
+        getComputedStyle(document.documentElement).getPropertyValue("--scheme").trim() !== "light";
+      await win.setTheme(dark ? "dark" : "light");
+      if (this.current.backdrop === "mica") await win.setEffects({ effects: ["mica" as never] });
+      else await win.clearEffects();
+    } catch {
+      // Older Windows or no permission: the frame stays solid, which is the fallback.
+    }
   }
 }
 

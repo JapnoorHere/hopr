@@ -17,7 +17,7 @@ $effect(() => {
 </script>
 
 <footer
-  class="flex h-7 shrink-0 items-center gap-4 border-t border-border bg-surface-1 px-3 text-xs text-muted"
+  class="frame flex h-7 shrink-0 items-center gap-4 border-t border-border bg-surface-1 px-3 text-xs text-muted"
 >
   <span class="flex min-w-0 items-center gap-2" role="status">
     <span

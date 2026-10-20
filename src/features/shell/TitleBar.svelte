@@ -29,7 +29,7 @@ $effect(() => {
 </script>
 
 <header
-  class="flex h-10 shrink-0 items-stretch border-b border-border bg-surface-1"
+  class="frame flex h-10 shrink-0 items-stretch border-b border-border bg-surface-1"
   data-tauri-drag-region
 >
   <div class="grid w-12 shrink-0 place-items-center text-accent" data-tauri-drag-region>

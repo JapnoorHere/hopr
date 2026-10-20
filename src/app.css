@@ -437,3 +437,16 @@
 ::view-transition-new(root) {
   animation-duration: var(--dur-slow);
 }
+
+/*
+ * Mica backdrop (Settings > Appearance): the window is transparent and Windows draws Mica
+ * behind it. The frame (title bar, sidebar, status bar, the desk between panes) turns
+ * translucent so Mica shows through; terminals and drawers stay solid for legibility.
+ */
+:root[data-backdrop="mica"] body,
+:root[data-backdrop="mica"] .app-root {
+  background: transparent;
+}
+:root[data-backdrop="mica"] .frame {
+  background: color-mix(in oklab, var(--surface-1) 42%, transparent);
+}

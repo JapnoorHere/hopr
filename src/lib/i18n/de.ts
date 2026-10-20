@@ -31,6 +31,11 @@ export const de: Messages = {
   "motion.full": "Voll",
   "motion.reduced": "Reduziert",
   "motion.off": "Aus",
+  "settings.backdrop": "Fensterhintergrund",
+  "settings.backdropHint":
+    "Mica lässt die Desktopfarbe sanft durch den Rahmen scheinen (Windows 11). Terminals bleiben deckend.",
+  "backdrop.solid": "Deckend",
+  "backdrop.mica": "Mica",
 
   "import.title": "Importieren",
   "import.fromConfig": "Aus ~/.ssh/config",

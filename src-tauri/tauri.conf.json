@@ -19,6 +19,7 @@
         "minWidth": 720,
         "minHeight": 460,
         "decorations": false,
+        "transparent": true,
         "center": true,
         "backgroundColor": "#0F0E0D"
       }

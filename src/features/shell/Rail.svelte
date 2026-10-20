@@ -33,7 +33,7 @@ $effect(() => {
 </script>
 
 <nav
-  class="rail relative flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-surface-1 py-2"
+  class="rail frame relative flex w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-surface-1 py-2"
   aria-label={t("rail.primary")}
   bind:this={nav}
 >

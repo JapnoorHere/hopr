@@ -30,6 +30,8 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-destroy",
+    "core:window:allow-set-effects",
+    "core:window:allow-set-theme",
     "opener:allow-reveal-item-in-dir",
     "process:allow-restart",
     "dialog:allow-open"

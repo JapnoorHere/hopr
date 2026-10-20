@@ -18,16 +18,22 @@ export type MotionPref = (typeof MOTIONS)[number];
 /** What the page actually uses: `reduced` keeps fades and colour changes, drops movement and loops. */
 export type MotionLevel = Exclude<MotionPref, "system">;
 
+/** Window backdrop: a solid frame, or Windows 11 Mica showing softly through it. */
+export const BACKDROPS = ["solid", "mica"] as const;
+export type Backdrop = (typeof BACKDROPS)[number];
+
 export interface Appearance {
   theme: ThemeId;
   density: Density;
   motion: MotionPref;
+  backdrop: Backdrop;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
   theme: "ember",
   density: "comfortable",
   motion: "system",
+  backdrop: "solid",
 };
 
 const STORAGE_KEY = "hopr.appearance";
@@ -66,6 +72,9 @@ export function parseAppearance(raw: unknown): Appearance {
     theme: isThemeId(r.theme) ? r.theme : DEFAULT_APPEARANCE.theme,
     density: isDensity(r.density) ? r.density : DEFAULT_APPEARANCE.density,
     motion: isMotion(r.motion) ? r.motion : DEFAULT_APPEARANCE.motion,
+    backdrop: BACKDROPS.some((b) => b === r.backdrop)
+      ? (r.backdrop as Backdrop)
+      : DEFAULT_APPEARANCE.backdrop,
   };
 }
 
@@ -73,6 +82,7 @@ export function applyAppearance(a: Appearance, root: HTMLElement = document.docu
   root.dataset.theme = a.theme;
   root.style.setProperty("--density", String(DENSITIES[a.density]));
   root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
+  root.dataset.backdrop = a.backdrop;
 }
 
 /** Storage can be missing or throw (private mode, blocked site data). */

@@ -108,7 +108,7 @@ function onStripKey(e: KeyboardEvent) {
 </script>
 
 <div
-  class="relative h-full w-full bg-bg py-2 pl-3"
+  class="relative h-full w-full bg-bg pt-3 pb-2 pl-3.5"
   style:background={paneBg}
   class:revealing
   class:ended={ended}

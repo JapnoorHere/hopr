@@ -90,13 +90,16 @@ function drag(e: PointerEvent, d: Divider) {
 }
 </script>
 
-<div class="absolute inset-0" class:invisible={!visible} bind:this={host}>
+<!-- The desk: panes sit on it as cards with a 6 px gutter (terminal revamp T2). -->
+<div class="desk frame absolute inset-0" class:invisible={!visible}>
+<div class="absolute inset-[3px]" bind:this={host}>
   {#each sessions.panesOf(tab) as s (s.key)}
     {@const hidden = tab.zoomed !== null && tab.zoomed !== s.key}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="pane"
       class:focused={multi && tab.focused === s.key && !tab.zoomed}
+      class:resting={multi && tab.focused !== s.key && !tab.zoomed}
       class:invisible={hidden}
       style={style(s.key)}
       onfocusin={() => sessions.focus(s)}
@@ -104,7 +107,9 @@ function drag(e: PointerEvent, d: Divider) {
       in:blurFade={{ scale: 0.98, y: 0, blur: 3, duration: 220 }}
       use:track={s.key}
     >
-      <TerminalPane session={s} active={visible && tab.focused === s.key} />
+      <div class="card">
+        <TerminalPane session={s} active={visible && tab.focused === s.key} />
+      </div>
     </div>
   {/each}
   {#if !tab.zoomed}
@@ -120,20 +125,37 @@ function drag(e: PointerEvent, d: Divider) {
     {/each}
   {/if}
 </div>
+</div>
 
 <style>
+  .desk {
+    background: var(--surface-1);
+  }
   .pane {
     position: absolute;
-    overflow: hidden;
   }
-  /* 1 px accent on the active pane (§9.6). */
-  .pane.focused::after {
-    content: "";
+  /* Each pane is a card: rounded, a hairline edge, its own background. */
+  .card {
     position: absolute;
-    inset: 0;
-    z-index: 20;
-    pointer-events: none;
-    box-shadow: inset 0 0 0 1px var(--accent);
+    inset: 3px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg);
+    transition:
+      border-color var(--dur) var(--ease-out),
+      box-shadow var(--dur-slow) var(--ease-out),
+      filter var(--dur-slow) var(--ease-out);
+  }
+  /* In a split, the focused card lifts with a faint accent ring; the others rest. */
+  .pane.focused .card {
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 22%, transparent),
+      var(--shadow-pop);
+  }
+  .pane.resting .card {
+    filter: brightness(0.9) saturate(0.85);
   }
   .divider {
     position: absolute;
@@ -146,20 +168,29 @@ function drag(e: PointerEvent, d: Divider) {
     height: auto;
     cursor: col-resize;
   }
+  /* The gutter is the divider: a pill handle shows on hover. */
   .divider::before {
     content: "";
     position: absolute;
     inset: 0;
     margin: auto;
-    width: 100%;
-    height: 1px;
-    background: var(--border);
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 0;
+    transform: scale(0.6);
+    transition:
+      opacity var(--dur) var(--ease-out),
+      transform var(--dur) var(--ease-spring);
   }
   .divider.row::before {
-    width: 1px;
-    height: 100%;
+    width: 4px;
+    height: 36px;
   }
-  .divider:hover::before {
-    background: var(--accent);
+  .divider:hover::before,
+  .divider:active::before {
+    opacity: 1;
+    transform: scale(1);
   }
 </style>
