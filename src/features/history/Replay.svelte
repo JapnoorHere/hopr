@@ -203,7 +203,7 @@ $effect(() => {
       disableStdin: true,
       cursorBlink: false,
       allowProposedApi: true,
-      theme: terminalTheme(appearance.current.theme),
+      theme: terminalTheme(appearance.current.theme, undefined, prefs.current.palette),
     });
     term.open(host);
     // Take focus from the terminal underneath, so keys (Space, Esc) reach the player.
