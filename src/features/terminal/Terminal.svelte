@@ -8,6 +8,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { type IMarker, type ITerminalOptions, Terminal } from "@xterm/xterm";
+import { untrack } from "svelte";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { resolveCssColor, terminalTheme } from "$lib/design/palettes";
@@ -45,6 +46,9 @@ function options(p: TerminalPrefs): ITerminalOptions {
     cursorStyle: p.cursorStyle,
     cursorBlink: p.cursorBlink,
     scrollback: p.scrollback,
+    // Matte look: bold stays its colour, an unfocused pane shows a hollow cursor.
+    drawBoldTextInBrightColors: false,
+    cursorInactiveStyle: "outline",
   };
 }
 
@@ -123,7 +127,9 @@ $effect(() => {
 
   (async () => {
     // xterm measures glyphs on open; measuring before the font loads gives a wrong grid.
-    const p = prefs.current;
+    // Read once, untracked: later setting changes apply live below and must not rebuild
+    // the terminal (that would wipe its scrollback).
+    const p = untrack(() => prefs.current);
     await document.fonts.load(`${p.fontSize}px "${p.fontFamily}"`).catch(() => undefined);
     if (disposed) return;
 
@@ -131,7 +137,7 @@ $effect(() => {
       ...options(p),
       allowProposedApi: true,
       macOptionIsMeta: true,
-      theme: terminalTheme(appearance.current.theme),
+      theme: terminalTheme(appearance.current.theme, undefined, prefs.current.palette),
     });
     instance = t;
     const fit = new FitAddon();
@@ -370,7 +376,8 @@ $effect(() => {
 
 $effect(() => {
   const theme = appearance.current.theme;
-  if (term) term.options.theme = terminalTheme(theme);
+  const palette = prefs.current.palette;
+  if (term) term.options.theme = terminalTheme(theme, undefined, palette);
 });
 
 // Font, cursor and scrollback apply live (T10); a new cell size needs a refit.

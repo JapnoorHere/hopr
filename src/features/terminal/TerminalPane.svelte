@@ -4,6 +4,8 @@ import { untrack } from "svelte";
 import { fade } from "svelte/transition";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { library } from "$features/hosts/library.svelte";
+import { appearance } from "$lib/design/appearance.svelte";
+import { resolvePalette } from "$lib/design/palettes";
 import { blurFade, rise, shake, sink, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
 import AuthPromptCard from "./AuthPromptCard.svelte";
@@ -53,6 +55,8 @@ $effect(() => {
   });
 });
 const names = $derived(session.hops);
+// A palette with its own background (Rosé Pine, Kanagawa…) colours the whole pane.
+const paneBg = $derived(resolvePalette(appearance.current.theme, prefs.current.palette).background);
 
 // Changing the font size (Ctrl+= / Ctrl+-) shows the new size for a moment.
 let sizeBadge = $state<number | null>(null);
@@ -105,6 +109,7 @@ function onStripKey(e: KeyboardEvent) {
 
 <div
   class="relative h-full w-full bg-bg py-2 pl-3"
+  style:background={paneBg}
   class:revealing
   class:ended={ended}
   class:beam-border={broadcast.includes(session.key)}

@@ -1,6 +1,8 @@
 <script lang="ts">
 import { FONT_SIZE, FONTS, SCROLLBACK } from "$features/terminal/prefs";
 import { prefs } from "$features/terminal/prefs.svelte";
+import { appearance } from "$lib/design/appearance.svelte";
+import { PALETTE_IDS, resolvePalette } from "$lib/design/palettes";
 
 const p = $derived(prefs.current);
 
@@ -18,6 +20,30 @@ function on(e: Event): boolean {
 
 <section class="mt-5 flex flex-col gap-3">
   <h3 class="label-caps text-faint">Terminal</h3>
+  <div class="field">
+    <span class="text-xs text-muted">Colours</span>
+    <div class="palettes" role="radiogroup" aria-label="Terminal colours">
+      {#each PALETTE_IDS as id (id)}
+        {@const pal = resolvePalette(appearance.current.theme, id)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={p.palette === id}
+          class="pal"
+          class:on={p.palette === id}
+          onclick={() => prefs.update({ palette: id })}
+          title={pal.feel}
+        >
+          <span class="strip" style:background={pal.background ?? "var(--bg)"}>
+            {#each [pal.ansi.red, pal.ansi.yellow, pal.ansi.green, pal.ansi.cyan, pal.ansi.blue, pal.ansi.magenta] as c, i (i)}
+              <span class="chip" style:background={c}></span>
+            {/each}
+          </span>
+          <span class="truncate text-xs text-fg">{id === "theme" ? "Match app theme" : pal.name}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
   <label class="field">
     <span class="text-xs text-muted">Font</span>
     <select class="input" value={p.fontFamily} onchange={(e) => prefs.update({ fontFamily: str(e) })}>
@@ -80,3 +106,44 @@ function on(e: Event): boolean {
     </label>
   </div>
 </section>
+
+<style>
+  .palettes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .pal {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+  .pal:hover {
+    border-color: var(--border-strong);
+  }
+  .pal:active {
+    transform: scale(0.97);
+  }
+  .pal.on {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .strip {
+    display: flex;
+    gap: 3px;
+    padding: 6px;
+    border-radius: 4px;
+  }
+  .chip {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+</style>
