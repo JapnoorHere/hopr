@@ -43,7 +43,7 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
 }
 </script>
 
-<div class="flex min-w-0 items-end gap-0.5 pl-1" role="tablist" aria-label="Sessions">
+<div class="flex min-w-0 items-center gap-1 pl-1" role="tablist" aria-label="Sessions">
   {#each rows as { tab, s } (tab.key)}
     {@const count = sessions.panesOf(tab).length}
     {@const info = describeState(s.state)}
@@ -124,14 +124,19 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
     align-items: center;
     max-width: 240px;
     min-width: 0;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    transition: background var(--dur-fast) var(--ease-out);
+    /* Tabs are pills (terminal revamp T2). */
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
   }
   .tab:hover {
     background: var(--surface-2);
   }
   .tab.active {
     background: var(--bg);
+    border-color: var(--border);
   }
   .tab.prod {
     box-shadow: inset 2px 0 0 var(--danger);
@@ -140,9 +145,9 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
   .tab::after {
     content: "";
     position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 0;
+    left: 10px;
+    right: 10px;
+    bottom: 1px;
     height: 2px;
     border-radius: 2px;
     background: transparent;

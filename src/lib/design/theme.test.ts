@@ -24,10 +24,13 @@ function memoryStorage(): Storage {
 
 describe("parseAppearance", () => {
   it("accepts valid input", () => {
-    expect(parseAppearance({ theme: "moss", density: "compact", motion: "off" })).toEqual({
+    expect(
+      parseAppearance({ theme: "moss", density: "compact", motion: "off", backdrop: "mica" }),
+    ).toEqual({
       theme: "moss",
       density: "compact",
       motion: "off",
+      backdrop: "mica",
     });
   });
 
@@ -36,6 +39,7 @@ describe("parseAppearance", () => {
       theme: "ember",
       density: "spacious",
       motion: "system",
+      backdrop: "solid",
     });
     expect(parseAppearance(null)).toEqual(DEFAULT_APPEARANCE);
     expect(parseAppearance({ density: "toString" })).toEqual(DEFAULT_APPEARANCE);
@@ -45,8 +49,9 @@ describe("parseAppearance", () => {
 describe("storage round trip", () => {
   it("saves and loads", () => {
     const s = memoryStorage();
-    saveAppearance({ theme: "paper", density: "spacious", motion: "reduced" }, s);
-    expect(loadAppearance(s)).toEqual({ theme: "paper", density: "spacious", motion: "reduced" });
+    const a = { theme: "paper", density: "spacious", motion: "reduced", backdrop: "mica" } as const;
+    saveAppearance(a, s);
+    expect(loadAppearance(s)).toEqual(a);
   });
 
   it("survives corrupt or missing storage", () => {
@@ -60,7 +65,8 @@ describe("storage round trip", () => {
 describe("applyAppearance", () => {
   it("sets theme attribute and density variable", () => {
     const el = document.createElement("div");
-    applyAppearance({ theme: "tide", density: "compact", motion: "off" }, el);
+    applyAppearance({ theme: "tide", density: "compact", motion: "off", backdrop: "mica" }, el);
+    expect(el.dataset.backdrop).toBe("mica");
     expect(el.dataset.theme).toBe("tide");
     expect(el.style.getPropertyValue("--density")).toBe("0.8");
     expect(el.dataset.motion).toBe("off");

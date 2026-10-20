@@ -238,7 +238,7 @@ function onkeydown(e: KeyboardEvent) {
   {/if}
 {/snippet}
 
-<div class="flex h-full flex-col bg-bg text-fg">
+<div class="app-root flex h-full flex-col bg-bg text-fg">
   <TitleBar />
   <div class="relative flex min-h-0 flex-1">
     {#if onboarding}

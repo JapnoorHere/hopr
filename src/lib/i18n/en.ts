@@ -31,6 +31,11 @@ export const en = {
   "motion.full": "Full",
   "motion.reduced": "Reduced",
   "motion.off": "Off",
+  "settings.backdrop": "Window backdrop",
+  "settings.backdropHint":
+    "Mica lets your desktop colour show softly through the frame (Windows 11). Terminals stay solid.",
+  "backdrop.solid": "Solid",
+  "backdrop.mica": "Mica",
 
   "import.title": "Import",
   "import.fromConfig": "From ~/.ssh/config",

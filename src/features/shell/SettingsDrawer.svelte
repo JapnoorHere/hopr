@@ -9,7 +9,7 @@ import TransfersSettings from "$features/settings/TransfersSettings.svelte";
 import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
 import SecuritySettings from "$features/vault/SecuritySettings.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { DENSITIES, type Density, MOTIONS, THEMES } from "$lib/design/theme";
+import { BACKDROPS, DENSITIES, type Density, MOTIONS, THEMES } from "$lib/design/theme";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { slidingPill } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
@@ -83,6 +83,30 @@ const densities = Object.keys(DENSITIES) as Density[];
       {/each}
     </div>
     <p class="mt-1 text-xs text-muted">{t("settings.motionHint")}</p>
+  </section>
+
+  <section class="mt-5">
+    <h3 class="label-caps mb-2 text-faint">{t("settings.backdrop")}</h3>
+    <div
+      class="flex rounded-md border border-border bg-surface-1 p-0.5"
+      role="radiogroup"
+      aria-label="Window backdrop"
+      use:slidingPill
+    >
+      {#each BACKDROPS as b (b)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={appearance.current.backdrop === b}
+          class="seg"
+          class:on={appearance.current.backdrop === b}
+          onclick={() => appearance.update({ backdrop: b })}
+        >
+          {t(`backdrop.${b}`)}
+        </button>
+      {/each}
+    </div>
+    <p class="mt-1 text-xs text-muted">{t("settings.backdropHint")}</p>
   </section>
 
   <section class="mt-5">
