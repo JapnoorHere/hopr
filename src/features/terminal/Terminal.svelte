@@ -11,11 +11,12 @@ import { type IMarker, type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { untrack } from "svelte";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { resolveCssColor, terminalTheme } from "$lib/design/palettes";
+import { INVISIBLE, resolveCssColor, terminalTheme } from "$lib/design/palettes";
 import { inTauri } from "$lib/ipc";
-import { isMac } from "$lib/platform";
+import { isMac, motionLevel } from "$lib/platform";
 import { shortcuts } from "$lib/shortcuts";
 import { toast } from "$lib/ui/toast.svelte";
+import { attachGlideCursor, type GlideCursor } from "./glidecursor";
 import { checkPaste, smartKey } from "./paste";
 import { decodeOsc52, type TerminalPrefs } from "./prefs";
 import { prefs } from "./prefs.svelte";
@@ -36,6 +37,8 @@ let searching = $state(false);
 let pendingPaste = $state<{ text: string; lines: number } | null>(null);
 let pendingClipboard = $state<string | null>(null);
 let flash = $state(false);
+/** The gliding cursor layer, while it is on (terminal revamp T3). */
+let glide: GlideCursor | null = null;
 const encoder = new TextEncoder();
 
 function options(p: TerminalPrefs): ITerminalOptions {
@@ -365,6 +368,8 @@ $effect(() => {
 
   return () => {
     disposed = true;
+    glide?.dispose();
+    glide = null;
     observer?.disconnect();
     session.detach();
     instance?.dispose();
@@ -372,12 +377,6 @@ $effect(() => {
     fitter = null;
     search = null;
   };
-});
-
-$effect(() => {
-  const theme = appearance.current.theme;
-  const palette = prefs.current.palette;
-  if (term) term.options.theme = terminalTheme(theme, undefined, palette);
 });
 
 // Font, cursor and scrollback apply live (T10); a new cell size needs a refit.
@@ -389,6 +388,27 @@ $effect(() => {
   requestAnimationFrame(() => {
     if (host && host.clientWidth > 0) fit?.fit();
   });
+});
+
+// Colours and the cursor: with glide on, xterm's cursor is made invisible (the character
+// under it keeps its colour) and the glide layer draws it instead.
+$effect(() => {
+  const t = term;
+  const p = prefs.current;
+  const theme = terminalTheme(appearance.current.theme, undefined, p.palette);
+  void appearance.current.motion;
+  if (!t) return;
+  if (p.cursorGlide && motionLevel() === "full") {
+    glide ??= attachGlideCursor(t);
+    glide.set(p.cursorStyle, p.cursorBlink, theme.cursor ?? theme.foreground ?? INVISIBLE);
+    t.options.theme = { ...theme, cursor: INVISIBLE, cursorAccent: theme.foreground };
+    t.options.cursorBlink = false;
+  } else {
+    glide?.dispose();
+    glide = null;
+    t.options.theme = theme;
+    t.options.cursorBlink = p.cursorBlink;
+  }
 });
 
 $effect(() => {
@@ -477,6 +497,62 @@ function closeSearch() {
     animation: bell 150ms var(--ease-out);
   }
   /* Exit markers on prompt lines (xterm decorations live outside this component). */
+  /* The gliding cursor (glidecursor.ts): a layer over the text that slides between cells. */
+  :global(.glide-cursor) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    width: var(--cw);
+    height: var(--ch);
+    pointer-events: none;
+    will-change: transform;
+    transition:
+      transform 80ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 120ms ease-out;
+  }
+  :global(.glide-cursor)::before {
+    content: "";
+    position: absolute;
+    border-radius: 1.5px;
+    background: var(--cursor);
+    box-shadow: 0 0 10px color-mix(in oklab, var(--cursor) 55%, transparent);
+  }
+  :global(.glide-cursor[data-shape="bar"])::before {
+    top: 1px;
+    bottom: 1px;
+    left: 0;
+    width: 2px;
+  }
+  :global(.glide-cursor[data-shape="block"])::before {
+    inset: 0;
+    opacity: 0.5;
+    border-radius: 2px;
+  }
+  :global(.glide-cursor[data-shape="underline"])::before {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+  }
+  :global(.glide-cursor.blink:not(.moving))::before {
+    animation: glide-blink 1.1s ease-in-out infinite;
+  }
+  /* An unfocused pane shows a hollow cursor. */
+  :global(.glide-cursor.unfocused)::before {
+    inset: 0;
+    width: auto;
+    height: auto;
+    opacity: 1;
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--cursor);
+    animation: none;
+  }
+  @keyframes glide-blink {
+    50% {
+      opacity: 0.12;
+    }
+  }
   :global(.hopr-exit) {
     pointer-events: none;
     border-left: 2px solid var(--success);
