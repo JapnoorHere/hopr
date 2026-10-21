@@ -61,6 +61,16 @@ export interface TerminalSink {
   hasPrompts(): boolean;
   /** First buffer line shown (scroll position). */
   viewportY(): number;
+  /** Scroll so buffer line `line` is at the top. */
+  scrollToLine(line: number): void;
+}
+
+/** The menu for one command block (its exit chip was clicked). */
+export interface BlockMenu {
+  command: string;
+  output: string;
+  x: number;
+  y: number;
 }
 
 /** A command that finished in a terminal. */
@@ -309,6 +319,15 @@ export class TerminalSession {
 
   get viewportY(): number {
     return this.#sink?.viewportY() ?? -1;
+  }
+
+  /** While scrolled back into a command's output, that command (pinned at the top). */
+  sticky = $state<{ command: string; exit: number | null; line: number } | null>(null);
+  /** The open block menu, if any. */
+  blockMenu = $state<BlockMenu | null>(null);
+
+  scrollToLine(line: number) {
+    this.#sink?.scrollToLine(line);
   }
 
   setState(state: SessionState) {

@@ -24,6 +24,8 @@ export interface TerminalPrefs {
   osc52: "deny" | "ask" | "allow";
   /** Terminal colours: "theme" follows the app theme, or a palette of its own. */
   palette: PaletteId;
+  /** Command blocks (needs shell integration): separators, exit chips, pinned command. */
+  blocks: "off" | "separators" | "full";
 }
 
 export const DEFAULT_PREFS: TerminalPrefs = {
@@ -40,6 +42,7 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   bell: "visual",
   osc52: "ask",
   palette: "theme",
+  blocks: "full",
 };
 
 export const FONT_SIZE = { min: 8, max: 32 };
@@ -69,6 +72,7 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     bell: oneOf(r.bell, ["none", "visual", "sound"] as const, d.bell),
     osc52: oneOf(r.osc52, ["deny", "ask", "allow"] as const, d.osc52),
     palette: oneOf(r.palette, PALETTE_IDS, d.palette),
+    blocks: oneOf(r.blocks, ["off", "separators", "full"] as const, d.blocks),
   };
 }
 
