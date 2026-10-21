@@ -75,6 +75,10 @@ function on(e: Event): boolean {
     </label>
   </div>
   <label class="check"><input type="checkbox" checked={p.cursorBlink} onchange={(e) => prefs.update({ cursorBlink: on(e) })} /> Blinking cursor</label>
+  <label class="check">
+    <input type="checkbox" checked={p.cursorGlide} onchange={(e) => prefs.update({ cursorGlide: on(e) })} />
+    Cursor glide
+  </label>
   <label class="check"><input type="checkbox" checked={p.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: on(e) })} /> Copy on select</label>
   <label class="check">
     <input type="checkbox" checked={p.smartCopyPaste} onchange={(e) => prefs.update({ smartCopyPaste: on(e) })} />

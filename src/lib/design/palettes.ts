@@ -141,6 +141,9 @@ export const ANSI_PALETTES: Record<ThemeId, Ansi16> = {
   ]),
 };
 
+/** Fully transparent, for hiding xterm's own cursor under the glide cursor. */
+export const INVISIBLE = "#00000000";
+
 let ctx: CanvasRenderingContext2D | null | undefined;
 
 /** Resolve any CSS color (oklch, color-mix…) to #rrggbb[aa], which xterm's renderers need. */

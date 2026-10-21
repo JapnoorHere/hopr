@@ -11,6 +11,8 @@ export interface TerminalPrefs {
   lineHeight: number;
   cursorStyle: "bar" | "block" | "underline";
   cursorBlink: boolean;
+  /** The cursor slides to each new position (full motion only). */
+  cursorGlide: boolean;
   scrollback: number;
   copyOnSelect: boolean;
   /** Ctrl+C copies a selection (else interrupts) and Ctrl+V pastes, like Windows Terminal. */
@@ -30,6 +32,7 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   lineHeight: 1.2,
   cursorStyle: "bar",
   cursorBlink: true,
+  cursorGlide: true,
   scrollback: 10_000,
   copyOnSelect: false,
   smartCopyPaste: true,
@@ -58,6 +61,7 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     lineHeight: Math.round(clamp(r.lineHeight, 1, 2, d.lineHeight) * 100) / 100,
     cursorStyle: oneOf(r.cursorStyle, ["bar", "block", "underline"] as const, d.cursorStyle),
     cursorBlink: bool(r.cursorBlink, d.cursorBlink),
+    cursorGlide: bool(r.cursorGlide, d.cursorGlide),
     scrollback: Math.round(clamp(r.scrollback, SCROLLBACK.min, SCROLLBACK.max, d.scrollback)),
     copyOnSelect: bool(r.copyOnSelect, d.copyOnSelect),
     smartCopyPaste: bool(r.smartCopyPaste, d.smartCopyPaste),
