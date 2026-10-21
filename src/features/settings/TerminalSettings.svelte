@@ -5,6 +5,7 @@ import { appearance } from "$lib/design/appearance.svelte";
 import { PALETTE_IDS, resolvePalette } from "$lib/design/palettes";
 
 const p = $derived(prefs.current);
+const pv = $derived(resolvePalette(appearance.current.theme, p.palette));
 
 function num(e: Event): number {
   return Number((e.currentTarget as HTMLInputElement).value);
@@ -20,6 +21,25 @@ function on(e: Event): boolean {
 
 <section class="mt-5 flex flex-col gap-3">
   <h3 class="label-caps text-faint">Terminal</h3>
+  <!-- Live preview: the chosen colours, font and cursor on a small sample session. -->
+  <div
+    class="preview"
+    aria-hidden="true"
+    style:background={pv.background ?? "var(--bg)"}
+    style:color={pv.foreground ?? "var(--text)"}
+    style:font-family={`"${p.fontFamily}", monospace`}
+    style:font-size="{Math.max(10, p.fontSize - 2)}px"
+    style:line-height={p.lineHeight}
+  >
+    <div><span style:color={pv.ansi.green}>dev@api</span> <span style:color={pv.ansi.blue}>~/app</span> ❯ git status</div>
+    <div style:color={pv.ansi.yellow}>  modified: src/server.ts</div>
+    <div><span style:color={pv.ansi.red}>error</span>: tests failed (2)</div>
+    <div style:color={pv.ansi.cyan}>  https://docs.example.com</div>
+    <div>
+      <span style:color={pv.ansi.green}>dev@api</span> <span style:color={pv.ansi.blue}>~/app</span> ❯
+      <span class="pcursor" data-shape={p.cursorStyle} style:background={pv.cursor ?? "var(--accent)"}></span>
+    </div>
+  </div>
   <div class="field">
     <span class="text-xs text-muted">Colours</span>
     <div class="palettes" role="radiogroup" aria-label="Terminal colours">
@@ -120,6 +140,38 @@ function on(e: Event): boolean {
 </section>
 
 <style>
+  .preview {
+    padding: 10px 12px;
+    overflow: hidden;
+    white-space: pre;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition:
+      background var(--dur-slow) var(--ease-out),
+      color var(--dur-slow) var(--ease-out);
+  }
+  .pcursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    vertical-align: text-bottom;
+    border-radius: 1px;
+    animation: pcursor-blink 1.1s ease-in-out infinite;
+  }
+  .pcursor[data-shape="block"] {
+    width: 0.6em;
+    opacity: 0.55;
+  }
+  .pcursor[data-shape="underline"] {
+    width: 0.6em;
+    height: 2px;
+    vertical-align: baseline;
+  }
+  @keyframes pcursor-blink {
+    50% {
+      opacity: 0.15;
+    }
+  }
   .palettes {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

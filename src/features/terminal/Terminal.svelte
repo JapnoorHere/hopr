@@ -171,6 +171,19 @@ $effect(() => {
     };
     t.attachCustomKeyEventHandler((e) => {
       if (releasing && e.type === "keyup") return false;
+      // Ctrl+Up / Ctrl+Down: jump between commands (with shell integration).
+      if (
+        e.type === "keydown" &&
+        e.ctrlKey &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (e.key === "ArrowUp" || e.key === "ArrowDown") &&
+        session.hasPrompts
+      ) {
+        e.preventDefault();
+        session.jumpPrompt(e.key === "ArrowUp" ? -1 : 1);
+        return false;
+      }
       const smart = smartKey(e, prefs.current.smartCopyPaste, t.hasSelection());
       if (smart) {
         e.preventDefault();
@@ -353,6 +366,26 @@ $effect(() => {
       if (next?.line !== session.sticky?.line) session.sticky = next;
     };
     t.onScroll(updateSticky);
+
+    // Click on the line being typed to move the cursor there (arrow keys are sent). Only
+    // at a prompt that shell integration recognised, never in full-screen programs.
+    host.addEventListener("mouseup", (e) => {
+      if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (!inputAt || t.hasSelection() || t.modes.mouseTrackingMode !== "none") return;
+      const buf = t.buffer.active;
+      if (buf.type === "alternate" || buf.viewportY !== buf.baseY) return;
+      const screen = t.element?.querySelector<HTMLElement>(".xterm-screen");
+      if (!screen) return;
+      const r = screen.getBoundingClientRect();
+      const col = Math.floor(((e.clientX - r.left) / r.width) * t.cols);
+      const row = Math.floor(((e.clientY - r.top) / r.height) * t.rows);
+      if (row !== buf.cursorY) return;
+      const start = inputAt.marker.line === buf.baseY + buf.cursorY ? inputAt.col : 0;
+      const target = Math.max(start, Math.min(col, t.cols - 1));
+      const dx = target - buf.cursorX;
+      if (dx === 0) return;
+      session.write(encoder.encode((dx > 0 ? "\x1b[C" : "\x1b[D").repeat(Math.abs(dx))));
+    });
     const markExit = (marker: IMarker | null, exit: number | null) => {
       if (!marker || marker.isDisposed) return;
       const deco = t.registerDecoration({ marker, x: 0, width: 1, layer: "top" });
