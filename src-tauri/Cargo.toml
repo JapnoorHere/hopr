@@ -17,15 +17,36 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 hopr-core.workspace = true
+data-encoding = "2"
+hopr-import = { path = "../crates/hopr-import" }
 hopr-ssh = { path = "../crates/hopr-ssh" }
+hopr-sftp = { path = "../crates/hopr-sftp" }
+hopr-store = { path = "../crates/hopr-store" }
+hopr-term = { path = "../crates/hopr-term" }
+hopr-vault = { path = "../crates/hopr-vault" }
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service", "crypto-rust"] }
+secrecy = "0.10"
+zeroize = "1"
 serde.workspace = true
 tokio.workspace = true
 uuid = { version = "1", features = ["v4"] }
+time = { version = "0.3", features = ["formatting", "parsing"] }
 serde_json.workspace = true
 specta.workspace = true
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta-typescript = "=0.0.12"
+tauri-plugin-opener = "2"
+arboard = { version = "3", default-features = false }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+
+[target."cfg(windows)".dependencies]
+windows = { version = "0.62", features = ["Foundation", "Security_Credentials_UI", "Win32_Foundation", "Win32_System_WinRT"] }
+winreg = "0.55"
 
 [lints]
 workspace = true

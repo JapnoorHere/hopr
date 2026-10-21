@@ -1,6 +1,17 @@
 <script lang="ts">
+import BackupSettings from "$features/settings/BackupSettings.svelte";
+import DesktopSettings from "$features/settings/DesktopSettings.svelte";
+import HistorySettings from "$features/settings/HistorySettings.svelte";
+import KeyboardSettings from "$features/settings/KeyboardSettings.svelte";
+import SyncSettings from "$features/settings/SyncSettings.svelte";
+import TerminalSettings from "$features/settings/TerminalSettings.svelte";
+import TransfersSettings from "$features/settings/TransfersSettings.svelte";
+import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
+import SecuritySettings from "$features/vault/SecuritySettings.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { DENSITIES, type Density, THEMES } from "$lib/design/theme";
+import { DENSITIES, type Density, MOTIONS, THEMES } from "$lib/design/theme";
+import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
+import { slidingPill } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import { shell } from "./shell.state.svelte";
 
@@ -8,13 +19,13 @@ const densities = Object.keys(DENSITIES) as Density[];
 </script>
 
 <Drawer
-  title="Settings"
+  title={t("settings.title")}
   pinned={shell.pinned}
   onclose={() => shell.close()}
   onpin={() => shell.togglePin()}
 >
   <section class="mt-2">
-    <h3 class="label-caps mb-2 text-faint">Theme</h3>
+    <h3 class="label-caps mb-2 text-faint">{t("settings.theme")}</h3>
     <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Theme">
       {#each THEMES as t (t.id)}
         <button
@@ -38,8 +49,8 @@ const densities = Object.keys(DENSITIES) as Density[];
   </section>
 
   <section class="mt-5">
-    <h3 class="label-caps mb-2 text-faint">Density</h3>
-    <div class="flex rounded-md border border-border bg-surface-1 p-0.5" role="radiogroup" aria-label="Density">
+    <h3 class="label-caps mb-2 text-faint">{t("settings.density")}</h3>
+    <div class="flex rounded-md border border-border bg-surface-1 p-0.5" role="radiogroup" aria-label="Density" use:slidingPill>
       {#each densities as d (d)}
         <button
           type="button"
@@ -49,11 +60,54 @@ const densities = Object.keys(DENSITIES) as Density[];
           class:on={appearance.current.density === d}
           onclick={() => appearance.update({ density: d })}
         >
-          {d[0]?.toUpperCase()}{d.slice(1)}
+          {t(`density.${d}`)}
         </button>
       {/each}
     </div>
   </section>
+
+  <section class="mt-5">
+    <h3 class="label-caps mb-2 text-faint">{t("settings.motion")}</h3>
+    <div class="flex rounded-md border border-border bg-surface-1 p-0.5" role="radiogroup" aria-label="Motion" use:slidingPill>
+      {#each MOTIONS as m (m)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={appearance.current.motion === m}
+          class="seg"
+          class:on={appearance.current.motion === m}
+          onclick={() => appearance.update({ motion: m })}
+        >
+          {t(`motion.${m}`)}
+        </button>
+      {/each}
+    </div>
+    <p class="mt-1 text-xs text-muted">{t("settings.motionHint")}</p>
+  </section>
+
+  <section class="mt-5">
+    <h3 class="label-caps mb-2 text-faint">{t("settings.language")}</h3>
+    <select
+      class="input w-full"
+      value={i18n.pref}
+      aria-label="Language"
+      onchange={(e) => i18n.set(e.currentTarget.value as LocalePref)}
+    >
+      <option value="system">{t("settings.languageSystem", { name: LOCALES[i18n.systemLocale].name })}</option>
+      {#each Object.entries(LOCALES) as [code, l] (code)}<option value={code}>{l.name}</option>{/each}
+    </select>
+    <p class="mt-1 text-xs text-muted">{t("settings.languageHint")}</p>
+  </section>
+
+  <TerminalSettings />
+  <WorkspacesSettings />
+  <KeyboardSettings />
+  <DesktopSettings />
+  <TransfersSettings />
+  <HistorySettings />
+  <SyncSettings />
+  <SecuritySettings />
+  <BackupSettings />
 </Drawer>
 
 <style>

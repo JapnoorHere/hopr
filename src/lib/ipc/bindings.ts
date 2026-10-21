@@ -9,24 +9,369 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 export const commands = {
 	/**  Version and platform of the running build. */
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
+	/**  Current vault status. */
+	vaultStatus: () => typedError<VaultStatus, AppError>(__TAURI_INVOKE("vault_status")),
+	/**  Create the vault. Returns the recovery key, shown to the user exactly once. */
+	vaultCreate: (password: string) => typedError<string, AppError>(__TAURI_INVOKE("vault_create", { password })),
+	/**  Unlock with the master password, optionally remembering this device. */
+	vaultUnlock: (password: string, remember: boolean) => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock", { password, remember })),
+	/**  Unlock with the key remembered in the OS keychain. */
+	vaultUnlockRemembered: () => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock_remembered")),
+	/**  Unlock after a Windows Hello check, using the key kept in Credential Manager. */
+	vaultUnlockBiometric: () => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock_biometric")),
+	/**  Require Windows Hello before the remembered key may unlock (or stop requiring it). */
+	vaultSetBiometric: (enabled: boolean) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_biometric", { enabled })),
+	/**  Reset the master password with the recovery key. */
+	vaultRecover: (recoveryKey: string, newPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("vault_recover", { recoveryKey, newPassword })),
+	/**  Change the master password (data is not re-encrypted). */
+	vaultChangePassword: (current: string, newPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("vault_change_password", { current, newPassword })),
+	/**  Lock now (Ctrl+Shift+L). Sessions keep running behind the lock screen. */
+	vaultLock: () => __TAURI_INVOKE<void>("vault_lock"),
+	/**  Forget the remembered key on this device. */
+	vaultForgetDevice: () => typedError<null, AppError>(__TAURI_INVOKE("vault_forget_device")),
+	/**  The user is active (throttled pings from the UI): postpones auto-lock. */
+	vaultActivity: () => __TAURI_INVOKE<void>("vault_activity"),
+	/**  Set the auto-lock timeout (0 = never). */
+	vaultSetAutoLock: (minutes: number) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_auto_lock", { minutes })),
+	/**  Set how long a copied secret stays on the clipboard (0 = until replaced). */
+	vaultSetClipboardClear: (seconds: number) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_clipboard_clear", { seconds })),
+	/**  Hosts, groups and keys in one call. */
+	libraryGet: () => typedError<Library, AppError>(__TAURI_INVOKE("library_get")),
+	/**  Create a host. */
+	hostCreate: (input: HostInput) => typedError<Host, AppError>(__TAURI_INVOKE("host_create", { input })),
+	/**  Update a host. */
+	hostUpdate: (id: string, input: HostInput) => typedError<Host, AppError>(__TAURI_INVOKE("host_update", { id, input })),
+	/**  Soft-delete hosts (the UI offers Undo). */
+	hostsDelete: (ids: string[]) => typedError<null, AppError>(__TAURI_INVOKE("hosts_delete", { ids })),
+	/**  Undo a delete. */
+	hostsRestore: (ids: string[]) => typedError<null, AppError>(__TAURI_INVOKE("hosts_restore", { ids })),
+	/**  Copy a host with its settings and secrets ("label (copy)"). */
+	hostDuplicate: (id: string) => typedError<Host, AppError>(__TAURI_INVOKE("host_duplicate", { id })),
+	/**  Apply one change to many hosts. Returns how many changed. */
+	hostsBulkEdit: (edit: BulkEdit) => typedError<number, AppError>(__TAURI_INVOKE("hosts_bulk_edit", { edit })),
+	/**  Export hosts (all when `ids` is empty) without any secrets. */
+	hostsExport: (format: ExportFormat, ids: string[]) => typedError<string, AppError>(__TAURI_INVOKE("hosts_export", { format, ids })),
 	/**
-	 *  Open an SSH session. Returns its id at once; progress arrives as `SessionStateEvent`s
+	 *  TCP-probe hosts (H9). Hosts behind a jump host or proxy are skipped: only their first
+	 *  hop is reachable from here.
+	 */
+	hostsPing: (ids: string[]) => typedError<PingResult[], AppError>(__TAURI_INVOKE("hosts_ping", { ids })),
+	/**
+	 *  Copy a host's saved password to the clipboard without it passing through the UI.
+	 *  Returns the seconds until it is cleared (0 = not cleared).
+	 */
+	hostCopyPassword: (id: string) => typedError<number, AppError>(__TAURI_INVOKE("host_copy_password", { id })),
+	/**
+	 *  Authorize a stored key on a saved host (C17), logging in the way the host normally
+	 *  does. `password` is used for this attempt only (never saved). With `use_key`, the
+	 *  host switches to the key afterwards.
+	 */
+	keyDeploy: (hostId: string, keyId: string, password: string | null, useKey: boolean) => typedError<DeployReport, AppError>(__TAURI_INVOKE("key_deploy", { hostId, keyId, password, useKey })),
+	/**  Newest audit events first. */
+	auditList: (limit: number) => typedError<AuditEvent[], AppError>(__TAURI_INVOKE("audit_list", { limit })),
+	/**  Pin or unpin a host. */
+	hostSetFavorite: (id: string, favorite: boolean) => typedError<null, AppError>(__TAURI_INVOKE("host_set_favorite", { id, favorite })),
+	/**  Create a group. */
+	groupCreate: (name: string) => typedError<Group, AppError>(__TAURI_INVOKE("group_create", { name })),
+	/**  Rename a group. */
+	groupRename: (id: string, name: string) => typedError<null, AppError>(__TAURI_INVOKE("group_rename", { id, name })),
+	/**  Delete a group (its hosts become ungrouped). */
+	groupDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("group_delete", { id })),
+	/**  Generate a key pair and store it. */
+	keyGenerate: (label: string, algorithm: KeyAlgorithm, comment: string) => typedError<SshKeyInfo, AppError>(__TAURI_INVOKE("key_generate", { label, algorithm, comment })),
+	/**  Import a private key from text (OpenSSH, PEM, PKCS#8 or PuTTY). */
+	keyImport: (label: string, text: string, passphrase: string | null) => typedError<SshKeyInfo, AppError>(__TAURI_INVOKE("key_import", { label, text, passphrase })),
+	/**  Rename a key. */
+	keyRename: (id: string, label: string) => typedError<null, AppError>(__TAURI_INVOKE("key_rename", { id, label })),
+	/**
+	 *  Attach an OpenSSH certificate to a key (or remove it with `null`). Hosts using the key
+	 *  then log in with the certificate first, falling back to the bare key.
+	 */
+	keySetCertificate: (id: string, certificate: string | null) => typedError<{
+	/**  The certificate's key id (often the user or ticket). */
+	keyId: string,
+	/**  Users it may log in as (empty = any, as the server decides). */
+	principals: string[],
+	/**  Valid from, Unix seconds. */
+	validAfter: number,
+	/**  Valid until, Unix seconds (`None` = forever). */
+	validBefore: number | null,
+	/**  Fingerprint of the CA that signed it. */
+	caFingerprint: string,
+	/**  Past its end date. */
+	expired: boolean,
+} | null, AppError>(__TAURI_INVOKE("key_set_certificate", { id, certificate })),
+	/**  Delete a key (refused while hosts use it). */
+	keyDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("key_delete", { id })),
+	/**  Trusted host keys. */
+	knownHostsList: () => typedError<KnownHost[], AppError>(__TAURI_INVOKE("known_hosts_list")),
+	/**  Forget a trusted host key. */
+	knownHostDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("known_host_delete", { id })),
+	/**  Local shells for "New local terminal". */
+	shellsList: () => typedError<ShellProfile[], AppError>(__TAURI_INVOKE("shells_list")),
+	/**  Serial ports on this machine, for a serial host's port field. */
+	serialPorts: () => typedError<string[], AppError>(__TAURI_INVOKE("serial_ports")),
+	/**  Preview hosts from `~/.ssh/config`. */
+	importSshConfigPreview: () => typedError<ConfigImport, AppError>(__TAURI_INVOKE("import_ssh_config_preview")),
+	/**  Import the selected `~/.ssh/config` hosts, storing readable identity files as keys. */
+	importSshConfigApply: (aliases: string[]) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_ssh_config_apply", { aliases })),
+	/**  Trust every key in `~/.ssh/known_hosts`. */
+	importKnownHosts: () => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_known_hosts")),
+	/**  What an export (or PuTTY's registry, with no `path`) holds. */
+	importForeignPreview: (source: ForeignSource, path: string | null) => typedError<ForeignImport, AppError>(__TAURI_INVOKE("import_foreign_preview", { source, path })),
+	/**
+	 *  Create the chosen sessions (by label) as hosts. Folders become groups; readable
+	 *  OpenSSH key files are stored as keys; passwords are never imported.
+	 */
+	importForeignApply: (source: ForeignSource, path: string | null, labels: string[]) => typedError<ImportSummary, AppError>(__TAURI_INVOKE("import_foreign_apply", { source, path, labels })),
+	/**
+	 *  Open a session. Returns its id at once; progress arrives as `SessionStateEvent`s
 	 *  and output on `output`.
 	 */
-	sessionOpen: (request: ConnectRequest, output: Channel<RawBytes>) => typedError<string, AppError>(__TAURI_INVOKE("session_open", { request, output })),
+	sessionOpen: (target: ConnectTarget, cols: number, rows: number, output: Channel<RawBytes>) => typedError<string, AppError>(__TAURI_INVOKE("session_open", { target, cols, rows, output })),
 	/**  Send input. Synchronous on purpose: sync commands run in order, keystrokes must too. */
 	sessionWrite: (id: string, data: number[]) => typedError<null, AppError>(__TAURI_INVOKE("session_write", { id, data })),
 	/**  Propagate a terminal resize. */
 	sessionResize: (id: string, cols: number, rows: number) => typedError<null, AppError>(__TAURI_INVOKE("session_resize", { id, cols, rows })),
 	/**  The UI rendered `bytes` of output (flow control). */
 	sessionAck: (id: string, bytes: number) => typedError<null, AppError>(__TAURI_INVOKE("session_ack", { id, bytes })),
+	/**  Answer a host key prompt. */
+	sessionHostKeyDecision: (id: string, decision: HostKeyDecision) => typedError<null, AppError>(__TAURI_INVOKE("session_host_key_decision", { id, decision })),
+	/**  Answer (or cancel, with `null`) an authentication prompt. */
+	sessionPromptResponse: (id: string, reply: {
+	/**  One value per prompt field. */
+	responses: string[],
+	/**  Save the typed password to the vault after a successful login. */
+	remember: boolean,
+} | null) => typedError<null, AppError>(__TAURI_INVOKE("session_prompt_response", { id, reply })),
+	/**  Hold sessions' output while their tab moves to another window. */
+	sessionDetach: (ids: string[]) => typedError<null, AppError>(__TAURI_INVOKE("session_detach", { ids })),
+	/**  Send a session's output to this window's channel, starting with anything held. */
+	sessionAttach: (id: string, output: Channel<RawBytes>) => typedError<null, AppError>(__TAURI_INVOKE("session_attach", { id, output })),
 	/**  Close a session. Closing one that already ended is not an error. */
 	sessionClose: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("session_close", { id })),
+	/**  Every workspace (the autosave first). */
+	workspacesList: () => typedError<Workspace[], AppError>(__TAURI_INVOKE("workspaces_list")),
+	/**  Save the current layout under a name (same name replaces). */
+	workspaceSave: (name: string, layoutJson: string) => typedError<Workspace, AppError>(__TAURI_INVOKE("workspace_save", { name, layoutJson })),
+	/**  Overwrite the autosaved last session. */
+	workspaceAutosave: (layoutJson: string) => typedError<null, AppError>(__TAURI_INVOKE("workspace_autosave", { layoutJson })),
+	/**  Delete a named workspace. */
+	workspaceDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("workspace_delete", { id })),
+	/**  Open this workspace at startup (`null` = none). */
+	workspaceSetStartup: (id: string | null) => typedError<null, AppError>(__TAURI_INVOKE("workspace_set_startup", { id })),
+	/**  Backups on this device, newest first. */
+	backupsList: () => typedError<BackupInfo[], AppError>(__TAURI_INVOKE("backups_list")),
+	/**  Folder that holds the backups (for "Show in folder"). */
+	backupsDir: () => __TAURI_INVOKE<string>("backups_dir"),
+	/**  Back up now. */
+	backupNow: () => typedError<BackupInfo, AppError>(__TAURI_INVOKE("backup_now")),
+	/**
+	 *  Stage a restore from a saved backup (`name`) or a file's bytes, after checking the
+	 *  master password it was made with. Takes effect when Hopr restarts.
+	 */
+	backupRestore: (name: string | null, bytes: number[] | null, password: string) => typedError<null, AppError>(__TAURI_INVOKE("backup_restore", { name, bytes, password })),
+	/**  A restore is waiting for a restart. */
+	backupRestorePending: () => __TAURI_INVOKE<boolean>("backup_restore_pending"),
+	/**  Desktop preferences. */
+	desktopPrefs: () => __TAURI_INVOKE<DesktopPrefs>("desktop_prefs"),
+	/**  Keep Hopr running in the tray when the window is closed. */
+	desktopSetCloseToTray: (enabled: boolean) => typedError<null, AppError>(__TAURI_INVOKE("desktop_set_close_to_tray", { enabled })),
+	/**
+	 *  Change the global quick-terminal hotkey ("" turns it off). If the new one can't be
+	 *  registered, the old one is put back.
+	 */
+	desktopSetQuickHotkey: (chord: string) => typedError<null, AppError>(__TAURI_INVOKE("desktop_set_quick_hotkey", { chord })),
+	/**  Replace the tray's "Recent hosts" list. */
+	traySetRecent: (hosts: TrayHost[]) => typedError<null, AppError>(__TAURI_INVOKE("tray_set_recent", { hosts })),
+	/**  Toggle the quick terminal (also bound to the global hotkey). */
+	quickToggle: () => __TAURI_INVOKE<void>("quick_toggle"),
+	/**  Bring the main window to the front. */
+	mainShow: () => __TAURI_INVOKE<void>("main_show"),
+	/**  Whether a window exists and is showing (tray and quick-terminal checks). */
+	windowVisible: (label: string) => __TAURI_INVOKE<boolean>("window_visible", { label }),
+	/**
+	 *  Open a new window for tabs torn off another one. `handoff` (the tabs, their live
+	 *  session ids and scrollback, as JSON) waits until the new window takes it.
+	 */
+	windowTearOff: (handoff: string) => typedError<string, AppError>(__TAURI_INVOKE("window_tear_off", { handoff })),
+	/**  The tabs handed to this window, once. */
+	windowHandoffTake: () => __TAURI_INVOKE<string | null>("window_handoff_take"),
+	/**  Look for a newer version. `None` = up to date. */
+	updateCheck: () => typedError<{
+	/**  New version. */
+	version: string,
+	/**  Running version. */
+	current: string,
+	/**  Release notes. */
+	notes: string | null,
+} | null, AppError>(__TAURI_INVOKE("update_check")),
+	/**  Download the update found by `update_check` and verify its signature. */
+	updateDownload: () => typedError<null, AppError>(__TAURI_INVOKE("update_download")),
+	/**  Install the downloaded update and restart. */
+	updateInstall: () => typedError<null, AppError>(__TAURI_INVOKE("update_install")),
+	/**  Start browsing a host: its home folder. */
+	sftpOpen: (hostId: string) => typedError<string, AppError>(__TAURI_INVOKE("sftp_open", { hostId })),
+	/**  A folder's entries. */
+	sftpList: (hostId: string, path: string) => typedError<RemoteEntry[], AppError>(__TAURI_INVOKE("sftp_list", { hostId, path })),
+	/**  Resolve a typed path (`~`, `..`) to an absolute one. */
+	sftpResolve: (hostId: string, path: string) => typedError<string, AppError>(__TAURI_INVOKE("sftp_resolve", { hostId, path })),
+	/**  New folder in `dir`. */
+	sftpMkdir: (hostId: string, dir: string, name: string) => typedError<null, AppError>(__TAURI_INVOKE("sftp_mkdir", { hostId, dir, name })),
+	/**  New empty file in `dir`. */
+	sftpTouch: (hostId: string, dir: string, name: string) => typedError<null, AppError>(__TAURI_INVOKE("sftp_touch", { hostId, dir, name })),
+	/**  Rename an entry within its folder. */
+	sftpRename: (hostId: string, path: string, name: string) => typedError<null, AppError>(__TAURI_INVOKE("sftp_rename", { hostId, path, name })),
+	/**  Delete entries (folders with their contents). */
+	sftpRemove: (hostId: string, paths: string[]) => typedError<null, AppError>(__TAURI_INVOKE("sftp_remove", { hostId, paths })),
+	/**  Change permissions. */
+	sftpChmod: (hostId: string, path: string, mode: number, recursive: boolean) => typedError<null, AppError>(__TAURI_INVOKE("sftp_chmod", { hostId, path, mode, recursive })),
+	/**  Preview a file: text, image, or nothing (S10). */
+	sftpPreview: (hostId: string, path: string) => typedError<Preview, AppError>(__TAURI_INVOKE("sftp_preview", { hostId, path })),
+	/**  Drop the SFTP session for a host. */
+	sftpClose: (hostId: string) => typedError<null, AppError>(__TAURI_INVOKE("sftp_close", { hostId })),
+	/**
+	 *  Download a file to a temp folder, open it in the default app, and upload it back each
+	 *  time it is saved. If the server copy changed meanwhile, an `EditEvent` with status
+	 *  `conflict` asks first. `open` is false only in tests.
+	 */
+	sftpEdit: (hostId: string, path: string, open: boolean) => typedError<string, AppError>(__TAURI_INVOKE("sftp_edit", { hostId, path, open })),
+	/**  After a conflict: upload anyway (`overwrite`), or keep the server's version. */
+	sftpEditResolve: (editId: string, overwrite: boolean) => typedError<null, AppError>(__TAURI_INVOKE("sftp_edit_resolve", { editId, overwrite })),
+	/**  Stop watching a locally edited file and delete the temp copy. */
+	sftpEditStop: (editId: string) => __TAURI_INVOKE<void>("sftp_edit_stop", { editId }),
+	/**  Local path of an edit (tests write to it to simulate saving in an editor). */
+	sftpEditPath: (editId: string) => __TAURI_INVOKE<string | null>("sftp_edit_path", { editId }),
+	/**  Queue uploads of local files and folders into `remote_dir` (folders recursively). */
+	transfersUpload: (hostId: string, localPaths: string[], remoteDir: string, policy: ConflictPolicy) => typedError<QueueResult, AppError>(__TAURI_INVOKE("transfers_upload", { hostId, localPaths, remoteDir, policy })),
+	/**  Queue downloads of remote files and folders into `local_dir` (default: Downloads). */
+	transfersDownload: (hostId: string, remotePaths: string[], localDir: string | null, policy: ConflictPolicy) => typedError<QueueResult, AppError>(__TAURI_INVOKE("transfers_download", { hostId, remotePaths, localDir, policy })),
+	/**  Every transfer in this run (oldest first). */
+	transfersList: () => __TAURI_INVOKE<Transfer[]>("transfers_list"),
+	/**  Stop a transfer for good. */
+	transferCancel: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("transfer_cancel", { id })),
+	/**  Pause a transfer (it resumes from the same byte). */
+	transferPause: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("transfer_pause", { id })),
+	/**  Resume a paused transfer, or retry a failed or cancelled one (from where it stopped). */
+	transferResume: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("transfer_resume", { id })),
+	/**  Forget finished, failed and cancelled transfers. */
+	transfersClear: () => __TAURI_INVOKE<void>("transfers_clear"),
+	/**  Current transfer settings. */
+	transfersSettings: () => __TAURI_INVOKE<TransferSettings>("transfers_settings"),
+	/**  Change transfer settings (applies to running transfers too). */
+	transfersSetSettings: (settings: TransferSettings) => typedError<null, AppError>(__TAURI_INVOKE("transfers_set_settings", { settings })),
+	/**  A local folder's entries, folders first. */
+	localList: (path: string) => typedError<LocalEntry[], AppError>(__TAURI_INVOKE("local_list", { path })),
+	/**  Where the local pane starts: the home folder. */
+	localHome: () => __TAURI_INVOKE<string>("local_home"),
+	historySettings: () => __TAURI_INVOKE<HistorySettings>("history_settings"),
+	historySetSettings: (settings: HistorySettings) => typedError<null, AppError>(__TAURI_INVOKE("history_set_settings", { settings })),
+	/**
+	 *  Save a command, unless history is off or the command is excluded. Returns what was
+	 *  saved.
+	 */
+	historyAdd: (entry: CommandInput) => typedError<{
+	/**  Id. */
+	id: string,
+	/**  Saved host, if the session was one. */
+	hostId: string | null,
+	/**  Host label (or `user@host:port`, or the local shell's name). */
+	hostLabel: string,
+	/**  The command line. */
+	command: string,
+	/**  Working directory, when the shell reported it (OSC 7). */
+	cwd: string | null,
+	/**  Exit code, when the shell reported it (OSC 133;D). */
+	exitCode: number | null,
+	/**  From shell integration (`true`) or read back from typed input (`false`). */
+	exact: boolean,
+	/**  RFC 3339. */
+	startedAt: string,
+	/**  How long it ran, when known. */
+	durationMs: number | null,
+} | null, AppError>(__TAURI_INVOKE("history_add", { entry })),
+	/**  Commands, newest first. `host_id` "" means quick-connect and local sessions. */
+	historyList: (query: string, hostId: string | null, limit: number) => typedError<CommandRecord[], AppError>(__TAURI_INVOKE("history_list", { query, hostId, limit })),
+	historyDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("history_delete", { id })),
+	/**  Forget every command and connection. */
+	historyClear: () => typedError<number, AppError>(__TAURI_INVOKE("history_clear")),
+	/**  Connections, newest first. */
+	connectionsList: (hostId: string | null, limit: number) => typedError<ConnectionRecord[], AppError>(__TAURI_INVOKE("connections_list", { hostId, limit })),
+	/**  Show a system notification (a long command finished while Hopr was in the background). */
+	notify: (title: string, body: string) => typedError<null, AppError>(__TAURI_INVOKE("notify", { title, body })),
+	recordingStart: (id: string) => typedError<string, AppError>(__TAURI_INVOKE("recording_start", { id })),
+	/**  Stop recording. Returns the file name, or nothing if it wasn't recording. */
+	recordingStop: (id: string) => typedError<string | null, AppError>(__TAURI_INVOKE("recording_stop", { id })),
+	/**  The file a session is recording to, if any. */
+	recordingStatus: (id: string) => __TAURI_INVOKE<string | null>("recording_status", { id }),
+	/**  Recordings, newest first. */
+	recordingsList: () => typedError<Recording[], AppError>(__TAURI_INVOKE("recordings_list")),
+	/**  A recording's contents (asciicast text) for replay. */
+	recordingRead: (name: string) => typedError<string, AppError>(__TAURI_INVOKE("recording_read", { name })),
+	recordingDelete: (name: string) => typedError<null, AppError>(__TAURI_INVOKE("recording_delete", { name })),
+	/**
+	 *  Save a copy of a recording where the user picks: the `.cast` file, or `text` (the
+	 *  replay's plain-text log) as `.txt`. Returns the saved path, or nothing if cancelled.
+	 */
+	recordingExport: (name: string, text: string | null) => typedError<string | null, AppError>(__TAURI_INVOKE("recording_export", { name, text })),
+	tunnelsList: () => typedError<TunnelView[], AppError>(__TAURI_INVOKE("tunnels_list")),
+	/**
+	 *  Create (no `id`) or update a tunnel. A running tunnel keeps its old settings until
+	 *  it is restarted.
+	 */
+	tunnelSave: (id: string | null, input: TunnelInput) => typedError<Tunnel, AppError>(__TAURI_INVOKE("tunnel_save", { id, input })),
+	tunnelDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("tunnel_delete", { id })),
+	tunnelStart: (id: string) => typedError<TunnelStatus, AppError>(__TAURI_INVOKE("tunnel_start", { id })),
+	tunnelStop: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("tunnel_stop", { id })),
+	/**
+	 *  Start every tunnel marked "start on unlock" (the UI calls this after unlocking).
+	 *  Returns how many are running.
+	 */
+	tunnelsAutostart: () => typedError<number, AppError>(__TAURI_INVOKE("tunnels_autostart")),
+	/**  Whether `addr:port` is free to listen on here (P8). */
+	portFree: (addr: string, port: number) => __TAURI_INVOKE<boolean>("port_free", { addr, port }),
+	/**  A free port on `addr`, chosen by the system (P8). */
+	portPick: (addr: string) => typedError<number, AppError>(__TAURI_INVOKE("port_pick", { addr })),
+	snippetsList: () => typedError<Snippet[], AppError>(__TAURI_INVOKE("snippets_list")),
+	snippetSave: (id: string | null, input: SnippetInput) => typedError<Snippet, AppError>(__TAURI_INVOKE("snippet_save", { id, input })),
+	snippetDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("snippet_delete", { id })),
+	/**  Names of the secrets snippets can use (values never leave the backend). */
+	secretsList: () => typedError<string[], AppError>(__TAURI_INVOKE("secrets_list")),
+	secretSet: (name: string, value: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_set", { name, value })),
+	secretDelete: (name: string) => typedError<null, AppError>(__TAURI_INVOKE("secret_delete", { name })),
+	/**
+	 *  Type `text` into a session, with `{{secret:name}}` filled in from the vault; `enter`
+	 *  presses Enter after it. Returns how many secrets were used.
+	 */
+	sessionType: (id: string, text: string, enter: boolean) => typedError<number, AppError>(__TAURI_INVOKE("session_type", { id, text, enter })),
+	/**
+	 *  Start running `command` on `host_ids`. Returns the run id at once; results arrive as
+	 *  `GroupRunEvent`s.
+	 */
+	groupRun: (hostIds: string[], command: string, parallel: number, stopOnFail: boolean) => typedError<string, AppError>(__TAURI_INVOKE("group_run", { hostIds, command, parallel, stopOnFail })),
+	/**  Stop a run: hosts not started yet are skipped (running ones finish). */
+	groupRunCancel: (runId: string) => __TAURI_INVOKE<void>("group_run_cancel", { runId }),
+	syncStatus: () => typedError<SyncStatus, AppError>(__TAURI_INVOKE("sync_status")),
+	/**
+	 *  Turn sync on: open (or create) the folder's sync vault with `passphrase`, keep its key
+	 *  under this vault, and sync once.
+	 */
+	syncEnable: (folder: string, passphrase: string, deviceName: string) => typedError<SyncReport, AppError>(__TAURI_INVOKE("sync_enable", { folder, passphrase, deviceName })),
+	/**  Sync now: merge the other devices' changes, then publish this device's. */
+	syncNow: () => typedError<SyncReport, AppError>(__TAURI_INVOKE("sync_now")),
+	/**  Turn sync off on this device (the folder and other devices are left alone). */
+	syncDisable: () => typedError<null, AppError>(__TAURI_INVOKE("sync_disable")),
 };
 
 /** Events */
 export const events = {
+	editEvent: makeEvent<EditEvent>("edit-event"),
+	groupRunEvent: makeEvent<GroupRunEvent>("group-run-event"),
 	sessionStateEvent: makeEvent<SessionStateEvent>("session-state-event"),
+	transfer: makeEvent<Transfer>("transfer"),
+	trayConnectEvent: makeEvent<TrayConnectEvent>("tray-connect-event"),
+	tunnelStatsEvent: makeEvent<TunnelStatsEvent>("tunnel-stats-event"),
+	vaultLockedEvent: makeEvent<VaultLockedEvent>("vault-locked-event"),
 };
 
 /* Types */
@@ -54,6 +399,89 @@ export type AppInfo = {
 	debug: boolean,
 };
 
+/**  An entry in the local audit log (X7). Never contains a secret. */
+export type AuditEvent = {
+	/**  Id (UUIDv7, so ids sort by time). */
+	id: string,
+	/**  When (RFC 3339). */
+	at: string,
+	/**  What happened, e.g. `vault.unlock`, `session.connect`, `host_key.replace`. */
+	kind: string,
+	/**  Host involved, if any. */
+	hostId: string | null,
+	/**  Host label at the time (kept when the host is deleted later). */
+	hostLabel: string | null,
+	/**  Human-readable detail. */
+	detail: string,
+};
+
+/**  How a saved host authenticates. */
+export type AuthKind = 
+/**  Password (and keyboard-interactive, with optional TOTP). */
+"password" | 
+/**  A private key from the vault. */
+"key" | 
+/**  The system SSH agent. */
+"agent";
+
+/**  Keyboard-interactive or password prompt. */
+export type AuthPrompt = {
+	/**  Title (server "name" or a default). */
+	title: string,
+	/**  Server instructions, may be empty. */
+	instructions: string,
+	/**  Fields to fill, in order. */
+	fields: PromptField[],
+	/**  Offer "save password to vault" (only for saved hosts' password prompts). */
+	canRemember: boolean,
+};
+
+/**  A backup file. */
+export type BackupInfo = {
+	/**  File name. */
+	name: string,
+	/**  When it was made (RFC 3339). */
+	createdAt: string,
+	/**  Size in bytes. */
+	size: number,
+	/**  Made automatically (pruned to the newest 7). */
+	automatic: boolean,
+};
+
+/**  One change applied to many hosts at once (H5). `None` fields are left alone. */
+export type BulkEdit = {
+	/**  Hosts to change. */
+	ids: string[],
+	/**  Move to this group (`groupId` null = ungroup) when `moveGroup` is set. */
+	moveGroup: boolean,
+	/**  Target group for `moveGroup`. */
+	groupId: string | null,
+	/**  Tags to add. */
+	addTags: string[],
+	/**  Tags to remove. */
+	removeTags: string[],
+	/**  New environment badge. */
+	environment: Environment | null,
+	/**  New favorite flag. */
+	favorite: boolean | null,
+};
+
+/**  What an OpenSSH certificate attached to a key says (CA-based login). */
+export type CertificateInfo = {
+	/**  The certificate's key id (often the user or ticket). */
+	keyId: string,
+	/**  Users it may log in as (empty = any, as the server decides). */
+	principals: string[],
+	/**  Valid from, Unix seconds. */
+	validAfter: number,
+	/**  Valid until, Unix seconds (`None` = forever). */
+	validBefore: number | null,
+	/**  Fingerprint of the CA that signed it. */
+	caFingerprint: string,
+	/**  Past its end date. */
+	expired: boolean,
+};
+
 /**  Why a session closed. */
 export type CloseReason = 
 /**  The user closed it. */
@@ -63,15 +491,151 @@ export type CloseReason =
 /**  The network or server dropped the connection. */
 "connection_lost";
 
-/**  Quick-connect request. Deliberately not `Debug`: it carries a password. */
-export type ConnectRequest = {
-	host: string,
-	port: number,
-	username: string,
-	password: string,
-	cols: number,
-	rows: number,
+/**  A command the UI saw run. */
+export type CommandInput = {
+	/**  Session it ran in. */
+	sessionId: string,
+	/**  The command line. */
+	command: string,
+	/**  Working directory (OSC 7). */
+	cwd: string | null,
+	/**  Exit code (OSC 133;D). */
+	exitCode: number | null,
+	/**  From shell integration. */
+	exact: boolean,
+	/**  Run time. */
+	durationMs: number | null,
 };
+
+/**  One command run in a terminal (history, §9.19). */
+export type CommandRecord = {
+	/**  Id. */
+	id: string,
+	/**  Saved host, if the session was one. */
+	hostId: string | null,
+	/**  Host label (or `user@host:port`, or the local shell's name). */
+	hostLabel: string,
+	/**  The command line. */
+	command: string,
+	/**  Working directory, when the shell reported it (OSC 7). */
+	cwd: string | null,
+	/**  Exit code, when the shell reported it (OSC 133;D). */
+	exitCode: number | null,
+	/**  From shell integration (`true`) or read back from typed input (`false`). */
+	exact: boolean,
+	/**  RFC 3339. */
+	startedAt: string,
+	/**  How long it ran, when known. */
+	durationMs: number | null,
+};
+
+/**  Result of parsing a config file tree. */
+export type ConfigImport = {
+	/**  Concrete hosts (wildcard patterns are applied as defaults, not imported). */
+	hosts: ImportedHost[],
+	/**  Things skipped and why. */
+	warnings: string[],
+};
+
+/**  What to do when a transfer's target already exists. */
+export type ConflictPolicy = 
+/**  Queue nothing and report the clashes, so the user can choose. */
+"ask" | 
+/**  Replace the existing file (folders merge). */
+"overwrite" | 
+/**  Leave existing files alone. */
+"skip" | 
+/**  Keep both: `name (1).ext`. */
+"rename";
+
+/**  What to connect to. Deliberately not `Debug`: quick connect may carry a password. */
+export type ConnectTarget = 
+/**  A saved host (credentials come from the vault). */
+{ kind: "host"; 
+/**  Host id. */
+hostId: string } | 
+/**  An ad-hoc connection. */
+{ kind: "quick"; 
+/**  Hostname or IP. */
+host: string; 
+/**  Port. */
+port: number; 
+/**  Remote user. */
+username: string; 
+/**  Password, if typed up front; otherwise the server will be asked how to log in. */
+password: string | null } | 
+/**  A local shell. */
+{ kind: "local"; 
+/**  Shell profile id from `shells_list`. */
+shellId: string };
+
+/**  One connection, from ready to closed (connection history, §9.19). */
+export type ConnectionRecord = {
+	/**  Id. */
+	id: string,
+	/**  Saved host, if any. */
+	hostId: string | null,
+	/**  Host label. */
+	hostLabel: string,
+	/**  "ssh" or "local". */
+	kind: string,
+	/**  RFC 3339. */
+	startedAt: string,
+	/**  RFC 3339; `None` while still open (or if Hopr quit first). */
+	endedAt: string | null,
+	/**  "user_closed", "remote_exited", "connection_lost", "failed". */
+	endReason: string | null,
+	/**  Bytes received. */
+	bytesIn: number,
+	/**  Bytes sent. */
+	bytesOut: number,
+};
+
+/**  Outcome of a deploy. */
+export type DeployReport = {
+	/**  The key was added (false: it was already there). */
+	added: boolean,
+	/**  The host now uses the key. */
+	switched: boolean,
+};
+
+/**  Desktop preferences shown in Settings. */
+export type DesktopPrefs = {
+	/**  Closing the window keeps Hopr running in the tray. */
+	closeToTray: boolean,
+	/**  Global quick-terminal hotkey ("" = off). */
+	quickHotkey: string,
+};
+
+/**  Upload or download. */
+export type Direction = 
+/**  Local → remote. */
+"upload" | 
+/**  Remote → local. */
+"download";
+
+/**  What happened to a locally edited file. */
+export type EditEvent = {
+	/**  Edit id. */
+	editId: string,
+	/**  Remote path. */
+	remote: string,
+	/**  `opened`, `saved`, `conflict` (changed on the server too) or `error`. */
+	status: string,
+	/**  Detail for errors. */
+	message: string | null,
+};
+
+/**  Environment badge (HOPR_PLAN §9.5). `Prod` gets a red edge and extra confirmations. */
+export type Environment = 
+/**  No badge. */
+"none" | 
+/**  Development. */
+"dev" | 
+/**  Staging. */
+"staging" | 
+/**  Production. */
+"prod";
 
 /**  Closed set of error codes the UI maps to friendly copy. */
 export type ErrorCode = 
@@ -93,11 +657,510 @@ export type ErrorCode =
 "vault_locked" | 
 /**  A storage (SQLite) operation failed. */
 "storage" | 
+/**  A private key is encrypted and needs its passphrase. */
+"passphrase_required" | 
 /**  Anything not covered above. */
 "internal";
 
+/**  Export formats (H8). */
+export type ExportFormat = 
+/**  OpenSSH client config. */
+"ssh_config" | 
+/**  Spreadsheet. */
+"csv";
+
+/**  One session found in another client. */
+export type ForeignHost = {
+	/**  Session name (becomes the label). */
+	label: string,
+	/**  SSH, telnet or serial. */
+	protocol: Protocol,
+	/**  Hostname (serial: the port name). */
+	hostname: string,
+	/**  Port (22/23 by default). */
+	port: number,
+	/**  User, if saved. */
+	username: string,
+	/**  Folder the session was in (becomes a group). */
+	group: string | null,
+	/**  Serial line settings. */
+	serial: SerialConfig | null,
+	/**  Private key file the session used, if any. */
+	keyFile: string | null,
+	/**  Local proxy command, translated to `%h`/`%p`/`%r`. */
+	proxyCommand: string | null,
+};
+
+/**  What a file held. */
+export type ForeignImport = {
+	/**  Sessions that can be imported. */
+	hosts: ForeignHost[],
+	/**  What was skipped and why. */
+	warnings: string[],
+};
+
+/**  Where sessions come from. */
+export type ForeignSource = 
+/**  PuTTY (KiTTY uses the same format). */
+"putty" | 
+/**  MobaXterm. */
+"mobaxterm" | 
+/**  SecureCRT. */
+"securecrt" | 
+/**  A CSV file (Termius export, spreadsheets). */
+"csv";
+
+/**  A host group (folder). */
+export type Group = {
+	/**  Id. */
+	id: string,
+	/**  Name. */
+	name: string,
+	/**  Sort position. */
+	sortOrder: number,
+};
+
+/**  One host's progress or result. */
+export type GroupRunEvent = {
+	/**  Run id. */
+	runId: string,
+	/**  Host id. */
+	hostId: string,
+	/**  Host label. */
+	label: string,
+	/**  State. */
+	state: HostRunState,
+	/**  Exit status, when it ran. */
+	exitStatus: number | null,
+	/**  How long it took. */
+	durationMs: number | null,
+	/**  Standard output (last 64 KB). */
+	stdout: string,
+	/**  Standard error (last 64 KB). */
+	stderr: string,
+	/**  Why it couldn't run. */
+	error: string | null,
+};
+
+/**  History and recording preferences. */
+export type HistorySettings = {
+	/**  Save commands at all. */
+	enabled: boolean,
+	/**  Skip commands typed with a leading space. */
+	ignoreSpace: boolean,
+	/**  Commands matching these globs (`*` = anything, case-insensitive) are never saved. */
+	exclude: string[],
+	/**  Record every new session (asciicast). */
+	recordAll: boolean,
+	/**
+	 *  Notify when a command that ran at least this long finishes in the background
+	 *  (0 = never).
+	 */
+	notifyAfterSecs: number,
+};
+
+/**  A saved host as the UI sees it. Secrets are never included, only whether they exist. */
+export type Host = {
+	/**  Id (UUIDv7). */
+	id: string,
+	/**  Display name. */
+	label: string,
+	/**  SSH, telnet or serial. */
+	protocol: Protocol,
+	/**  Hostname or IP (serial: the port name, e.g. `COM3` or `/dev/ttyUSB0`). */
+	hostname: string,
+	/**  SSH or telnet port. */
+	port: number,
+	/**  Line settings (serial only). */
+	serial: SerialConfig | null,
+	/**  Command whose stdin/stdout carry the SSH connection (OpenSSH `ProxyCommand`). */
+	proxyCommand: string | null,
+	/**  Remote user. */
+	username: string,
+	/**  Owning group. */
+	groupId: string | null,
+	/**  Free-form tags. */
+	tags: string[],
+	/**  Authentication method. */
+	auth: AuthKind,
+	/**  Key used when `auth == Key`. */
+	keyId: string | null,
+	/**  Saved host to connect through first (jump chain). */
+	jumpHostId: string | null,
+	/**  Forward the local SSH agent to this host. */
+	agentForwarding: boolean,
+	/**  Proxy for the first hop. */
+	proxy: HostProxy | null,
+	/**  A proxy password is stored in the vault. */
+	hasProxyPassword: boolean,
+	/**  A password is stored in the vault. */
+	hasPassword: boolean,
+	/**  A TOTP seed is stored in the vault. */
+	hasTotp: boolean,
+	/**  Pinned to Favorites. */
+	favorite: boolean,
+	/**  Environment badge. */
+	environment: Environment,
+	/**  Markdown notes. */
+	notes: string,
+	/**  Last successful connect (RFC 3339). */
+	lastConnectedAt: string | null,
+	/**  Number of successful connects. */
+	connectCount: number,
+	/**  Created (RFC 3339). */
+	createdAt: string,
+	/**  Updated (RFC 3339). */
+	updatedAt: string,
+};
+
+/**  Create/update payload for a host. Not `Debug`: it may carry secrets. */
+export type HostInput = {
+	/**  Display name (defaults to hostname when empty). */
+	label: string,
+	/**  SSH (default), telnet or serial. */
+	protocol?: Protocol,
+	/**  Hostname or IP (serial: the port name). */
+	hostname: string,
+	/**  SSH or telnet port. */
+	port: number,
+	/**  Line settings (serial only; defaults to 9600 8N1). */
+	serial?: SerialConfig | null,
+	/**  OpenSSH-style `ProxyCommand` (`%h`, `%p`, `%r` are replaced). */
+	proxyCommand?: string | null,
+	/**  Remote user. */
+	username: string,
+	/**  Owning group. */
+	groupId: string | null,
+	/**  Tags. */
+	tags: string[],
+	/**  Authentication method. */
+	auth: AuthKind,
+	/**  Key for `auth == Key`. */
+	keyId: string | null,
+	/**  Saved host to connect through first (jump chain). */
+	jumpHostId: string | null,
+	/**  Forward the local SSH agent to this host. */
+	agentForwarding: boolean,
+	/**  Proxy for the first hop. */
+	proxy: HostProxy | null,
+	/**  Proxy password change. */
+	proxyPassword: SecretChange,
+	/**  Favorite flag. */
+	favorite: boolean,
+	/**  Environment badge. */
+	environment: Environment,
+	/**  Notes. */
+	notes: string,
+	/**  Password change. */
+	password: SecretChange,
+	/**  TOTP seed change (base32). */
+	totpSeed: SecretChange,
+};
+
+/**  The user's answer to a host key prompt. */
+export type HostKeyDecision = 
+/**  Trust and remember. */
+"trust" | 
+/**  Connect this time only. */
+"once" | 
+/**  Abort. */
+"reject";
+
+/**  Host key verification request (HOPR_PLAN §9.15). */
+export type HostKeyPrompt = {
+	/**  Host as dialed. */
+	host: string,
+	/**  Port. */
+	port: number,
+	/**  Key algorithm, e.g. "ssh-ed25519". */
+	keyType: string,
+	/**  "SHA256:…". */
+	fingerprint: string,
+	/**  `true` when a different key was trusted before: a possible MITM, shown as a hard stop. */
+	changed: boolean,
+	/**  Fingerprints previously trusted for this host (when `changed`). */
+	previous: string[],
+};
+
+/**  A proxy in front of a host. Its password lives in the vault. */
+export type HostProxy = {
+	/**  Protocol. */
+	protocol: ProxyProtocol,
+	/**  Proxy host. */
+	host: string,
+	/**  Proxy port. */
+	port: number,
+	/**  Username, if the proxy needs one. */
+	username: string | null,
+};
+
+/**  Where one host is in a run. */
+export type HostRunState = 
+/**  Waiting for a slot. */
+"queued" | 
+/**  Running now. */
+"running" | 
+/**  Exited 0. */
+"ok" | 
+/**  Non-zero exit, or couldn't run. */
+"failed" | 
+/**  Not run (cancelled, or stopped after a failure). */
+"skipped";
+
+/**  Outcome of an import. */
+export type ImportSummary = {
+	/**  Hosts created. */
+	hosts: number,
+	/**  Keys stored. */
+	keys: number,
+	/**  Trusted host keys added. */
+	knownHosts: number,
+	/**  What was skipped and why. */
+	warnings: string[],
+};
+
+/**  One host parsed from an OpenSSH client config. */
+export type ImportedHost = {
+	/**  The `Host` alias (becomes the label). */
+	alias: string,
+	/**  `HostName`, or the alias when absent. */
+	hostname: string,
+	/**  `Port` (default 22). */
+	port: number,
+	/**  `User`, if set. */
+	user: string | null,
+	/**  `IdentityFile` paths, `~` expanded. */
+	identityFiles: string[],
+	/**  `ProxyJump`, kept for display (jump chains arrive in Phase 3). */
+	proxyJump: string | null,
+	/**  `ProxyCommand` (the whole command line; `none` means no command). */
+	proxyCommand: string | null,
+};
+
+/**  Algorithms offered by "Generate key" (HOPR_PLAN §9.14). */
+export type KeyAlgorithm = 
+/**  Ed25519 (default). */
+"ed25519" | 
+/**  ECDSA on NIST P-256. */
+"ecdsa_p256" | 
+/**  RSA 3072-bit. */
+"rsa3072" | 
+/**  RSA 4096-bit. */
+"rsa4096";
+
+/**  A trusted host key. */
+export type KnownHost = {
+	/**  Id. */
+	id: string,
+	/**  Hostname, `[host]:port` or OpenSSH hashed pattern. */
+	hostPattern: string,
+	/**  Port. */
+	port: number,
+	/**  Key algorithm. */
+	keyType: string,
+	/**  Base64 public key blob. */
+	keyB64: string,
+	/**  "SHA256:…". */
+	fingerprint: string,
+	/**  First trusted (RFC 3339). */
+	firstSeenAt: string,
+	/**  Last seen (RFC 3339). */
+	lastSeenAt: string,
+	/**  "tofu" | "imported" | "manual". */
+	source: string,
+};
+
+/**  Everything the hosts screen shows. */
+export type Library = {
+	/**  Saved hosts. */
+	hosts: Host[],
+	/**  Groups. */
+	groups: Group[],
+	/**  Stored keys. */
+	keys: SshKeyInfo[],
+};
+
+/**  A local file or folder (dual pane). */
+export type LocalEntry = {
+	/**  Name. */
+	name: string,
+	/**  Full path. */
+	path: string,
+	/**  A folder. */
+	dir: boolean,
+	/**  Size in bytes. */
+	size: number,
+	/**  Modified, Unix seconds. */
+	modified: number | null,
+};
+
+/**  Serial parity. */
+export type Parity = 
+/**  None. */
+"none" | 
+/**  Odd. */
+"odd" | 
+/**  Even. */
+"even";
+
+/**  Reachability of one host. */
+export type PingResult = {
+	/**  Host id. */
+	id: string,
+	/**  TCP connect time in milliseconds; `None` when unreachable or not probed. */
+	ms: number | null,
+	/**  `reachable`, `unreachable`, or `skipped` (behind a jump host or proxy). */
+	status: string,
+};
+
+/**  What the preview pane can show. */
+export type Preview = 
+/**  UTF-8 text (possibly cut off). */
+{ kind: "text"; 
+/**  Content. */
+text: string; 
+/**  Only the start of the file is shown. */
+truncated: boolean } | 
+/**  An image, as a data URL. */
+{ kind: "image"; 
+/**  `data:image/...;base64,...`. */
+dataUrl: string } | 
+/**  Not previewable. */
+{ kind: "binary" };
+
+/**  One input field of an authentication prompt. */
+export type PromptField = {
+	/**  Server-provided label, e.g. "Password:" or "Verification code:". */
+	label: string,
+	/**  Whether typed characters may be shown. */
+	echo: boolean,
+};
+
+/**  Answer to an authentication prompt. Not `Debug`: carries secrets. */
+export type PromptReply = {
+	/**  One value per prompt field. */
+	responses: string[],
+	/**  Save the typed password to the vault after a successful login. */
+	remember: boolean,
+};
+
+/**  What a saved host speaks (§9.1, reach). */
+export type Protocol = 
+/**  SSH (the default). */
+"ssh" | 
+/**  Telnet: plain text, for network gear and old systems. */
+"telnet" | 
+/**  A local serial port (console cables); `hostname` holds the port name. */
+"serial";
+
+/**  Proxy protocol for reaching a host's first hop (C7). */
+export type ProxyProtocol = 
+/**  SOCKS5 (names resolved by the proxy). */
+"socks5" | 
+/**  HTTP `CONNECT`. */
+"http";
+
+/**  Result of queueing transfers. */
+export type QueueResult = {
+	/**  Transfers queued. */
+	queued: number,
+	/**
+	 *  Names that already exist at the target (only with `ConflictPolicy::Ask`; nothing
+	 *  was queued then).
+	 */
+	conflicts: string[],
+};
+
 /**  Terminal bytes. Sent to JS as a raw `ArrayBuffer`, not a JSON number array. */
 export type RawBytes = number[];
+
+/**  A saved session recording (asciicast v2, §9.18). */
+export type Recording = {
+	/**  File name inside the recordings folder (also its id). */
+	name: string,
+	/**  What was recorded (host label). */
+	title: string,
+	/**  RFC 3339 (from the file's header, else its modified time). */
+	startedAt: string,
+	/**  File size in bytes. */
+	size: number,
+	/**  Length in seconds (time of the last event). */
+	duration: number,
+};
+
+/**  One entry in a remote directory listing (SFTP, S1). */
+export type RemoteEntry = {
+	/**  File name. */
+	name: string,
+	/**  Full remote path. */
+	path: string,
+	/**  Kind. */
+	kind: RemoteKind,
+	/**  Size in bytes (f64: exact to 2^53, and TypeScript has no u64). */
+	size: number,
+	/**  Last modified, Unix seconds. */
+	modified: number | null,
+	/**  Permission bits (e.g. 0o644), without the file-type bits. */
+	mode: number,
+	/**  Owner name or uid. */
+	owner: string | null,
+	/**  Group name or gid. */
+	group: string | null,
+};
+
+/**  What a remote directory entry is. */
+export type RemoteKind = 
+/**  Regular file. */
+"file" | 
+/**  Directory. */
+"dir" | 
+/**  Symbolic link. */
+"link" | 
+/**  Anything else (device, socket, fifo). */
+"other";
+
+/**  What clicking a snippet does (§9.12). */
+export type RunMode = 
+/**  Type it at the prompt, without Enter. */
+"paste" | 
+/**  Type it and press Enter. */
+"paste_enter" | 
+/**  Show it, run on confirmation. */
+"confirm";
+
+/**  How an edit treats a secret field. */
+export type SecretChange = 
+/**  Leave the stored value as is. */
+{ action: "keep" } | 
+/**  Remove the stored value. */
+{ action: "clear" } | 
+/**  Replace with a new value. */
+{ action: "set"; 
+/**  New plaintext (encrypted before storage). */
+value: string };
+
+/**  Line settings for a serial host. */
+export type SerialConfig = {
+	/**  Bits per second, e.g. 9600 or 115200. */
+	baud: number,
+	/**  5–8. */
+	dataBits: number,
+	/**  Parity. */
+	parity: Parity,
+	/**  1 or 2. */
+	stopBits: number,
+	/**  Flow control. */
+	flow: SerialFlow,
+};
+
+/**  Serial flow control. */
+export type SerialFlow = 
+/**  None. */
+"none" | 
+/**  XON/XOFF. */
+"software" | 
+/**  RTS/CTS. */
+"hardware";
 
 /**  Connection lifecycle. Invalid states are unrepresentable. */
 export type SessionState = 
@@ -107,16 +1170,38 @@ export type SessionState =
 hop: number; 
 /**  Number of hops in the chain. */
 total: number } | 
+/**  The connection to hop `hop` is open; running the SSH handshake with it. */
+{ kind: "handshaking"; 
+/**  Current hop, 1-based. */
+hop: number; 
+/**  Number of hops in the chain. */
+total: number; 
+/**  How long opening the connection took, in milliseconds (about one round trip). */
+rttMs: number | null } | 
+/**  The server's host key is new or has changed; waiting for the user's decision. */
+{ kind: "verifying_host_key"; 
+/**  What to show. */
+prompt: HostKeyPrompt } | 
 /**  Running authentication with the named method. */
 { kind: "authenticating"; 
 /**  e.g. "password", "publickey". */
 method: string } | 
+/**  The server (or a missing password) needs input from the user. */
+{ kind: "prompting"; 
+/**  What to ask. */
+prompt: AuthPrompt } | 
+/**  Logged in everywhere; asking the server for a terminal and a shell. */
+{ kind: "opening_shell" } | 
 /**  Shell is live. */
 { kind: "ready" } | 
 /**  Connection lost; retrying. */
 { kind: "reconnecting"; 
 /**  Attempt number, 1-based. */
-attempt: number } | 
+attempt: number; 
+/**  Attempts before giving up. */
+maxAttempts: number; 
+/**  Seconds until this attempt starts. */
+retryInSecs: number } | 
 /**  Session ended. */
 { kind: "closed"; 
 /**  Why it ended. */
@@ -132,6 +1217,334 @@ export type SessionStateEvent = {
 	id: string,
 	/**  New state. */
 	state: SessionState,
+};
+
+/**  A launchable local shell. */
+export type ShellProfile = {
+	/**  Stable id, e.g. "pwsh", "wsl:Ubuntu". */
+	id: string,
+	/**  Display name. */
+	name: string,
+	/**  Executable path or name. */
+	program: string,
+	/**  Arguments. */
+	args: string[],
+};
+
+/**  A saved command or script with optional `{{variables}}`. */
+export type Snippet = {
+	/**  Id. */
+	id: string,
+	/**  Name. */
+	name: string,
+	/**  Folder path ("Ops/Postgres"); "" for the top level. */
+	folder: string,
+	/**  Tags. */
+	tags: string[],
+	/**  What it does. */
+	description: string,
+	/**
+	 *  The text, with `{{name}}`, `{{name:default}}`, `{{name:a|b|c}}`, `{{secret:x}}`
+	 *  and built-ins `{{host}} {{user}} {{date}} {{clipboard}}`.
+	 */
+	body: string,
+	/**  Paste, paste + Enter, or confirm first. */
+	runMode: RunMode,
+	/**  Updated (RFC 3339). */
+	updatedAt: string,
+};
+
+/**  Create/update payload for a snippet. */
+export type SnippetInput = {
+	/**  Name. */
+	name: string,
+	/**  Folder path. */
+	folder: string,
+	/**  Tags. */
+	tags: string[],
+	/**  Description. */
+	description: string,
+	/**  Body. */
+	body: string,
+	/**  Run mode. */
+	runMode: RunMode,
+};
+
+/**  A stored private key's public metadata. */
+export type SshKeyInfo = {
+	/**  Id. */
+	id: string,
+	/**  Display name. */
+	label: string,
+	/**  e.g. "ssh-ed25519". */
+	algorithm: string,
+	/**  "SHA256:…". */
+	fingerprint: string,
+	/**  OpenSSH public key line. */
+	publicKey: string,
+	/**  Key comment. */
+	comment: string,
+	/**  Number of hosts using it. */
+	usedBy: number,
+	/**  Created (RFC 3339). */
+	createdAt: string,
+	/**  OpenSSH certificate signed for this key, used with it when logging in. */
+	certificate: string | null,
+	/**  What the certificate says (filled in for the UI). */
+	certificateInfo: CertificateInfo | null,
+};
+
+/**  Another device seen in the folder. */
+export type SyncDevice = {
+	/**  Its name. */
+	name: string,
+	/**  When it last wrote (RFC 3339). */
+	writtenAt: string,
+};
+
+/**  What one sync did. */
+export type SyncReport = {
+	/**  Created or updated here. */
+	applied: number,
+	/**  Deleted here. */
+	deleted: number,
+	/**  Records published. */
+	pushed: number,
+	/**  Other devices. */
+	devices: SyncDevice[],
+	/**  What couldn't be applied. */
+	warnings: string[],
+};
+
+/**  Where sync stands. */
+export type SyncStatus = {
+	/**  Turned on for this device. */
+	enabled: boolean,
+	/**  The folder. */
+	folder: string | null,
+	/**  This device's name. */
+	deviceName: string | null,
+	/**  Last successful sync (RFC 3339). */
+	lastSync: string | null,
+	/**  Why the last sync failed. */
+	lastError: string | null,
+	/**  Other devices seen last time. */
+	devices: SyncDevice[],
+};
+
+/**  One transfer as the UI sees it (also the progress event). */
+export type Transfer = {
+	/**  Id. */
+	id: string,
+	/**  Direction. */
+	direction: Direction,
+	/**  File name. */
+	name: string,
+	/**  Local path. */
+	local: string,
+	/**  Remote path. */
+	remote: string,
+	/**  Host id. */
+	hostId: string,
+	/**  Host label. */
+	hostLabel: string,
+	/**  Total bytes. */
+	size: number,
+	/**  Bytes done. */
+	done: number,
+	/**  Bytes per second during this run. */
+	speed: number,
+	/**  Status. */
+	status: TransferStatus,
+	/**  Why it failed. */
+	error: string | null,
+};
+
+/**  Transfer settings (S5). */
+export type TransferSettings = {
+	/**  Transfers at once (1–8). */
+	concurrency: number,
+	/**  Total speed limit in KiB/s (0 = none). */
+	limitKbps: number,
+};
+
+/**  Where a transfer is. */
+export type TransferStatus = 
+/**  Waiting for a slot. */
+"queued" | 
+/**  Moving bytes. */
+"running" | 
+/**  Stopped by the user; resumes from where it stopped. */
+"paused" | 
+/**  Finished. */
+"done" | 
+/**  Gave up after retries. */
+"failed" | 
+/**  Stopped for good. */
+"cancelled";
+
+/**  The user picked a host in the tray menu. */
+export type TrayConnectEvent = {
+	/**  Host id. */
+	hostId: string,
+};
+
+/**  A host listed under "Recent hosts" in the tray. */
+export type TrayHost = {
+	/**  Host id. */
+	id: string,
+	/**  Label. */
+	label: string,
+};
+
+/**  A saved port forward. */
+export type Tunnel = {
+	/**  Id. */
+	id: string,
+	/**  Host it goes through. */
+	hostId: string,
+	/**  Optional name ("Postgres", "Grafana"). */
+	label: string,
+	/**  Direction. */
+	kind: TunnelKind,
+	/**  Address to listen on (here for local/dynamic, on the host for remote). */
+	bindAddr: string,
+	/**  Port to listen on (0 = pick a free one when starting). */
+	bindPort: number,
+	/**  Destination host (not used by dynamic). */
+	destHost: string,
+	/**  Destination port (not used by dynamic). */
+	destPort: number,
+	/**  Start when the vault unlocks. */
+	autoStart: boolean,
+};
+
+/**  Create/update payload for a tunnel. */
+export type TunnelInput = {
+	/**  Host it goes through. */
+	hostId: string,
+	/**  Optional name. */
+	label: string,
+	/**  Direction. */
+	kind: TunnelKind,
+	/**  Address to listen on. */
+	bindAddr: string,
+	/**  Port to listen on (0 = pick when starting). */
+	bindPort: number,
+	/**  Destination host. */
+	destHost: string,
+	/**  Destination port. */
+	destPort: number,
+	/**  Start when the vault unlocks. */
+	autoStart: boolean,
+};
+
+/**  Direction of a port forward (§9.11). */
+export type TunnelKind = 
+/**  `-L`: a local port reaches a destination as seen from the host. */
+"local" | 
+/**  `-R`: a port on the host reaches a destination as seen from here. */
+"remote" | 
+/**  `-D`: a local SOCKS5 proxy whose connections leave from the host. */
+"dynamic";
+
+/**  Where a tunnel is. */
+export type TunnelState = 
+/**  Not running. */
+"stopped" | 
+/**  Connecting. */
+"starting" | 
+/**  Listening and forwarding. */
+"running" | 
+/**  Couldn't start, or the connection dropped. */
+"failed";
+
+/**  Every live tunnel's status, once a second while any runs. */
+export type TunnelStatsEvent = {
+	/**  Statuses (running, starting, failed, and ones that just stopped). */
+	tunnels: TunnelStatus[],
+};
+
+/**  Live status of one tunnel. */
+export type TunnelStatus = {
+	/**  Tunnel id. */
+	id: string,
+	/**  State. */
+	state: TunnelState,
+	/**  Why it failed. */
+	error: string | null,
+	/**  The port actually listened on (differs from the saved one when that was 0). */
+	boundPort: number | null,
+	/**  Bytes towards the destination. */
+	up: number,
+	/**  Bytes back. */
+	down: number,
+	/**  Bytes per second towards the destination (last second). */
+	upRate: number,
+	/**  Bytes per second back. */
+	downRate: number,
+	/**  Connections open now. */
+	active: number,
+	/**  Connections since start. */
+	total: number,
+};
+
+/**  A tunnel and its live status. */
+export type TunnelView = {
+	/**  Saved settings. */
+	tunnel: Tunnel,
+	/**  Live status. */
+	status: TunnelStatus,
+};
+
+/**  What the UI shows about an available update. */
+export type UpdateInfo = {
+	/**  New version. */
+	version: string,
+	/**  Running version. */
+	current: string,
+	/**  Release notes. */
+	notes: string | null,
+};
+
+/**  Emitted when the vault locks on its own (idle timeout). */
+export type VaultLockedEvent = {
+	/**  "idle". */
+	reason: string,
+};
+
+/**  What the UI needs to decide between onboarding, unlock and the app. */
+export type VaultStatus = {
+	/**  A vault has been created. */
+	exists: boolean,
+	/**  The vault is unlocked. */
+	unlocked: boolean,
+	/**  A remembered key is in the OS keychain. */
+	remembered: boolean,
+	/**  Auto-lock timeout in minutes (0 = never). */
+	autoLockMinutes: number,
+	/**  Seconds before a copied secret is cleared from the clipboard (0 = never). */
+	clipboardClearSecs: number,
+	/**  Unlock with Windows Hello is on. */
+	biometric: boolean,
+	/**  Windows Hello is set up on this device. */
+	biometricAvailable: boolean,
+};
+
+/**  A saved layout of tabs and splits (R6). `layout_json` is owned by the UI. */
+export type Workspace = {
+	/**  Id. */
+	id: string,
+	/**  Name ("Last session" for the autosave). */
+	name: string,
+	/**  Tabs, splits and pane targets as JSON. Never secrets. */
+	layoutJson: string,
+	/**  The autosaved last session. */
+	autosave: boolean,
+	/**  Opened at startup. */
+	startup: boolean,
+	/**  Last saved (RFC 3339). */
+	updatedAt: string,
 };
 
 /* Tauri Specta runtime */

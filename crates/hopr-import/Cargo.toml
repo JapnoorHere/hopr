@@ -1,0 +1,16 @@
+[package]
+name = "hopr-import"
+description = "Hopr importers: OpenSSH client config and known_hosts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+data-encoding = "2"
+hopr-core.workspace = true
+serde.workspace = true
+sha2 = "0.10"
+specta.workspace = true
+
+[lints]
+workspace = true

@@ -7,7 +7,9 @@ A fast, lightweight SSH client built with Tauri 2, Rust and Svelte 5. The full p
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Foundations: workspace, tokens, themes, app shell, CI | Done |
-| 1 | SSH → xterm data path | Next |
+| 1 | SSH → xterm data path (55 MB/s, no UI freeze) | Done |
+| 2 | Vault, auth, saved hosts, keys, local terminal | Built (throughput check open) |
+| 3 | Workspace UX: splits, command palette, jump hosts | Next |
 
 ## Develop
 

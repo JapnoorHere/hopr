@@ -9,9 +9,9 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use hopr_core::SessionState;
 use hopr_core::session::{FlowControl, OUTPUT_CAPACITY};
-use hopr_ssh::{ConnectParams, spawn_session};
+use hopr_core::{HostKeyDecision, SessionState};
+use hopr_ssh::{ConnectParams, Credential, Hop, SessionHooks, spawn_session};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -25,23 +25,47 @@ async fn main() {
     let session = spawn_session(
         "probe".into(),
         ConnectParams {
-            host: host.clone(),
-            port: port.parse().unwrap(),
-            username: user.clone(),
-            password: password.clone().into(),
+            hops: vec![Hop {
+                host: host.clone(),
+                port: port.parse().unwrap(),
+                username: user.clone(),
+                credentials: vec![Credential::Password(password.clone().into())],
+                known_hosts: Vec::new(),
+                on_save_password: None,
+            }],
+            agent_forwarding: false,
+            proxy: None,
+            proxy_command: None,
+            reconnect: None,
             cols: 200,
             rows: 50,
             connect_timeout: Duration::from_secs(20),
+            hooks: SessionHooks::default(),
         },
         tx,
         Arc::new(FlowControl::default()),
     );
     let mut state = session.state();
-    state.wait_for(|s| *s == SessionState::Ready).await.unwrap();
+    // A local probe: accept the dev server's (unknown) host key for this run only.
+    loop {
+        let s = state.borrow_and_update().clone();
+        match s {
+            SessionState::Ready => break,
+            SessionState::VerifyingHostKey { .. } => session
+                .try_host_key_decision(HostKeyDecision::Once)
+                .unwrap(),
+            s if s.is_terminal() => panic!("connect failed: {s:?}"),
+            _ => {}
+        }
+        state.changed().await.unwrap();
+    }
     tokio::time::sleep(Duration::from_secs(2)).await; // let the prompt settle
     while rx.try_recv().is_ok() {}
 
-    session.write(format!("{command}\r").into_bytes()).await.unwrap();
+    session
+        .write(format!("{command}\r").into_bytes())
+        .await
+        .unwrap();
     let start = Instant::now();
     let mut total = 0usize;
     let mut tail: Vec<u8> = Vec::new();

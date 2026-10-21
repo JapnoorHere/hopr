@@ -2,6 +2,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CopySimple, Minus, Square, X } from "phosphor-svelte";
 import TabStrip from "$features/terminal/TabStrip.svelte";
+import { vault } from "$features/vault/vault.svelte";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import { inTauri } from "$lib/ipc";
 
@@ -34,7 +35,7 @@ $effect(() => {
   <div class="grid w-12 shrink-0 place-items-center text-accent" data-tauri-drag-region>
     <HoprMark size={20} />
   </div>
-  <TabStrip />
+  {#if vault.unlocked}<TabStrip />{/if}
   <!-- The empty area right of the tabs doubles as the window drag region. -->
   <div class="min-w-0 flex-1" data-tauri-drag-region></div>
 

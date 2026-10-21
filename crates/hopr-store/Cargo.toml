@@ -1,0 +1,25 @@
+[package]
+name = "hopr-store"
+description = "Hopr persistence: SQLite via sqlx, migrations, repositories (secrets encrypted with hopr-vault)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hopr-core.workspace = true
+hopr-vault = { path = "../hopr-vault" }
+secrecy = "0.10"
+zeroize = "1"
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+thiserror.workspace = true
+time = { version = "0.3", features = ["formatting", "parsing"] }
+tokio.workspace = true
+uuid = { version = "1", features = ["v7"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

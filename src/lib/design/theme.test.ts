@@ -4,6 +4,7 @@ import {
   DEFAULT_APPEARANCE,
   loadAppearance,
   parseAppearance,
+  resolveMotion,
   saveAppearance,
 } from "./theme";
 
@@ -23,16 +24,18 @@ function memoryStorage(): Storage {
 
 describe("parseAppearance", () => {
   it("accepts valid input", () => {
-    expect(parseAppearance({ theme: "moss", density: "compact" })).toEqual({
+    expect(parseAppearance({ theme: "moss", density: "compact", motion: "off" })).toEqual({
       theme: "moss",
       density: "compact",
+      motion: "off",
     });
   });
 
   it("falls back per field on invalid input", () => {
-    expect(parseAppearance({ theme: "neon", density: "spacious" })).toEqual({
+    expect(parseAppearance({ theme: "neon", density: "spacious", motion: "wild" })).toEqual({
       theme: "ember",
       density: "spacious",
+      motion: "system",
     });
     expect(parseAppearance(null)).toEqual(DEFAULT_APPEARANCE);
     expect(parseAppearance({ density: "toString" })).toEqual(DEFAULT_APPEARANCE);
@@ -42,8 +45,8 @@ describe("parseAppearance", () => {
 describe("storage round trip", () => {
   it("saves and loads", () => {
     const s = memoryStorage();
-    saveAppearance({ theme: "paper", density: "spacious" }, s);
-    expect(loadAppearance(s)).toEqual({ theme: "paper", density: "spacious" });
+    saveAppearance({ theme: "paper", density: "spacious", motion: "reduced" }, s);
+    expect(loadAppearance(s)).toEqual({ theme: "paper", density: "spacious", motion: "reduced" });
   });
 
   it("survives corrupt or missing storage", () => {
@@ -57,8 +60,18 @@ describe("storage round trip", () => {
 describe("applyAppearance", () => {
   it("sets theme attribute and density variable", () => {
     const el = document.createElement("div");
-    applyAppearance({ theme: "tide", density: "compact" }, el);
+    applyAppearance({ theme: "tide", density: "compact", motion: "off" }, el);
     expect(el.dataset.theme).toBe("tide");
     expect(el.style.getPropertyValue("--density")).toBe("0.8");
+    expect(el.dataset.motion).toBe("off");
+  });
+});
+
+describe("resolveMotion", () => {
+  it("follows the system only when asked to", () => {
+    expect(resolveMotion("system", true)).toBe("reduced");
+    expect(resolveMotion("system", false)).toBe("full");
+    expect(resolveMotion("full", true)).toBe("full");
+    expect(resolveMotion("off", false)).toBe("off");
   });
 });

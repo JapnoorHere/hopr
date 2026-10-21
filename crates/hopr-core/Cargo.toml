@@ -6,13 +6,14 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+secrecy = "0.10"
 serde.workspace = true
+serde_json.workspace = true
 specta.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
 [lints]

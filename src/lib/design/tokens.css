@@ -10,11 +10,75 @@
   --radius-sm: calc(var(--radius) - 2px);
   --radius-lg: calc(var(--radius) + 4px);
   --blur: 12px;
+  /* Floating layers: toasts and banners, and drawers stacked over the page. */
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-drawer: -12px 0 32px rgb(0 0 0 / 0.35);
 
-  --dur-fast: 120ms;
-  --dur: 160ms;
-  --dur-slow: 200ms;
+  /* Motion: one scale for the whole app (see the motion plan). Exits run ~30% shorter. */
+  --dur-instant: 90ms;
+  --dur-fast: 140ms;
+  --dur: 180ms;
+  --dur-slow: 240ms;
+  --dur-spring: 380ms;
+  --dur-story: 600ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Springs (stiffness 260 / damping 26: 1.4% overshoot; 380 / 20: 15%), sampled for linear(). */
+  --ease-spring: linear(
+    0,
+    0.05,
+    0.166,
+    0.309,
+    0.454,
+    0.587,
+    0.701,
+    0.793,
+    0.865,
+    0.918,
+    0.956,
+    0.982,
+    0.998,
+    1.008,
+    1.012,
+    1.014,
+    1.013,
+    1.012,
+    1.01,
+    1.008,
+    1.006,
+    1.004,
+    1.003,
+    1.002,
+    1
+  );
+  --ease-bounce: linear(
+    0,
+    0.113,
+    0.362,
+    0.64,
+    0.877,
+    1.041,
+    1.129,
+    1.153,
+    1.136,
+    1.097,
+    1.055,
+    1.019,
+    0.994,
+    0.98,
+    0.977,
+    0.979,
+    0.985,
+    0.992,
+    0.997,
+    1.001,
+    1.003,
+    1.004,
+    1.003,
+    1.002,
+    1
+  );
 
   --font-ui: "Geist Variable", system-ui, sans-serif;
   --font-mono: "Commit Mono", "Geist Mono Variable", ui-monospace, monospace;
@@ -98,10 +162,33 @@
   --scheme: light;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --dur-fast: 0ms;
-    --dur: 0ms;
-    --dur-slow: 0ms;
-  }
+/*
+ * Settings > Motion sets data-motion on the root (by default from the system setting).
+ * Reduced: fades and colour changes stay short; movement, springs and loops stop.
+ * Off: everything is instant.
+ */
+:root[data-motion="reduced"] {
+  --dur-instant: 0ms;
+  --dur-fast: 100ms;
+  --dur: 100ms;
+  --dur-slow: 100ms;
+  --dur-spring: 100ms;
+  --dur-story: 0ms;
+  --ease-spring: var(--ease-out);
+  --ease-bounce: var(--ease-out);
+}
+:root[data-motion="off"] {
+  --dur-instant: 0ms;
+  --dur-fast: 0ms;
+  --dur: 0ms;
+  --dur-slow: 0ms;
+  --dur-spring: 0ms;
+  --dur-story: 0ms;
+}
+:root[data-motion="off"] *,
+:root[data-motion="off"] *::before,
+:root[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

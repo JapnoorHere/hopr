@@ -2,6 +2,7 @@
 import { sessions } from "$features/terminal/session.svelte";
 import { describeState } from "$features/terminal/state";
 import { type AppInfo, commands, inTauri } from "$lib/ipc";
+import { blurFade } from "$lib/motion";
 
 let info = $state<AppInfo | null>(null);
 const active = $derived(sessions.active);
@@ -19,11 +20,17 @@ $effect(() => {
   class="flex h-7 shrink-0 items-center gap-4 border-t border-border bg-surface-1 px-3 text-xs text-muted"
 >
   <span class="flex min-w-0 items-center gap-2" role="status">
-    <span class="dot size-1.5 shrink-0 rounded-full" data-tone={status?.tone ?? "idle"}></span>
+    <span
+      class="dot size-1.5 shrink-0 rounded-full"
+      class:ring-once={status?.tone === "live"}
+      data-tone={status?.tone ?? "idle"}
+    ></span>
     {#if active && status}
-      <span class="truncate">{status.label}</span>
+      {#key status.label}
+        <span class="truncate" in:blurFade={{ y: 4, blur: 2, duration: 180 }}>{status.label}</span>
+      {/key}
       <span class="tabular truncate text-faint">
-        {active.target.username}@{active.target.host}:{active.target.port}
+        {active.address ?? `${active.origin} › ${active.label}`}
       </span>
     {:else}
       No active session
@@ -38,9 +45,11 @@ $effect(() => {
 <style>
   .dot {
     background: var(--text-faint);
+    transition: background var(--dur-slow) var(--ease-out);
   }
   .dot[data-tone="live"] {
     background: var(--success);
+    color: var(--success);
   }
   .dot[data-tone="busy"] {
     background: var(--accent);
