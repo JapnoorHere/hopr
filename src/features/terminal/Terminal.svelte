@@ -241,6 +241,7 @@ $effect(() => {
       },
       hasPrompts: () => prompts.some((m) => !m.isDisposed),
       viewportY: () => t.buffer.active.viewportY,
+      scrollToLine: (line) => t.scrollToLine(line),
     });
 
     // Shell integration (OSC 133/633/7): commands with exit codes, cwd, prompt marks.
@@ -248,6 +249,8 @@ $effect(() => {
     const prompts: IMarker[] = [];
     let inputAt: Spot | null = null;
     let promptAt: IMarker | null = null;
+    /** Where the running command's output starts (OSC 133;C). */
+    let outAt: IMarker | null = null;
     const spot = (): Spot | null => {
       const marker = t.registerMarker(0);
       return marker ? { marker, col: t.buffer.active.cursorX } : null;
@@ -269,7 +272,87 @@ $effect(() => {
     const addPrompt = (m: IMarker) => {
       prompts.push(m);
       if (prompts.length > MAX_PROMPTS) prompts.shift()?.dispose();
+      // Command blocks: a hairline above every prompt after the first.
+      if (prompts.length > 1 && prefs.current.blocks !== "off") {
+        const sep = t.registerDecoration({ marker: m, x: 0, width: t.cols, layer: "bottom" });
+        sep?.onRender((el) => el.classList.add("hopr-sep"));
+      }
     };
+
+    // Command blocks (terminal revamp T4): each finished command, with where its output is.
+    type Block = {
+      prompt: IMarker;
+      out: IMarker | null;
+      end: IMarker | null;
+      command: string;
+      exit: number | null;
+      durationMs: number;
+    };
+    const blocks: Block[] = [];
+    const blockOutput = (b: Block): string => {
+      if (!b.out || b.out.isDisposed || !b.end || b.end.isDisposed) return "";
+      const buf = t.buffer.active;
+      const lines: string[] = [];
+      for (let i = b.out.line; i <= b.end.line; i++) {
+        lines.push(buf.getLine(i)?.translateToString(true) ?? "");
+      }
+      return lines.join("\n").trimEnd();
+    };
+    const took = (ms: number) =>
+      ms >= 60_000 ? `${Math.round(ms / 60_000)}m` : `${(ms / 1000).toFixed(1)}s`;
+    const addBlock = (b: Block) => {
+      blocks.push(b);
+      if (blocks.length > MAX_PROMPTS) blocks.shift();
+      if (prefs.current.blocks !== "full" || b.prompt.isDisposed) return;
+      const time = b.durationMs >= 1000 ? ` ${took(b.durationMs)}` : "";
+      const label =
+        b.exit === null ? `done${time}` : b.exit === 0 ? `✓${time}` : `✗ ${b.exit}${time}`;
+      const width = label.length + 2;
+      const chip = t.registerDecoration({
+        marker: b.prompt,
+        x: Math.max(0, t.cols - width - 1),
+        width,
+        layer: "top",
+      });
+      chip?.onRender((el) => {
+        if (el.dataset.ready) return;
+        el.dataset.ready = "1";
+        el.classList.add("hopr-chip");
+        el.dataset.exit = b.exit === null ? "" : String(b.exit);
+        el.textContent = label;
+        el.title = `${b.command} · click for actions`;
+        el.addEventListener("mousedown", (e) => e.stopPropagation());
+        el.addEventListener("click", (e) => {
+          session.blockMenu = {
+            command: b.command,
+            output: blockOutput(b),
+            x: e.clientX,
+            y: e.clientY,
+          };
+        });
+      });
+    };
+    // Scrolled back into the output of a command: pin that command at the top of the pane.
+    const updateSticky = () => {
+      const buf = t.buffer.active;
+      const top = buf.viewportY;
+      let found: Block | undefined;
+      if (prefs.current.blocks === "full" && top < buf.baseY) {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          const b = blocks.at(i);
+          if (!b || b.prompt.isDisposed) continue;
+          if (b.prompt.line < top) {
+            if ((b.end?.line ?? Number.POSITIVE_INFINITY) > top) found = b;
+            break;
+          }
+        }
+      }
+      const next = found
+        ? { command: found.command, exit: found.exit, line: found.prompt.line }
+        : null;
+      if (next?.line !== session.sticky?.line) session.sticky = next;
+    };
+    t.onScroll(updateSticky);
     const markExit = (marker: IMarker | null, exit: number | null) => {
       if (!marker || marker.isDisposed) return;
       const deco = t.registerDecoration({ marker, x: 0, width: 1, layer: "top" });
@@ -297,8 +380,22 @@ $effect(() => {
       }
       const done = tracker.mark(m);
       session.integrated = tracker.integrated;
-      if (m.kind === "exec") inputAt = null;
+      if (m.kind === "exec") {
+        inputAt = null;
+        outAt = t.registerMarker(0) ?? null;
+      }
       if (done) {
+        if (promptAt && done.command) {
+          addBlock({
+            prompt: promptAt,
+            out: outAt,
+            end: t.registerMarker(0) ?? null,
+            command: done.command,
+            exit: done.exit,
+            durationMs: done.durationMs,
+          });
+        }
+        outAt = null;
         markExit(promptAt, done.exit);
         promptAt = null;
         session.commandFinished(done, true);
@@ -551,6 +648,42 @@ function closeSearch() {
   @keyframes glide-blink {
     50% {
       opacity: 0.12;
+    }
+  }
+  /* Command blocks: a hairline between commands and an exit chip on each prompt line. */
+  :global(.hopr-sep) {
+    pointer-events: none;
+    border-top: 1px solid color-mix(in oklab, var(--text-faint) 28%, transparent);
+  }
+  :global(.hopr-chip) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 10.5px var(--font-ui);
+    color: var(--success);
+    background: color-mix(in oklab, var(--success) 15%, transparent);
+    border-radius: 999px;
+    transform: scale(0.86);
+    cursor: pointer;
+    pointer-events: auto;
+    animation: chip-in 320ms var(--ease-bounce) backwards;
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  :global(.hopr-chip:not([data-exit="0"])) {
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 15%, transparent);
+  }
+  :global(.hopr-chip[data-exit=""]) {
+    color: var(--text-muted);
+    background: color-mix(in oklab, var(--text-faint) 15%, transparent);
+  }
+  :global(.hopr-chip:hover) {
+    filter: brightness(1.25);
+  }
+  @keyframes chip-in {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
     }
   }
   :global(.hopr-exit) {

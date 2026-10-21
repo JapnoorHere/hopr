@@ -79,6 +79,14 @@ function on(e: Event): boolean {
     <input type="checkbox" checked={p.cursorGlide} onchange={(e) => prefs.update({ cursorGlide: on(e) })} />
     Cursor glide
   </label>
+  <label class="field">
+    <span class="text-xs text-muted">Command blocks (needs shell integration)</span>
+    <select class="input" value={p.blocks} onchange={(e) => prefs.update({ blocks: str(e) })}>
+      <option value="full">Full: separators, exit chips, pinned command</option>
+      <option value="separators">Separators only</option>
+      <option value="off">Off</option>
+    </select>
+  </label>
   <label class="check"><input type="checkbox" checked={p.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: on(e) })} /> Copy on select</label>
   <label class="check">
     <input type="checkbox" checked={p.smartCopyPaste} onchange={(e) => prefs.update({ smartCopyPaste: on(e) })} />
