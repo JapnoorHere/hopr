@@ -1,4 +1,4 @@
-/** Appearance model: theme + density. Pure functions so they test without a DOM framework. */
+/** Appearance model: theme, density and motion. Pure functions so they test without a DOM framework. */
 
 export const THEMES = [
   { id: "ember", name: "Ember", feel: "Cozy, distinctive" },
@@ -12,12 +12,23 @@ export type ThemeId = (typeof THEMES)[number]["id"];
 export const DENSITIES = { compact: 0.8, comfortable: 1, spacious: 1.25 } as const;
 export type Density = keyof typeof DENSITIES;
 
+/** How much the interface moves. `system` follows Windows' "Animation effects" setting. */
+export const MOTIONS = ["system", "full", "reduced", "off"] as const;
+export type MotionPref = (typeof MOTIONS)[number];
+/** What the page actually uses: `reduced` keeps fades and colour changes, drops movement and loops. */
+export type MotionLevel = Exclude<MotionPref, "system">;
+
 export interface Appearance {
   theme: ThemeId;
   density: Density;
+  motion: MotionPref;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { theme: "ember", density: "comfortable" };
+export const DEFAULT_APPEARANCE: Appearance = {
+  theme: "ember",
+  density: "comfortable",
+  motion: "system",
+};
 
 const STORAGE_KEY = "hopr.appearance";
 
@@ -29,6 +40,24 @@ function isDensity(v: unknown): v is Density {
   return typeof v === "string" && Object.hasOwn(DENSITIES, v);
 }
 
+function isMotion(v: unknown): v is MotionPref {
+  return MOTIONS.some((m) => m === v);
+}
+
+/** The system's reduced-motion setting, when it can be read. */
+export function systemPrefersReduced(): boolean {
+  try {
+    return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveMotion(pref: MotionPref, systemReduced: boolean): MotionLevel {
+  if (pref !== "system") return pref;
+  return systemReduced ? "reduced" : "full";
+}
+
 /** Validate untrusted input (storage, imports); invalid fields fall back to defaults. */
 export function parseAppearance(raw: unknown): Appearance {
   if (typeof raw !== "object" || raw === null) return { ...DEFAULT_APPEARANCE };
@@ -36,12 +65,14 @@ export function parseAppearance(raw: unknown): Appearance {
   return {
     theme: isThemeId(r.theme) ? r.theme : DEFAULT_APPEARANCE.theme,
     density: isDensity(r.density) ? r.density : DEFAULT_APPEARANCE.density,
+    motion: isMotion(r.motion) ? r.motion : DEFAULT_APPEARANCE.motion,
   };
 }
 
 export function applyAppearance(a: Appearance, root: HTMLElement = document.documentElement) {
   root.dataset.theme = a.theme;
   root.style.setProperty("--density", String(DENSITIES[a.density]));
+  root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
 }
 
 /** Storage can be missing or throw (private mode, blocked site data). */

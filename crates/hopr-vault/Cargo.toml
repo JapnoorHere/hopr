@@ -1,0 +1,21 @@
+[package]
+name = "hopr-vault"
+description = "Hopr vault: Argon2id-derived KEK wrapping a random DEK, XChaCha20-Poly1305 field encryption"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+data-encoding = "2"
+getrandom = "0.3"
+hkdf = "0.12"
+secrecy = "0.10"
+serde.workspace = true
+sha2 = "0.10"
+thiserror.workspace = true
+zeroize = "1"
+
+[lints]
+workspace = true

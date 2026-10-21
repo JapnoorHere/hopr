@@ -5,7 +5,7 @@
   "identifier": "app.hopr.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://127.0.0.1:1430",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
@@ -38,6 +38,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA0RTI4MzEyRjgyN0NGQTkKUldTcHp5ZjRFb1BpQlBjck1KTXY4Wjk5cllZdSt1VzZPZnd6U1lkUFpoc2xqT1luK3o0cmhmYnoK",
+      "endpoints": [
+        "https://github.com/JapnoorHere/hopr/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -17,10 +17,11 @@ export default defineConfig({
   // Tauri expects a fixed port and must not have its Rust errors cleared away.
   clearScreen: false,
   server: {
-    port: 1420,
+    // 1430, not Tauri's default 1420, so Hopr can run beside other Tauri projects.
+    port: 1430,
     strictPort: true,
     host: host || "127.0.0.1",
-    hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
+    hmr: host ? { protocol: "ws", host, port: 1431 } : undefined,
     watch: { ignored: ["**/src-tauri/**", "**/crates/**", "**/target/**"] },
   },
   envPrefix: ["VITE_", "TAURI_ENV_"],

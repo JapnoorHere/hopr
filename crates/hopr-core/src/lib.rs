@@ -2,6 +2,9 @@
 
 #![warn(missing_docs)]
 
+pub mod cast;
+pub mod hotkey;
+pub mod model;
 pub mod session;
 
 use serde::{Deserialize, Serialize};
@@ -29,6 +32,8 @@ pub enum ErrorCode {
     VaultLocked,
     /// A storage (SQLite) operation failed.
     Storage,
+    /// A private key is encrypted and needs its passphrase.
+    PassphraseRequired,
     /// Anything not covered above.
     Internal,
 }
@@ -75,7 +80,11 @@ pub type SessionId = String;
 
 /// Connection lifecycle. Invalid states are unrepresentable.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
 pub enum SessionState {
     /// Opening the TCP connection to hop `hop` (1-based) of `total`.
     Connecting {
@@ -84,17 +93,42 @@ pub enum SessionState {
         /// Number of hops in the chain.
         total: u32,
     },
+    /// The connection to hop `hop` is open; running the SSH handshake with it.
+    Handshaking {
+        /// Current hop, 1-based.
+        hop: u32,
+        /// Number of hops in the chain.
+        total: u32,
+        /// How long opening the connection took, in milliseconds (about one round trip).
+        rtt_ms: Option<u32>,
+    },
+    /// The server's host key is new or has changed; waiting for the user's decision.
+    VerifyingHostKey {
+        /// What to show.
+        prompt: HostKeyPrompt,
+    },
     /// Running authentication with the named method.
     Authenticating {
         /// e.g. "password", "publickey".
         method: String,
     },
+    /// The server (or a missing password) needs input from the user.
+    Prompting {
+        /// What to ask.
+        prompt: AuthPrompt,
+    },
+    /// Logged in everywhere; asking the server for a terminal and a shell.
+    OpeningShell,
     /// Shell is live.
     Ready,
     /// Connection lost; retrying.
     Reconnecting {
         /// Attempt number, 1-based.
         attempt: u32,
+        /// Attempts before giving up.
+        max_attempts: u32,
+        /// Seconds until this attempt starts.
+        retry_in_secs: u32,
     },
     /// Session ended.
     Closed {
@@ -118,6 +152,60 @@ pub enum CloseReason {
     RemoteExited,
     /// The network or server dropped the connection.
     ConnectionLost,
+}
+
+/// Host key verification request (HOPR_PLAN §9.15).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct HostKeyPrompt {
+    /// Host as dialed.
+    pub host: String,
+    /// Port.
+    pub port: u16,
+    /// Key algorithm, e.g. "ssh-ed25519".
+    pub key_type: String,
+    /// "SHA256:…".
+    pub fingerprint: String,
+    /// `true` when a different key was trusted before: a possible MITM, shown as a hard stop.
+    pub changed: bool,
+    /// Fingerprints previously trusted for this host (when `changed`).
+    pub previous: Vec<String>,
+}
+
+/// The user's answer to a host key prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum HostKeyDecision {
+    /// Trust and remember.
+    Trust,
+    /// Connect this time only.
+    Once,
+    /// Abort.
+    Reject,
+}
+
+/// One input field of an authentication prompt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptField {
+    /// Server-provided label, e.g. "Password:" or "Verification code:".
+    pub label: String,
+    /// Whether typed characters may be shown.
+    pub echo: bool,
+}
+
+/// Keyboard-interactive or password prompt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthPrompt {
+    /// Title (server "name" or a default).
+    pub title: String,
+    /// Server instructions, may be empty.
+    pub instructions: String,
+    /// Fields to fill, in order.
+    pub fields: Vec<PromptField>,
+    /// Offer "save password to vault" (only for saved hosts' password prompts).
+    pub can_remember: bool,
 }
 
 impl SessionState {
@@ -166,6 +254,19 @@ mod tests {
     fn session_state_serializes_tagged() {
         let json = serde_json::to_string(&SessionState::Connecting { hop: 1, total: 2 }).unwrap();
         assert_eq!(json, r#"{"kind":"connecting","hop":1,"total":2}"#);
+        let shaking = SessionState::Handshaking {
+            hop: 1,
+            total: 2,
+            rtt_ms: Some(38),
+        };
+        assert_eq!(
+            serde_json::to_string(&shaking).unwrap(),
+            r#"{"kind":"handshaking","hop":1,"total":2,"rttMs":38}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&SessionState::OpeningShell).unwrap(),
+            r#"{"kind":"opening_shell"}"#
+        );
         let closed = SessionState::Closed {
             reason: CloseReason::RemoteExited,
         };

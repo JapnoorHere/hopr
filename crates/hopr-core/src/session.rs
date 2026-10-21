@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use tokio::sync::{Notify, mpsc, watch};
 
-use crate::{AppError, ErrorCode, SessionId, SessionState};
+use secrecy::SecretString;
+
+use crate::{AppError, ErrorCode, HostKeyDecision, SessionId, SessionState};
 
 /// Capacity of an actor's command queue.
 pub const COMMAND_CAPACITY: usize = 64;
@@ -26,8 +28,32 @@ pub enum SessionCommand {
         /// Rows.
         rows: u32,
     },
+    /// Answer to a pending host key prompt.
+    HostKeyDecision(HostKeyDecision),
+    /// Answer to a pending authentication prompt (`None` = cancelled).
+    PromptResponse(Option<PromptAnswer>),
     /// Close the session gracefully.
     Close,
+}
+
+/// User input for an [`crate::AuthPrompt`]. Not `Debug`: it carries secrets.
+pub struct PromptAnswer {
+    /// One response per prompt field, in order.
+    pub responses: Vec<SecretString>,
+    /// Save the entered password to the vault after a successful login.
+    pub remember: bool,
+}
+
+impl std::fmt::Debug for PromptAnswer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PromptAnswer")
+            .field(
+                "responses",
+                &format_args!("[{} redacted]", self.responses.len()),
+            )
+            .field("remember", &self.remember)
+            .finish()
+    }
 }
 
 /// Cheap, cloneable handle to a running session actor.
@@ -82,6 +108,16 @@ impl SessionHandle {
         self.try_send(SessionCommand::Resize { cols, rows })
     }
 
+    /// Answer a host key prompt.
+    pub fn try_host_key_decision(&self, decision: HostKeyDecision) -> Result<(), AppError> {
+        self.try_send(SessionCommand::HostKeyDecision(decision))
+    }
+
+    /// Answer (or cancel, with `None`) an authentication prompt.
+    pub fn try_prompt_response(&self, answer: Option<PromptAnswer>) -> Result<(), AppError> {
+        self.try_send(SessionCommand::PromptResponse(answer))
+    }
+
     fn try_send(&self, cmd: SessionCommand) -> Result<(), AppError> {
         self.commands.try_send(cmd).map_err(|e| match e {
             mpsc::error::TrySendError::Full(_) => AppError::new(
@@ -126,7 +162,9 @@ pub struct FlowControl {
 
 impl Default for FlowControl {
     fn default() -> Self {
-        Self::new(2 * 1024 * 1024, 512 * 1024)
+        // Window sized to keep the renderer busy during floods (a few 256 KiB batches in
+        // flight) while still bounding memory; tuned with scripts/e2e-smoke.mjs.
+        Self::new(4 * 1024 * 1024, 1024 * 1024)
     }
 }
 
@@ -191,7 +229,9 @@ impl Default for BatchConfig {
     fn default() -> Self {
         Self {
             interval: Duration::from_millis(12),
-            max_bytes: 64 * 1024,
+            // Large enough that IPC per-message overhead stays small at 50+ MB/s; interactive
+            // output is far below this and flushes on the 12 ms tick instead.
+            max_bytes: 256 * 1024,
         }
     }
 }

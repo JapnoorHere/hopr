@@ -10,11 +10,18 @@ export function formatShortcut(shortcut: string, mac: boolean = isMac): string {
     .replace(/Alt\+/g, "⌥");
 }
 
-/** Transition duration that collapses to 0 under prefers-reduced-motion. */
-export function motion(ms: number): number {
+/** The motion level in effect: Settings > Motion, which by default follows the system. */
+export function motionLevel(): "full" | "reduced" | "off" {
+  const set = globalThis.document?.documentElement.dataset.motion;
+  if (set === "full" || set === "reduced" || set === "off") return set;
   try {
-    return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : ms;
+    return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "reduced" : "full";
   } catch {
-    return ms;
+    return "full";
   }
+}
+
+/** Transition duration: 0 when motion is reduced or off (those fades are not essential). */
+export function motion(ms: number): number {
+  return motionLevel() === "full" ? ms : 0;
 }

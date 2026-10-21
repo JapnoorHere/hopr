@@ -68,6 +68,42 @@
   button {
     cursor: default;
   }
+
+  /*
+   * One scrollbar for the whole app (drawers, lists, textareas, previews): thin, themed,
+   * no arrow buttons. WebView2 is Chromium, so the ::-webkit-scrollbar parts apply.
+   * Don't set the standard scrollbar-color / scrollbar-width anywhere: in Chromium they
+   * switch these custom parts off. The terminal draws its own (palettes.ts).
+   */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  ::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    min-width: 32px;
+    background: color-mix(in oklab, var(--text-faint) 30%, transparent);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--text-faint) 55%, transparent);
+    border-width: 2px;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    border-width: 2px;
+  }
 }
 
 @utility tabular {
@@ -79,4 +115,317 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Shared controls. Components compose these instead of restyling buttons and inputs. */
+@layer components {
+  .btn-ghost,
+  .btn-secondary,
+  .btn-primary,
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+  .btn-ghost {
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover {
+    color: var(--text);
+    background: var(--surface-3);
+  }
+  /* A visible but quiet action: bordered, for secondary choices inside forms. */
+  .btn-secondary {
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover {
+    background: var(--surface-3);
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  }
+  .btn-primary {
+    color: var(--accent-fg);
+    background: var(--accent);
+    font-weight: 500;
+  }
+  .btn-primary:hover {
+    background: color-mix(in oklab, var(--accent) 88%, var(--text));
+  }
+  .btn-danger {
+    color: var(--danger);
+    border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
+  }
+  .btn-danger:hover {
+    background: color-mix(in oklab, var(--danger) 14%, transparent);
+  }
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .input {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    user-select: text;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .input::placeholder {
+    color: var(--text-faint);
+  }
+  .input:focus {
+    border-color: var(--accent);
+  }
+  /* Set by forms that found a problem with this field (shown by FieldError). */
+  .input[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+  .input[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger) 25%, transparent);
+  }
+  .input:disabled {
+    opacity: 0.6;
+  }
+  textarea.input {
+    resize: vertical;
+    min-height: 72px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  select.input {
+    appearance: none;
+    padding-right: 28px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--text-faint) 50%),
+      linear-gradient(135deg, var(--text-faint) 50%, transparent 50%);
+    background-position:
+      calc(100% - 14px) 50%,
+      calc(100% - 10px) 50%;
+    background-size: 4px 4px;
+    background-repeat: no-repeat;
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .check input {
+    accent-color: var(--accent);
+  }
+
+  /* Raised card for dialogs and overlays. */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+}
+
+/*
+ * Shared motion effects (see $lib/motion for transitions). Loops stop when motion is
+ * reduced or off; one-shot effects keep only their end state.
+ */
+@property --beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@layer components {
+  /* Placeholder rows while something loads: a soft light sweeps across. */
+  .skeleton {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+        100deg,
+        transparent 30%,
+        color-mix(in oklab, var(--text-faint) 14%, transparent) 50%,
+        transparent 70%
+      )
+      var(--surface-2);
+    background-size: 220% 100%;
+    animation: hopr-shimmer 1.4s var(--ease-in-out) infinite;
+  }
+
+  /* Text with a light glare passing over it (a label for work in progress). */
+  .shimmer-text {
+    background:
+      linear-gradient(90deg, var(--text-muted) 35%, var(--text) 50%, var(--text-muted) 65%) 0 0 /
+      250% 100%;
+    background-clip: text;
+    color: transparent;
+    animation: hopr-shimmer 2s linear infinite;
+  }
+
+  /* A light travelling along the border (broadcast targets, live tunnels, reconnecting). */
+  .beam-border {
+    position: relative;
+  }
+  .beam-border::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1.5px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--beam-angle),
+      transparent 0deg 300deg,
+      color-mix(in oklab, var(--accent) 30%, transparent) 320deg,
+      var(--accent) 350deg,
+      transparent 360deg
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    pointer-events: none;
+    animation: hopr-beam 2.4s linear infinite;
+  }
+
+  /* One ring that grows out of a status dot and fades (a host that came up, a connect). */
+  .ring-once {
+    position: relative;
+  }
+  .ring-once::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    opacity: 0;
+    animation: hopr-ring 700ms var(--ease-out) 1;
+  }
+
+  /* An SVG stroke that draws itself (check marks, the Hopr mark); set pathLength="1". */
+  .draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: hopr-draw var(--dur-story) var(--ease-out) forwards;
+  }
+}
+
+@keyframes hopr-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+@keyframes hopr-beam {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+@keyframes hopr-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+@keyframes hopr-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+:root[data-motion="reduced"] .skeleton,
+:root[data-motion="reduced"] .shimmer-text,
+:root[data-motion="reduced"] .beam-border::after,
+:root[data-motion="reduced"] .ring-once::after {
+  animation: none;
+}
+:root[data-motion="reduced"] .shimmer-text,
+:root[data-motion="off"] .shimmer-text {
+  color: var(--text-muted);
+  background: none;
+}
+:root[data-motion="reduced"] .beam-border::after,
+:root[data-motion="off"] .beam-border::after {
+  background: none;
+}
+:root[data-motion="reduced"] .draw,
+:root[data-motion="off"] .draw {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+
+/* Segmented switches and tab rows that use $lib/motion slidingPill. */
+[data-pill] {
+  position: relative;
+  isolation: isolate;
+}
+.seg-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  pointer-events: none;
+  transition:
+    transform var(--dur-spring) var(--ease-spring),
+    width var(--dur) var(--ease-out),
+    height var(--dur) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+[data-pill] > :is(.on, [aria-checked="true"], [aria-selected="true"]) {
+  background: transparent !important;
+}
+[data-pill] > button {
+  transition: color var(--dur) var(--ease-out);
+}
+
+/* The window comes into view once at launch. */
+#app {
+  animation: hopr-app-in 360ms var(--ease-out) 1 backwards;
+}
+@keyframes hopr-app-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(4px);
+  }
+}
+:root[data-motion="reduced"] #app {
+  animation-name: hopr-fade-in;
+}
+@keyframes hopr-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Theme changes: the default View Transition cross-fade, a little slower than instant. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-slow);
 }

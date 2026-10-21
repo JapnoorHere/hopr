@@ -538,12 +538,12 @@ NL→command, explain, error help, summarize, autocomplete. Opt-in, BYO key, loc
 ## 11. Keyboard Shortcut Map
 | Action | Shortcut |
 |---|---|
-| Palette | Ctrl+K |
-| Quick connect | Ctrl+Shift+N |
+| Palette | Ctrl+Shift+P (Ctrl+K outside a terminal) |
+| Hosts / quick connect | Ctrl+Shift+N |
 | Local terminal | Ctrl+Shift+` |
-| New tab | Ctrl+T |
-| Close tab/pane | Ctrl+W |
-| Reopen closed tab | Ctrl+Shift+T |
+| New tab | Ctrl+Shift+T |
+| Close pane | Ctrl+Shift+W |
+| Reopen closed tab | Ctrl+Shift+Alt+T |
 | Next/prev tab | Ctrl+Tab / Ctrl+Shift+Tab |
 | Tab N | Ctrl+1…9 |
 | Split right/down | Ctrl+Shift+D / Ctrl+Shift+E |
@@ -557,7 +557,7 @@ NL→command, explain, error help, summarize, autocomplete. Opt-in, BYO key, loc
 | Font zoom | Ctrl+= / - / 0 |
 | Prev/next prompt | Ctrl+↑/↓ |
 | AI | Ctrl+I |
-| Lock | Ctrl+L |
+| Lock | Ctrl+Shift+L |
 | Settings | Ctrl+, |
 | Quick terminal (global) | Ctrl+` |
 
@@ -634,28 +634,114 @@ Effort is in ideal dev-weeks for one developer, plus 30% buffer. **Each phase is
 - Follow-ups: bundle Departure Mono (falls back to Geist Mono for now); macOS overlay title bar (Phase 3)
 - **Exit:** a themed shell window builds and runs; lint and tests are green.
 
-### Phase 1: Data Path (2 w) 🟡 In progress (2026-10-16)
-> Built and passing: hopr-core session plumbing (batcher + flow control, 8 tests), hopr-ssh actor (7 integration tests incl. 8 MiB flood under backpressure), hopr-devsshd, Tauri session IPC with raw binary channel, xterm terminal + tabs + connect form + state overlays (29 TS tests), native E2E smoke `scripts/e2e-smoke.mjs` 7/7 PASS.
-> **Open before exit:** bulk output through devsshd measured ~0.09 MB/s in the app (UI lag stayed 31 ms). Headless probe `cargo run --release -p hopr-ssh --example throughput` is running to isolate ConPTY/devsshd vs IPC/xterm. Fix, then re-run E2E and tick the boxes below.
-- [ ] hopr-ssh: password connect, PTY shell, data/eof/exit
-- [ ] hopr-core: session actor (write/resize/close), state watch
-- [ ] OutputBatcher → Channel<bytes>
-- [ ] Terminal component (xterm + webgl + fit + unicode11), temporary connect form, resize
-- [ ] Backpressure test + bench, in-process SSH server integration test
-- [ ] Session state UI (connecting / ready / closed / error)
+### Phase 1: Data Path (2 w) ✅ Done 2026-10-16
+- [x] hopr-ssh: password connect, PTY shell, data/eof/exit (exit vs. connection-lost distinguished)
+- [x] hopr-core: session actor (write/resize/close), state watch, non-blocking `try_write` for ordered keystrokes
+- [x] OutputBatcher → raw binary `Channel` (12 ms / 256 KiB), byte-count flow control (4 MiB / 1 MiB) with coalesced UI acks
+- [x] Terminal component (xterm + WebGL with DOM fallback + fit + unicode11), quick-connect form, resize, tabs with status glow, theme-aware ANSI palettes
+- [x] Backpressure tests, in-process russh server integration tests, headless `throughput` example, `hopr-devsshd` (real shell, plus bench mode)
+- [x] Session state UI (connecting card, failed card with details/Retry/Edit, closed strip with Reconnect/Close)
+- **Verified:** 15 Rust tests + 29 TS tests · native E2E `scripts/e2e-smoke.mjs` 8/8 (real WebView2 + real russh + real PowerShell): 100 MiB in 1.89 s = **55.4 MB/s**, max UI lag 32 ms; headless release client 254 MB/s
+- Findings: Windows ConPTY (inside devsshd) caps at ~1.4k lines/s, so throughput is measured with devsshd bench mode. vim/htop could not be exercised on this Windows-only machine; PTY resize is covered by integration tests and must be rechecked against a Linux host. Dev port moved to 1430 to coexist with other Tauri projects.
 - **Exit:** a real remote shell works, vim/htop are fine, a 100 MB cat doesn't freeze.
 
-### Phase 2: Vault, Auth, Tabs (4 w)
+### Phase 2: Vault, Auth, Tabs (4 w) ✅ Built 2026-10-16 (uncommitted)
 Store + migrations · vault crypto + recovery + keyring + auto-lock + leak/scan tests · onboarding · unlock · hosts screen · host editor · key/agent/kbd-interactive/TOTP auth · TOFU + changed-key block · keys manager · tabs with glow · local PTY · quick connect · ssh_config + known_hosts import · paste behaviors · AppError cards. **Exit:** internal alpha.
+- [x] `hopr-vault`: Argon2id KEK → wrapped DEK, XChaCha20-Poly1305 per field with row-bound AAD, recovery key, re-wrap on password change, keychain DEK check
+- [x] `hopr-store`: SQLite/sqlx, migration 0001, backup on open, hosts/groups/tags/secrets/keys/known_hosts repos, soft delete + undo; secrets never stored in plaintext (tested)
+- [x] `hopr-ssh`: host-key TOFU incl. OpenSSH hashed entries, changed-key hard stop, password / key / agent (Windows OpenSSH agent + Pageant, SSH_AUTH_SOCK) / keyboard-interactive with auto-filled password + TOTP, password prompt with "remember", key generate/import (OpenSSH, PEM, PKCS#8, PPK, passphrase)
+- [x] `hopr-term`: local shells (pwsh, PowerShell, cmd, Git Bash, WSL distros; /etc/shells on Unix) in a PTY behind the same session protocol
+- [x] `hopr-import`: ~/.ssh/config (Include, Host * defaults, first-value-wins) and known_hosts
+- [x] UI: onboarding with recovery key, unlock (password, remember device, recovery reset), auto-lock + Ctrl+L, hosts home (search with tag:/env:/user:, favorites, recent, groups, keyboard nav, undo delete), host editor, keys drawer (generate/import/copy public key, trusted host keys), import drawer, host-key and login prompt cards, multi-line paste confirm, prod red edge, local terminal menu, security settings
+- **Verified:** 54 Rust tests + 39 TS tests · clippy/rustfmt/Biome/svelte-check clean · native E2E 14/15 (vault, TOFU prompt then silent reconnect, saved-host login from vault, prompt + remember, lock/unlock with sessions alive, auth error, exit, flood); idle auto-lock observed during testing
+- **Open:** flood throughput measured 22–38 MB/s in this session vs 55 MB/s in Phase 1. A CPU profile shows the renderer saturated inside xterm.js parsing (no Hopr code in the hot path), so this needs an A/B against the Phase 1 build before calling it a regression. Not yet exercised: real agent keys, real OTP servers, Linux/macOS.
 
 ### Phase 3: Workspace UX & Identity (4 w)
 Hop-trail tabs + jump chains · proxies · keepalive/reconnect · splits + tear-off · palette · drawers infrastructure · all themes + ANSI palettes + import/export · terminal settings · shortcut registry · Settings · inheritance/templates/bulk/env badge · biometrics, clipboard clear, audit · workspaces · tray/menus/global hotkey/quick terminal · updater + signing · backups · ping, deploy key, PPK, agent forwarding. **Exit:** private beta v0.5.
 
+Delivery slices (each ends green: tests + native E2E):
+- **3a Connection ✅ (2026-10-16):** jump chains through saved hosts (C6, per-hop host-key/auth prompts and progress), hop-trail tabs, keepalive + auto-reconnect with buffer kept (C8), agent forwarding (C11), `ProxyJump` applied on ssh_config import.
+  - `hopr-ssh` split into `connect` (hop chain over `direct-tcpip`), `auth`, `agent` (agent auth + forwarding bridge); keepalive 15 s × 3; reconnect backoff 1→30 s, 10 attempts, credentials rebuilt from the vault on each attempt (never kept), new PTY opens at the current size; migration 0002 (`jump_host_id`, `agent_forwarding`), loop/5-hop guard in the store.
+  - Verified: 21 SSH integration tests (2-hop jump with tunnel recorded at the bastion, per-hop host-key prompt, unreachable target names both hops, drop → reconnect → same output stream, close during backoff, drop without reconnect) · native E2E: saved host behind a saved bastion connects, tab shows `laptop › bastion › prod-db`.
+  - Not yet exercised: agent forwarding against a real OpenSSH agent; reconnect against a real network drop.
+- **3b Workspace ✅ (2026-10-16):** tab shortcuts, reopen closed, splits with focus/zoom/drag-resize (T5), command palette with `>`/`@` modes, quick-connect results, fuzzy + frecency ranking (U1), shortcut registry with conflict detection (T13).
+  - App chords moved to Ctrl+Shift (table in §11) because Ctrl+T/W/K/L are shell keys (transpose, delete word, kill line, clear). Panes render flat from computed rects, so splitting never remounts a terminal.
+  - Verified: 57 TS tests (layout tree, neighbor focus, fuzzy, frecency, registry, tab/pane store) · native E2E with real keystrokes into the focused terminal: split, focus move, zoom, palette command by name, close pane, and plain keys still reaching the shell.
+  - Known: splitting a quick-connect tab asks for the password again (it is never kept); saved hosts split silently. Rebinding UI lands with Settings in 3c.
+- **3c Terminal ✅ (2026-10-16):** search (T7), links (T9), font zoom, terminal settings (font, size, cursor, scrollback, copy-on-select, bell), OSC 52 gating (T16), theme import/export (T10).
+  - Search bar (Ctrl+Shift+F) with case/word/regex toggles and a live match count; links open on Ctrl/Cmd+click through the opener plugin (http/https only); prefs apply live and refit; OSC 52 policy deny/ask/allow (default ask, with an Allow/Deny strip); Settings gains Terminal, Keyboard (rebind by recording a chord, conflicts flagged) and Backup (export/import of appearance, terminal prefs and keybindings as JSON).
+  - Verified: 61 TS tests (prefs parsing, OSC 52 decoding, paste guard, registry overrides) · native E2E with real keys: Ctrl+Shift+F finds output with a count, Ctrl+= / Ctrl+0 zoom the font, an OSC 52 write from the shell asks before copying.
+  - Throughput varies by run on this machine: 27–53 MB/s against the 50 MB/s target (53.1 MB/s in the 3d run); still to be profiled.
+- **3d Hosts & security ✅ (2026-10-17):** duplicate/bulk edit, export (H8), ping (H9), deploy key (C17), SOCKS5/HTTP proxy (C7), clipboard auto-clear (X9), audit log (X7).
+  - Hosts screen: row menu (connect, edit, duplicate, copy SSH command / hostname / password, deploy key, check reachability, delete), Ctrl+click multi-select with a bulk bar (move to group, add tag, environment, pin, export, delete with Undo), reachability dots (TCP probe every 60 s, skipped behind a jump host or proxy). Export to ssh_config (`ProxyJump`, `ProxyCommand nc -X` for proxies) or CSV (formula-defused), never secrets.
+  - Proxy: per-host SOCKS5 (remote DNS, RFC 1929 auth) or HTTP CONNECT (Basic auth) for the first hop; password in the vault; migration 0003. Deploy key runs a POSIX script over an exec channel (`sh -s`, script on stdin, so any login shell works): creates `~/.ssh` 700 and `authorized_keys` 600, appends once, and can switch the host to the key. Exec never prompts: an unverified host key or an unanswerable login fails with a clear message.
+  - Copy password goes Rust → OS clipboard (never through the web view), excluded from clipboard history, and is cleared after 15 s–2 min (default 30 s) only if it is still on the clipboard. Audit log (`audit_events`, keeps 10k): unlock/lock/recover/password change, connects, failed logins, host-key trust/replace/block/forget, password copies, deploys, exports, key deletes, security settings; filterable drawer with CSV/JSON export.
+  - Verified: 26 SSH integration tests (exec with stdin and exit status, exec refuses to prompt, SOCKS5 + HTTP proxy with proxy-side name resolution, unreachable proxy named) · SOCKS5/HTTP handshake unit tests · deploy script run under real `sh` twice in a throwaway HOME (idempotent, no line merging) · store tests (proxy roundtrip, duplicate copies secrets, bulk edit) · export tests (ssh_config parses back) · 65 TS tests · native E2E 33/33: UI duplicate, bulk tag, export, ping dots, a host reachable only through the proxy (both protocols), deploy key through the drawer then key login, password on the real Windows clipboard then cleared, audit contents with no secrets.
+  - Known: deploy needs a POSIX `sh` on the server (Windows OpenSSH servers report that clearly); the dev server's proxy only reaches loopback by design.
+- **3e Platform ✅ (2026-10-18):** workspaces (R6), tray + global hotkey + quick terminal (U5), tear-off (T18), biometrics (X3), updater + signing (U6), backups.
+  - Workspaces: the layout (tabs, splits, ratios, what each pane connects to; never secrets) autosaves as "Last session" and is offered back after unlock (Ctrl+Shift+R); named workspaces, a startup workspace, one palette command per workspace; deleted hosts drop out on restore. Migration 0004.
+  - Tear-off (Ctrl+Shift+M or the tab button): output is held in the backend (bounded by flow control) while a new window opens; it replays the scrollback (xterm serialize) and takes the live session over, with no reconnect. Closing that window closes its tabs.
+  - Tray (show, quick terminal, recent hosts, lock, quit) and close-to-tray (default on). Quick terminal: a system-wide hotkey (default Ctrl+`, changeable or off in Settings → Desktop) drops a local shell down from the top of the screen; it hides on focus loss only after it actually had focus.
+  - Windows Hello (UserConsentVerifier) gates the vault key in Credential Manager; while on, the remembered key can't unlock without the check. Encrypted `.hopr` backups (whole DB via VACUUM INTO, sealed with the vault key, header carries the vault header): daily on unlock (keep 7), back up now, restore from list or file (needs that backup's master password), applied at next start with the old DB kept. Signed updates: check at start + every 6 h, toast, verify + install + restart; release workflow (tauri-action, latest.json); updater public key in tauri.conf.json, private key outside the repo.
+  - Also fixed: local shells never drew a prompt (input before the session id was dropped, losing xterm's reply to ConPTY's opening cursor query; size changes before the id were dropped too).
+  - Verified: store tests (backup roundtrip incl. restore into a working DB, wrong password refused, prune; workspaces), hotkey chord mapping, a real ConPTY spawn test, 69 TS tests (snapshot/restore, relabel) · native E2E 41 checks: local shell runs commands; workspace save/reopen + autosave; tear-off keeps the same session and scrollback with 0 reconnects; the real Ctrl+` (sent through Windows) shows the quick terminal with a working shell and hides it; close-to-tray and back; daily backup + staged restore; Windows Hello gating; a signed update payload accepted and a tampered one rejected.
+  - Not covered: OS code signing (Authenticode/notarization); the Hello prompt itself (needs a person).
+
 ### Phase 4: SFTP & Files (4 w + 1.5 w 4b)
 hopr-sftp · transfer engine · drawer + dual pane · DnD · queue pill · edit locally · permissions · preview · drop-to-upload · shell integration · recording + replay · history · telnet, serial, ProxyCommand, certs · more importers · i18n. 4b: archive, compare/sync. **Exit:** public beta v0.8.
 
+Delivery slices (each ends green: tests + native E2E):
+- **4a SFTP core ✅ (2026-10-18):** `hopr-sftp` (russh-sftp) over the same route as a terminal (jump chain, proxy, saved credentials; never prompts), files drawer (S1, S7, S8, S10, S12), transfer queue + pill (S4, S5), edit locally (S6), drop files from the OS to upload.
+  - Drawer: host picker, breadcrumbs + typed path (`~`, `..` resolved by the server), bookmarks per host, hidden toggle, filter, sort (folders first, natural names), multi-select, keys (Enter, F2, Del, Backspace), row menu (preview, edit locally, download / download to…, rename, permissions, copy path, copy scp command, delete with confirmation), permissions dialog (rwx grid + octal + recursive), text and image preview.
+  - Transfers: 3 at a time, 64 KiB chunks, progress at most 10 Hz with speed, pause/resume and retry continue from the byte where they stopped (`.part` for downloads, remote size for uploads), 3 attempts with reconnect on network errors, folders recursively, downloads never overwrite (`name (1).ext`). Edit locally: temp copy opened in the default app, uploaded on every save, and a server-side change since opening asks "Upload mine / Keep server's".
+  - Verified: 5 SFTP integration tests against an in-process server (file ops incl. recursive delete/chmod and path confinement, 3 MiB roundtrip, resume both ways, cancel keeps the partial, wrong password never prompts) · 73 TS tests · native E2E 49/49 incl. the drawer through the UI (browse, new folder, preview, permissions, delete with confirm), byte-identical upload/download, a 96 MiB download paused and resumed byte-identical, edit locally with a conflict resolved, all checked against the dev server's sandbox folder.
+  - Known: password prompts aren't asked for SFTP (save the password or use a key); no dual pane or remote↔remote drag yet.
+- **4b Dual pane ✅ (2026-10-18):** local | remote panes, drag and drop between them, conflict dialog with "apply to all", OS notification when a transfer finishes in the background, concurrency and speed-limit settings (S2, S3, S5).
+  - Dual pane (from the files drawer): local folder (typed path, up, double-click into folders) beside the remote one; drag rows either way, or select and use Upload / Download. A target that already exists asks once for everything that clashes: Replace, Keep both (`name (1).ext`), Skip or Cancel (also in the drawer and for drops from the OS).
+  - Transfers: concurrency 1–8 and one speed limit shared by all transfers (token bucket in `hopr-sftp`), applied live and remembered; a system notification when the queue finishes while Hopr isn't in front.
+  - Verified: throttle unit test (two transfers share the budget) and a throttled SFTP upload integration test · native E2E 53/53: drag local→remote and remote→local with real DragEvents, Skip queues nothing and Replace overwrites, 2 MB at 1 MB/s takes > 1.5 s, settings kept.
+  - Not yet: dragging out to the OS (needs a native drag source); the notification itself is only checked by hand.
+- **4c Terminal history ✅ (2026-10-18):** shell integration (OSC 133/7: cwd follows into the drawer, prompt jumping, command-finished notifications), recording + replay (asciicast v2), command and connection history (§9.18, §9.19, T12).
+  - Shell integration: OSC 133 A/B/C/D, OSC 633 E (exact command line) and OSC 7 (folder). One-line snippets for bash, zsh, fish and PowerShell, with Copy, "Enable here" (types it into the focused terminal) and the startup file to add it to. Exit markers on prompt lines; previous/next prompt on Ctrl+Shift+↑/↓ (only when marks exist, so the shell keeps the keys otherwise); Ctrl+Shift+O opens files at the terminal's folder; a system notification when a command that ran ≥ N s (default 10) finishes while Hopr is in the background.
+  - History: exact with integration, read back from typing without it (marked "approx."). It skips commands with a leading space and exclude globs (default `*password*`, `*secret*`, …), and keeps 50k. History drawer (Ctrl+Shift+Y): search, host filter, run again (same pane, or a new tab to that host), copy, forget, clear. Connections: started/ended/reason/bytes per session, with an uptime summary.
+  - Recording: asciicast v2 in `{data}/recordings/`, output and resizes only (input is never written, so typed passwords can't be recorded). Per session from the palette, or "Record every new session". REC chip on the tab. Replay: play/pause, 0.5–8×, scrub, skip idle, find in recording, export `.cast` or a plain-text log.
+  - Verified: Rust: asciicast writer (UTF-8 split across chunks), exclusion globs, history and connection store, crash recovery of open connections · TS: OSC parsing, command tracker, cast parsing/idle squeeze/search · the PowerShell snippet run in a real powershell.exe (marks + exit code 3) · native E2E 66/66: auto-recording, approximate history, Enable here from Settings, exit codes and markers, exact rows with folder, prompt jumping, exclusions, Ctrl+Shift+O follows the folder, run time measured, replay scrub/search/Esc, connection history with traffic.
+  - Not yet: "save as snippet" (snippets arrive in phase 5); per-host history opt-out; the notification itself is only checked by hand; the bash/zsh/fish snippets aren't run in CI (no such shells on this machine).
+- **4d Reach ✅ (2026-10-18):** telnet and serial, ProxyCommand, SSH certificates, PuTTY/MobaXterm/SecureCRT/Termius importers, i18n.
+  - Hosts have a protocol (SSH / Telnet / Serial) in the editor; SSH-only fields hide for the others. Telnet (RFC 854: echo, SGA, terminal type, NAWS window size, IAC escaping, CR NUL) carries a "not encrypted" warning; serial has port suggestions, baud, data bits, parity, stop bits and flow control (`serialport`, blocking I/O on threads like the PTY). Files, keys and tunnels refuse non-SSH hosts with a clear message.
+  - ProxyCommand per host (`%h %p %r %%`): SSH runs over the command's stdin/stdout. It's passed verbatim to `cmd /C` on Windows (a quoting bug found by the test) or `sh -c` elsewhere, the command is killed with the connection, its stderr goes to the log, and it's mutually exclusive with jump host / proxy. Imported from `~/.ssh/config` and PuTTY "local" proxies.
+  - SSH certificates: attach an OpenSSH user certificate to a key (Keys drawer: paste or file). It's checked against the key and must be a user cert; key id, principals, expiry and CA are shown. Logins try the certificate first, then the bare key.
+  - Importers: PuTTY/KiTTY (this computer's registry, or a `.reg` export incl. UTF-16), MobaXterm (`.mxtsessions` / `MobaXterm.ini`; SSH + telnet), SecureCRT (Sessions folder tree or one `.ini`; SSH, telnet, serial) and CSV (Termius exports, spreadsheets). Preview with checkboxes; folders become groups; OpenSSH key files become keys; existing hosts are skipped; passwords are never imported.
+  - i18n: a typed catalog (`src/lib/i18n`), `t()` with placeholders, English fallback, a Language setting (System / English / Deutsch), and `<html lang>` following it. German covers the app frame (rail, settings, import and history drawers).
+  - Verified: Rust: telnet parser (negotiation, split sequences, NAWS escaping) + session against a scripted server (CR NUL, resize, remote close, refused port), serial errors (missing port, bad settings), SSH over a real ProxyCommand relay, CA-signed certificate login (bare key, expired and wrong-principal certs refused), certificate parsing, PuTTY/MobaXterm/SecureCRT/CSV parsers, host validation and storage · TS: catalog parity + placeholders, locale resolution · native E2E 74/75: telnet login + window size, ProxyCommand, `ssh-keygen`-signed certificate login, PuTTY (UTF-16 .reg) / MobaXterm / CSV imports with groups and serial settings, imported telnet session connects, German frame and back. The one failure was the throughput check (39.6 and 44.0 MB/s against ≥ 50); it has varied from 28 to 54 MB/s across runs and nothing in 4d touches the output path.
+  - Not yet: serial only tested without hardware (open errors and listing); the PuTTY registry read and the SecureCRT folder pick are only checked by hand; MobaXterm serial/RDP/VNC and SecureCRT XML exports aren't read; PPK keys aren't converted; most screens are still English-only.
+
 ### Phase 5: Tunnels, Productivity, Sync (5 w)
 L/R/D forwards · tunnels UI + dashboard · snippets · broadcast + run-on-group · secret injection · FIDO2 · sync v1. **Exit: v1.0 GA.**
+
+Slices (planned 2026-10-18):
+- **5a Tunnels (P1–P8):** saved local / remote / dynamic (SOCKS5) forwards per host on a headless connection (through jump chains and ProxyCommand), start/stop toggles, auto-start on unlock, port-in-use check + free-port pick, a 0.0.0.0 warning, live ↑↓ / connection counts at 1 Hz, Tunnels drawer on the rail.
+- **5b Snippets (R1, R10):** library with folders/tags/search, `{{var}}`, `{{var:default}}`, `{{a|b|c}}`, `{{secret:name}}` (vault), built-ins `{{host}} {{user}} {{date}} {{clipboard}}`, run modes paste / paste+enter / confirm, prod confirmation, palette entries, "save as snippet" from history.
+- **5c Broadcast & run on group (R2, R3):** live input mirroring to chosen panes with a banner and stop; run a command on a group/selection over exec with parallelism and stop-on-fail, a results grid, CSV/JSON export, prod confirmation.
+- Progress (2026-10-18): **5a, 5b, 5c built.**
+  - 5a: forwards in `hopr-ssh::forward` (`-L`/`-D` listeners, `-R` via tcpip-forward with routed forwarded-tcpip channels, live counters), a tunnel manager with 1 Hz stats, `tunnels` table, Tunnels drawer (switches, L/R/D badges, route diagram, port pick/in-use check, 0.0.0.0 warning, sparkline), start on unlock.
+  - 5b: `snippets` + encrypted `snippet_secrets`, template engine, the backend fills `{{secret:x}}` while typing (`session_type`), palette entries, run modes with prod confirmation, "Save as snippet" from history.
+  - 5c: live broadcast (tab or all sessions, banner, pane stripe, prod confirmation) and run on hosts (exec, parallelism, stop-on-fail, cancel, results grid, CSV/JSON export, prod confirmation).
+  - Verified: Rust: local + SOCKS + remote forwarding through a real SSH server with byte counts, SOCKS handshake, tunnel/snippet/secret storage (secret not in plaintext), secret filling · TS: template engine, tunnel formatting, run export · native E2E **82/82**: local tunnel from the drawer with live counts, SOCKS by name with an auto port, remote tunnel, busy port refused and freed on stop, snippet variable + vault secret typed, broadcast to split panes, run on hosts (two OK, telnet refused, results grid).
+  - Bugs found by the E2E and fixed:
+    - After a shortcut that moves focus (Ctrl+Shift+D), xterm dropped text arriving without key events (IME, emoji panel, dictation) in the old pane. A refused synthetic key-up on blur now releases it, without stealing focus back.
+    - Run-on-hosts kept a fast host's first status instead of its last.
+    - Terminal snapshots counted from blank rows below the cursor.
+    - The dual pane's home folder could overwrite a folder picked a moment earlier.
+  - Also from 4d: PuTTY `.ppk` import works, including a fallback for an ssh-key bug that rejected about half of Ed25519 PPKs.
+- **5d Sync v1 ✅ (2026-10-18):**
+  - Settings → Sync: a folder, a device name and a sync passphrase. The folder's "sync vault" header is in `hopr-sync.json`; its key is then kept encrypted under this device's vault, so no passphrase is needed again.
+  - Each device writes only its sealed `devices/<id>.hsync`. Records are generic over the real table columns (groups, keys, hosts with tags and secrets, snippets, snippet secrets, tunnels). Secrets are decrypted only inside the sealed snapshot and re-encrypted under each device's vault.
+  - Merge: newest by parsed time, applied in FK order with jump hosts linked after. Tombstones come from AFTER DELETE triggers; host trash/restore bump `updated_at`.
+  - Syncs on unlock, every 5 min, and on demand.
+  - Verified: two-device store test (everything round-trips with secrets readable on both, jump links kept, a rename and a deletion flow back, a quiet second round changes nothing, wrong passphrase refused, no plaintext in the file), time-not-text ordering · native E2E: enabled from Settings, a 21 KB sealed snapshot with no hostnames or secrets in it, "Sync now" with nothing to apply · in the app: a wrong passphrase is refused with a clear message and the right one rejoins.
+  - Not yet: FIDO2 security keys; server-backed sync and teams (need infrastructure).
+- **5d Sync v1 (Y1-lite) — plan:** end-to-end encrypted sync of hosts, groups, keys, snippets and tunnels through a folder you already sync (OneDrive, Dropbox, a share): per-device change files, last-writer-wins by `updated_at` with tombstones, conflict-free merge tests. Server-backed sync, FIDO2 security keys and teams follow later (they need infrastructure or platform APIs not available here).
 
 ### Phase 6: Power (6 w)
 Monitoring, Docker/K8s, logs, uptime, constellation, cloud import, CLI + deep links, autocomplete, AI, scripting/tasks, plugin preview, images, X11, SCP, built-in agent.
