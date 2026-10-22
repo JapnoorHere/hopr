@@ -232,6 +232,17 @@
       calc(100% - 10px) 50%;
     background-size: 4px 4px;
     background-repeat: no-repeat;
+    cursor: pointer;
+  }
+  select.input:hover:not(:disabled) {
+    border-color: var(--border-strong, var(--text-faint));
+  }
+  /* While Hopr's menu (SelectMenu.svelte) is open: accent edge, chevron points up. */
+  select.input[data-menu-open] {
+    border-color: var(--accent);
+    background-image:
+      linear-gradient(135deg, transparent 50%, var(--text) 50%),
+      linear-gradient(45deg, var(--text) 50%, transparent 50%);
   }
   .check {
     display: inline-flex;
