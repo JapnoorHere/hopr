@@ -44,6 +44,7 @@ import { workspaces } from "$features/workspace/workspaces.svelte";
 import { i18n } from "$lib/i18n/i18n.svelte";
 import { commands, events, inTauri } from "$lib/ipc";
 import { matches, shortcuts } from "$lib/shortcuts";
+import SelectMenu from "$lib/ui/SelectMenu.svelte";
 import Toaster from "$lib/ui/Toaster.svelte";
 import { isMainWindow, isTornOffWindow } from "$lib/window";
 
@@ -279,4 +280,5 @@ function onkeydown(e: KeyboardEvent) {
   {#if isMainWindow && updates.available && !updates.dismissed}<UpdateToast />{/if}
   {#if vault.unlocked && !onboarding}<TransferPill />{/if}
   <Toaster />
+  <SelectMenu />
 </div>
