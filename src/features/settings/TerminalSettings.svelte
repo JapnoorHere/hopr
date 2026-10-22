@@ -19,8 +19,8 @@ function on(e: Event): boolean {
 }
 </script>
 
-<section class="mt-5 flex flex-col gap-3">
-  <h3 class="label-caps text-faint">Terminal</h3>
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Colours</h3>
   <!-- Live preview: the chosen colours, font and cursor on a small sample session. -->
   <div
     class="preview"
@@ -64,6 +64,10 @@ function on(e: Event): boolean {
       {/each}
     </div>
   </div>
+</div>
+
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Text</h3>
   <label class="field">
     <span class="text-xs text-muted">Font</span>
     <select class="input" value={p.fontFamily} onchange={(e) => prefs.update({ fontFamily: str(e) })}>
@@ -80,33 +84,43 @@ function on(e: Event): boolean {
       <input type="range" min="1" max="2" step="0.05" value={p.lineHeight} oninput={(e) => prefs.update({ lineHeight: num(e) })} />
     </label>
   </div>
-  <div class="grid grid-cols-2 gap-2">
-    <label class="field">
-      <span class="text-xs text-muted">Cursor</span>
+  <label class="field">
+    <span class="text-xs text-muted">Scrollback lines</span>
+    <input class="input tabular" type="number" min={SCROLLBACK.min} max={SCROLLBACK.max} step="1000" value={p.scrollback} onchange={(e) => prefs.update({ scrollback: num(e) })} />
+  </label>
+</div>
+
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Cursor</h3>
+  <label class="field">
+      <span class="text-xs text-muted">Shape</span>
       <select class="input" value={p.cursorStyle} onchange={(e) => prefs.update({ cursorStyle: str(e) })}>
         <option value="bar">Bar</option>
         <option value="block">Block</option>
         <option value="underline">Underline</option>
       </select>
     </label>
-    <label class="field">
-      <span class="text-xs text-muted">Scrollback lines</span>
-      <input class="input tabular" type="number" min={SCROLLBACK.min} max={SCROLLBACK.max} step="1000" value={p.scrollback} onchange={(e) => prefs.update({ scrollback: num(e) })} />
-    </label>
-  </div>
   <label class="check"><input type="checkbox" checked={p.cursorBlink} onchange={(e) => prefs.update({ cursorBlink: on(e) })} /> Blinking cursor</label>
   <label class="check">
     <input type="checkbox" checked={p.cursorGlide} onchange={(e) => prefs.update({ cursorGlide: on(e) })} />
     Cursor glide
   </label>
+</div>
+
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Command blocks</h3>
   <label class="field">
-    <span class="text-xs text-muted">Command blocks (needs shell integration)</span>
+    <span class="text-xs text-muted">Separators and exit chips between commands (needs shell integration)</span>
     <select class="input" value={p.blocks} onchange={(e) => prefs.update({ blocks: str(e) })}>
       <option value="full">Full: separators, exit chips, pinned command</option>
       <option value="separators">Separators only</option>
       <option value="off">Off</option>
     </select>
   </label>
+</div>
+
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Copy &amp; paste</h3>
   <label class="check"><input type="checkbox" checked={p.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: on(e) })} /> Copy on select</label>
   <label class="check">
     <input type="checkbox" checked={p.smartCopyPaste} onchange={(e) => prefs.update({ smartCopyPaste: on(e) })} />
@@ -119,25 +133,27 @@ function on(e: Event): boolean {
     <input type="checkbox" checked={p.rightClickCopyPaste} onchange={(e) => prefs.update({ rightClickCopyPaste: on(e) })} />
     Right-click copies or pastes
   </label>
-  <div class="grid grid-cols-2 gap-2">
+  <label class="field">
+      <span class="text-xs text-muted">Server clipboard writes (OSC 52)</span>
+      <select class="input" value={p.osc52} onchange={(e) => prefs.update({ osc52: str(e) })}>
+        <option value="ask">Ask</option>
+        <option value="allow">Allow</option>
+        <option value="deny">Block</option>
+      </select>
+  </label>
+</div>
+
+<div class="group flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Bell</h3>
     <label class="field">
-      <span class="text-xs text-muted">Bell</span>
+      <span class="text-xs text-muted">When a program rings the bell</span>
       <select class="input" value={p.bell} onchange={(e) => prefs.update({ bell: str(e) })}>
         <option value="visual">Flash</option>
         <option value="sound">Sound</option>
         <option value="none">Off</option>
       </select>
     </label>
-    <label class="field">
-      <span class="text-xs text-muted">Server clipboard writes</span>
-      <select class="input" value={p.osc52} onchange={(e) => prefs.update({ osc52: str(e) })}>
-        <option value="ask">Ask</option>
-        <option value="allow">Allow</option>
-        <option value="deny">Block</option>
-      </select>
-    </label>
-  </div>
-</section>
+</div>
 
 <style>
   .preview {

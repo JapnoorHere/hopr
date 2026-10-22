@@ -515,3 +515,52 @@ input[type="checkbox"]:disabled {
   cursor: default;
   opacity: 0.45;
 }
+
+/*
+ * Sliders: a slim track that fills with the accent up to the thumb (--fill is kept in
+ * sync by the range-fill handler in main.ts), and a round thumb that grows on hover.
+ */
+input[type="range"] {
+  --fill: 50%;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0 var(--fill),
+    color-mix(in oklab, var(--text-faint) 30%, transparent) var(--fill) 100%
+  );
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--accent-fg);
+  border: 3px solid var(--accent);
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--bg) 60%, transparent);
+  transition:
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur) var(--ease-out);
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+input[type="range"]:focus-visible {
+  outline: none;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 35%, transparent);
+}
