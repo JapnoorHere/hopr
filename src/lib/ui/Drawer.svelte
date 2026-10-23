@@ -53,6 +53,25 @@ function startResize(e: PointerEvent) {
   handle.addEventListener("pointerup", up);
 }
 
+/**
+ * Leaving: lift the drawer out of the layout where it stands, so a drawer opened in its place
+ * docks straight away instead of the two sitting side by side while this one fades.
+ */
+function leave(node: Element, o: Parameters<typeof sink>[1]) {
+  const el = node as HTMLElement;
+  const r = el.getBoundingClientRect();
+  Object.assign(el.style, {
+    position: "fixed",
+    top: `${r.top}px`,
+    left: `${r.left}px`,
+    width: `${r.width}px`,
+    height: `${r.height}px`,
+    zIndex: "30",
+    pointerEvents: "none",
+  });
+  return sink(node, o);
+}
+
 function resetWidth() {
   stored = null;
   try {
@@ -69,7 +88,7 @@ function resetWidth() {
   aria-label={title}
   style:width={stored ? `${stored}px` : width}
   in:springIn={{ x: 28 }}
-  out:sink={{ x: 20, duration: 160 }}
+  out:leave={{ x: 20, duration: 140 }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="grip" title="Drag to resize · double-click to reset" onpointerdown={startResize} ondblclick={resetWidth}></div>
