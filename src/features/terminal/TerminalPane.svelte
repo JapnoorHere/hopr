@@ -27,6 +27,18 @@ const phase = $derived(session.state);
 const info = $derived(describeState(phase));
 const busy = $derived(isBusy(phase));
 const ended = $derived(phase.kind === "closed");
+let pane = $state<HTMLDivElement>();
+
+// Esc cancels a connection in progress, in the focused pane, unless you're typing elsewhere
+// (a drawer's search box, a dialog); those keep Esc for themselves.
+function onWindowKey(e: KeyboardEvent) {
+  if (e.key !== "Escape" || !active || !busy) return;
+  const t = e.target;
+  if (t instanceof Node && t !== document.body && !pane?.contains(t)) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  sessions.close(session);
+}
 // Where the connection is on its route; a new attempt (hop 1 again) starts over.
 let progress = $state<Progress>(START);
 // The card stays a moment after connecting to show the finished route, then the terminal
@@ -130,7 +142,10 @@ function onStripKey(e: KeyboardEvent) {
 }
 </script>
 
+<svelte:window onkeydowncapture={onWindowKey} />
+
 <div
+  bind:this={pane}
   class="relative h-full w-full pt-3 pb-2 pl-3.5"
   class:revealing
   class:ended={ended}

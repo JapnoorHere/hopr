@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onDestroy } from "svelte";
 import { blurFade } from "$lib/motion";
+import Kbd from "$lib/ui/Kbd.svelte";
 import ConnectRoute from "./ConnectRoute.svelte";
 import { type Progress, STEPS, stageLabel, stepState } from "./connect";
 
@@ -52,7 +53,9 @@ onDestroy(() => clearInterval(tick));
         <span class="tabular" in:blurFade>{elapsed} s</span>
       {/if}
     </span>
-    <button type="button" class="btn-ghost" onclick={oncancel}>Cancel</button>
+    <button type="button" class="btn-ghost inline-flex items-center gap-2" title="Cancel (Esc)" onclick={oncancel}>
+      Cancel <Kbd keys="Esc" />
+    </button>
   </div>
 </div>
 
