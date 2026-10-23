@@ -7,6 +7,7 @@ import {
   AppWindow,
   Archive,
   ArrowsClockwise,
+  CaretRight,
   ClockCounterClockwise,
   FolderSimple,
   Keyboard,
@@ -217,10 +218,19 @@ $effect(() => {
       </div>
     </nav>
 
-    <div class="content" bind:this={content} onscroll={spy}>
+    <div class="main">
+    <!-- A fixed bar over the scrolling cards: where you are, and the way out. -->
+    <header class="bar">
+      <span class="text-faint">{t("settings.title")}</span>
+      <CaretRight size={11} class="text-faint" />
+      <span class="truncate text-fg">{SECTIONS.find((x) => x.id === current)?.label}</span>
+      <span class="flex-1"></span>
+      <span class="mr-1 text-xs text-faint">Esc to close</span>
       <button type="button" class="close" aria-label="Close settings" title="Close (Esc)" onclick={() => shell.close()}>
-        <X size={16} />
+        <X size={15} />
       </button>
+    </header>
+    <div class="content" bind:this={content} onscroll={spy}>
 
       <section data-section="appearance" hidden={hiddenSections.appearance}>
         <h2 class="title">Appearance</h2>
@@ -360,6 +370,7 @@ $effect(() => {
         <p class="py-16 text-center text-sm text-muted">No settings match “{query}”.</p>
       {/if}
     </div>
+    </div>
   </div>
 </div>
 
@@ -456,22 +467,35 @@ $effect(() => {
   .link.dim {
     opacity: 0.35;
   }
+  .main {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+  }
+  .bar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    height: 48px;
+    padding: 0 10px 0 36px;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--border);
+  }
   .content {
     position: relative;
-    padding: 28px 36px 48px;
+    min-height: 0;
+    flex: 1;
+    padding: 24px 36px 48px;
     overflow-y: auto;
     scroll-padding-top: 20px;
   }
   .close {
-    position: sticky;
-    top: 0;
-    float: right;
-    z-index: 2;
     display: grid;
     place-items: center;
     width: 30px;
     height: 30px;
-    margin: -12px -20px 0 0;
     color: var(--text-muted);
     border-radius: var(--radius-sm);
   }
