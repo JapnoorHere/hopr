@@ -630,12 +630,35 @@ export function themeStyle(spec: ThemeSpec): string {
   return TOKENS.map((k) => `--${k}: ${t[k]}`).join("; ");
 }
 
+/** How the terminal's background differs from the theme's (Settings > Terminal > Background). */
+export interface TerminalBackground {
+  /** 0..100: lighter on a dark theme, a touch deeper on a light one. */
+  lift: number;
+  /** 30..100 */
+  opacity: number;
+}
+
+/** The terminal's background: the theme's, lifted, as #rrggbb or #rrggbbaa when see-through. */
+export function terminalBackground(
+  spec: ThemeSpec,
+  b: TerminalBackground = { lift: 0, opacity: 100 },
+): string {
+  const [L, C, H] = hexToOklch(spec.bg);
+  // Blend the lightness toward a soft charcoal (dark themes) or a deeper paper (light ones).
+  const target = isDark(spec) ? Math.max(L, 0.4) : Math.min(L, 0.82);
+  const hex = b.lift ? oklchToHex(L + (target - L) * (b.lift / 100), C, H) : spec.bg;
+  if (b.opacity >= 100) return hex;
+  return `${hex}${Math.round((b.opacity / 100) * 255)
+    .toString(16)
+    .padStart(2, "0")}`;
+}
+
 /** The terminal's colours for a theme. */
-export function terminalColors(spec: ThemeSpec): TerminalColors {
+export function terminalColors(spec: ThemeSpec, b?: TerminalBackground): TerminalColors {
   const [L] = hexToOklch(spec.bg);
   const [tL, tC, tH] = hexToOklch(spec.text);
   return {
-    background: spec.bg,
+    background: terminalBackground(spec, b),
     foreground: spec.text,
     cursor: spec.accent,
     faint: oklchToHex(L + (tL - L) * 0.55, tC, tH),

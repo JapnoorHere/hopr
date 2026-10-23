@@ -33,9 +33,10 @@ export const de: Messages = {
   "motion.off": "Aus",
   "settings.backdrop": "Fensterhintergrund",
   "settings.backdropHint":
-    "Mica lässt die Desktopfarbe sanft durch den Rahmen scheinen (Windows 11). Terminals bleiben deckend.",
+    "Mica färbt den Rahmen mit der Desktopfarbe; Acrylic zeichnet alles hinter dem Fenster weich (Windows 11). Mit geringerer Terminal-Deckkraft (Terminal-Einstellungen) wird auch das Terminal durchscheinend.",
   "backdrop.solid": "Deckend",
   "backdrop.mica": "Mica",
+  "backdrop.acrylic": "Acrylic",
 
   "import.title": "Importieren",
   "import.fromConfig": "Aus ~/.ssh/config",

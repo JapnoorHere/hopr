@@ -52,7 +52,8 @@ class AppearanceStore {
       const win = getCurrentWindow();
       const dark = this.tokens.scheme !== "light";
       await win.setTheme(dark ? "dark" : "light");
-      if (this.current.backdrop === "mica") await win.setEffects({ effects: ["mica" as never] });
+      if (this.current.backdrop !== "solid")
+        await win.setEffects({ effects: [this.current.backdrop as never] });
       else await win.clearEffects();
     } catch {
       // Older Windows or no permission: the frame stays solid, which is the fallback.

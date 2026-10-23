@@ -18,6 +18,10 @@ export interface TerminalPrefs {
   /** Right-click copies the selection, or pastes when nothing is selected. */
   rightClickCopyPaste: boolean;
   bell: "none" | "visual" | "sound";
+  /** Background brightness over the theme's, 0..100 (0 = the theme's own). */
+  bgLift: number;
+  /** Background opacity, 30..100 (below 100 shows the window backdrop through). */
+  bgOpacity: number;
   /** What a remote program writing the clipboard (OSC 52) may do. */
   osc52: "deny" | "ask" | "allow";
   /** Command blocks (needs shell integration): separators, exit chips, pinned command. */
@@ -38,10 +42,13 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   bell: "visual",
   osc52: "ask",
   blocks: "full",
+  bgLift: 0,
+  bgOpacity: 100,
 };
 
 export const FONT_SIZE = { min: 8, max: 32 };
 export const SCROLLBACK = { min: 1_000, max: 100_000 };
+export const BG_OPACITY = { min: 30, max: 100 };
 
 const clamp = (n: unknown, lo: number, hi: number, d: number) =>
   typeof n === "number" && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
@@ -67,6 +74,8 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     bell: oneOf(r.bell, ["none", "visual", "sound"] as const, d.bell),
     osc52: oneOf(r.osc52, ["deny", "ask", "allow"] as const, d.osc52),
     blocks: oneOf(r.blocks, ["off", "separators", "full"] as const, d.blocks),
+    bgLift: Math.round(clamp(r.bgLift, 0, 100, d.bgLift)),
+    bgOpacity: Math.round(clamp(r.bgOpacity, BG_OPACITY.min, BG_OPACITY.max, d.bgOpacity)),
   };
 }
 

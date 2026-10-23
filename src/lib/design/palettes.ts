@@ -165,7 +165,7 @@ export function terminalTheme(c: TerminalColors): ITheme {
     background: c.background,
     foreground: c.foreground,
     cursor: c.cursor,
-    cursorAccent: c.background,
+    cursorAccent: c.background.slice(0, 7),
     selectionBackground: `${c.cursor}4d`,
     selectionInactiveBackground: `${c.faint}40`,
     scrollbarSliderBackground: `${c.faint}40`,

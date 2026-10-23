@@ -6,6 +6,8 @@ import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { snippets } from "$features/snippets/snippets.svelte";
+import { appearance } from "$lib/design/appearance.svelte";
+import { terminalBackground } from "$lib/design/themes";
 import { blurFade, rise, shake, sink, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
 import { toast } from "$lib/ui/toast.svelte";
@@ -56,6 +58,12 @@ $effect(() => {
   });
 });
 const names = $derived(session.hops);
+// The terminal's background (lifted, maybe see-through) is painted once, by the pane's card.
+$effect(() => {
+  const p = prefs.current;
+  const bg = terminalBackground(appearance.spec, { lift: p.bgLift, opacity: p.bgOpacity });
+  document.documentElement.style.setProperty("--term-bg", bg);
+});
 
 // Command block actions (terminal revamp T4), from an exit chip or the pinned header.
 async function copyText(text: string, what: string) {
@@ -123,7 +131,7 @@ function onStripKey(e: KeyboardEvent) {
 </script>
 
 <div
-  class="relative h-full w-full bg-bg pt-3 pb-2 pl-3.5"
+  class="relative h-full w-full pt-3 pb-2 pl-3.5"
   class:revealing
   class:ended={ended}
   class:beam-border={broadcast.includes(session.key)}

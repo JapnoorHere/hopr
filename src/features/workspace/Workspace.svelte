@@ -141,7 +141,7 @@ function drag(e: PointerEvent, d: Divider) {
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--bg);
+    background: var(--term-bg, var(--bg));
     transition:
       border-color var(--dur) var(--ease-out),
       box-shadow var(--dur-slow) var(--ease-out),

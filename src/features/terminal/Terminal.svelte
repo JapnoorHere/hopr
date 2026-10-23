@@ -53,7 +53,22 @@ function options(p: TerminalPrefs): ITerminalOptions {
     // Matte look: bold stays its colour, an unfocused pane shows a hollow cursor.
     drawBoldTextInBrightColors: false,
     cursorInactiveStyle: "outline",
+    // A see-through background (Settings > Terminal > Background) needs this.
+    allowTransparency: true,
   };
+}
+
+function background(p: TerminalPrefs) {
+  return { lift: p.bgLift, opacity: p.bgOpacity };
+}
+
+/**
+ * xterm theme. See-through: xterm draws on a clear canvas and the pane card paints the
+ * translucent background once (stacked layers of it would add up to nearly solid).
+ */
+function xtermTheme(p: TerminalPrefs) {
+  const theme = terminalTheme(terminalColors(appearance.spec, background(p)));
+  return p.bgOpacity < 100 ? { ...theme, background: INVISIBLE } : theme;
 }
 
 /** Capture-phase paste guard: runs before xterm's own textarea handler. */
@@ -141,7 +156,7 @@ $effect(() => {
       ...options(p),
       allowProposedApi: true,
       macOptionIsMeta: true,
-      theme: terminalTheme(terminalColors(appearance.spec)),
+      theme: xtermTheme(prefs.current),
     });
     instance = t;
     const fit = new FitAddon();
@@ -526,7 +541,7 @@ $effect(() => {
 $effect(() => {
   const t = term;
   const p = prefs.current;
-  const theme = terminalTheme(terminalColors(appearance.spec));
+  const theme = xtermTheme(p);
   void appearance.current.motion;
   if (!t) return;
   if (p.cursorGlide && motionLevel() === "full") {

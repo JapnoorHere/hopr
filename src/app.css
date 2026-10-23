@@ -450,15 +450,15 @@
 }
 
 /*
- * Mica backdrop (Settings > Appearance): the window is transparent and Windows draws Mica
- * behind it. The frame (title bar, sidebar, status bar, the desk between panes) turns
- * translucent so Mica shows through; terminals and drawers stay solid for legibility.
+ * Mica / Acrylic backdrop (Settings > Appearance): the window is transparent and Windows draws
+ * the effect behind it. The frame (title bar, sidebar, status bar, the desk between panes)
+ * turns translucent so it shows through; terminals stay solid unless their opacity is lowered.
  */
-:root[data-backdrop="mica"] body,
-:root[data-backdrop="mica"] .app-root {
+:root:not([data-backdrop="solid"]) body,
+:root:not([data-backdrop="solid"]) .app-root {
   background: transparent;
 }
-:root[data-backdrop="mica"] .frame {
+:root:not([data-backdrop="solid"]) .frame {
   background: color-mix(in oklab, var(--surface-1) 42%, transparent);
 }
 

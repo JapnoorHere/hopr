@@ -21,8 +21,8 @@ export type MotionPref = (typeof MOTIONS)[number];
 /** What the page actually uses: `reduced` keeps fades and colour changes, drops movement and loops. */
 export type MotionLevel = Exclude<MotionPref, "system">;
 
-/** Window backdrop: a solid frame, or Windows 11 Mica showing softly through it. */
-export const BACKDROPS = ["solid", "mica"] as const;
+/** Window backdrop: a solid frame, Windows 11 Mica (desktop tint) or Acrylic (blurs what's behind). */
+export const BACKDROPS = ["solid", "mica", "acrylic"] as const;
 export type Backdrop = (typeof BACKDROPS)[number];
 
 export interface Appearance {

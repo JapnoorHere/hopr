@@ -53,12 +53,22 @@ function startResize(e: PointerEvent) {
   handle.addEventListener("pointerup", up);
 }
 
+/** Another drawer is in the DOM besides this one: the drawers are being swapped. */
+const swapping = (node: Element) =>
+  [...document.querySelectorAll("aside.drawer")].some((a) => a !== node);
+
 /**
- * Leaving: lift the drawer out of the layout where it stands, so a drawer opened in its place
- * docks straight away instead of the two sitting side by side while this one fades.
+ * Switching from one drawer to another swaps in place: the panel stays, the old one goes at
+ * once and only the new content fades in. Opening or closing on its own still slides.
+ * (Returning a function defers the choice until both drawers are in the DOM.)
  */
+function enter(node: Element, o: Parameters<typeof springIn>[1]) {
+  return () => (swapping(node) ? { duration: 0 } : springIn(node, o));
+}
+
 function leave(node: Element, o: Parameters<typeof sink>[1]) {
   const el = node as HTMLElement;
+  // Out of the layout where it stands, so nothing beside it moves while it fades.
   const r = el.getBoundingClientRect();
   Object.assign(el.style, {
     position: "fixed",
@@ -69,7 +79,11 @@ function leave(node: Element, o: Parameters<typeof sink>[1]) {
     zIndex: "30",
     pointerEvents: "none",
   });
-  return sink(node, o);
+  return () => {
+    if (!swapping(node)) return sink(node, o);
+    el.style.visibility = "hidden";
+    return { duration: 0 };
+  };
 }
 
 function resetWidth() {
@@ -87,7 +101,7 @@ function resetWidth() {
   class:resizing
   aria-label={title}
   style:width={stored ? `${stored}px` : width}
-  in:springIn={{ x: 28 }}
+  in:enter={{ x: 28 }}
   out:leave={{ x: 20, duration: 140 }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->

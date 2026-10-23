@@ -7,6 +7,7 @@ import {
   parseCustom,
   THEMES,
   TOKENS,
+  terminalBackground,
   terminalColors,
   themeSpec,
   themeStyle,
@@ -93,5 +94,26 @@ describe("custom themes", () => {
     expect(normalizeHex("ABC123")).toBe("#abc123");
     expect(normalizeHex(" #abc123 ")).toBe("#abc123");
     expect(normalizeHex("#abc")).toBeNull();
+  });
+});
+
+describe("terminal background", () => {
+  it("is the theme's own by default", () => {
+    expect(terminalBackground(themeSpec("nord", null))).toBe("#2e3440");
+  });
+
+  it("lifts a dark background and deepens a light one", () => {
+    const dark = themeSpec("midnight", null);
+    expect(hexToOklch(terminalBackground(dark, { lift: 100, opacity: 100 }))[0]).toBeGreaterThan(
+      0.12,
+    );
+    const light = themeSpec("paper", null);
+    expect(hexToOklch(terminalBackground(light, { lift: 100, opacity: 100 }))[0]).toBeLessThan(
+      hexToOklch(light.bg)[0],
+    );
+  });
+
+  it("adds alpha when see-through", () => {
+    expect(terminalBackground(themeSpec("nord", null), { lift: 0, opacity: 50 })).toBe("#2e344080");
   });
 });
