@@ -243,9 +243,7 @@ const BITS = [
 <Drawer
   title="Files"
   width="520px"
-  pinned={shell.pinned}
   onclose={() => shell.close()}
-  onpin={() => shell.togglePin()}
 >
   <div class="relative flex h-full flex-col gap-2 pt-1">
     <select class="input" value={hostId} onchange={pickHost} aria-label="Host">

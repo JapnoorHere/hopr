@@ -47,7 +47,7 @@ function exportAs(kind: "json" | "csv") {
 }
 </script>
 
-<Drawer title="Audit log" pinned={shell.pinned} onclose={() => shell.close()} onpin={() => shell.togglePin()}>
+<Drawer title="Audit log" onclose={() => shell.close()}>
   <div class="flex flex-col gap-2 pt-2">
     <p class="text-xs text-muted">
       Unlocks, connections, failed logins, host-key decisions, copied secrets, key deploys, exports and security

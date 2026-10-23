@@ -259,16 +259,16 @@ function onkeydown(e: KeyboardEvent) {
           {#if !sessions.activeTab}
             <HostsView />
           {/if}
-          {#if !shell.pinned}{@render drawer()}{/if}
-          {#if library.editing !== null}
-            {#key library.editing}
-              <HostEditor id={library.editing === "new" ? null : library.editing} />
-            {/key}
-          {:else if library.deploying}
-            <DeployKeyDrawer hostId={library.deploying.hostId} keyId={library.deploying.keyId} />
-          {/if}
         </main>
-        {#if shell.pinned}{@render drawer()}{/if}
+        <!-- Side panels dock to the right of the content, full height. -->
+        {#if library.editing !== null}
+          {#key library.editing}
+            <HostEditor id={library.editing === "new" ? null : library.editing} />
+          {/key}
+        {:else if library.deploying}
+          <DeployKeyDrawer hostId={library.deploying.hostId} keyId={library.deploying.keyId} />
+        {/if}
+        {@render drawer()}
       {/if}
       {#if !vault.unlocked}
         <UnlockScreen />

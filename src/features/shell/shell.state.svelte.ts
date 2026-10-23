@@ -1,4 +1,4 @@
-/** Window-level UI state: which drawer is open and whether it is docked. */
+/** Window-level UI state: which drawer is open. Drawers dock beside the content. */
 
 export type DrawerId =
   | "settings"
@@ -12,7 +12,6 @@ export type DrawerId =
 
 class ShellState {
   drawer = $state<DrawerId | null>(null);
-  pinned = $state(false);
   /** The open drawer was opened over the host editor, so it sits on top and Esc closes it first. */
   overEditor = $state(false);
   /** Which Keys panel to show the next time the Keys drawer opens. */
@@ -32,13 +31,9 @@ class ShellState {
     this.drawer = null;
   }
 
-  togglePin() {
-    this.pinned = !this.pinned;
-  }
-
-  /** Esc handler: closes the top-most floating overlay. Pinned drawers stay. */
+  /** Esc handler: closes the open drawer. */
   closeTop(): boolean {
-    if (this.drawer && !this.pinned) {
+    if (this.drawer) {
       this.drawer = null;
       return true;
     }

@@ -272,7 +272,7 @@ function onsubmit(e: SubmitEvent) {
 }
 </script>
 
-<Drawer title={existing ? `Edit ${existing.label}` : "New host"} pinned={false} onclose={() => (library.editing = null)}>
+<Drawer title={existing ? `Edit ${existing.label}` : "New host"} onclose={() => (library.editing = null)}>
   <form class="flex flex-col gap-4 pt-2" {onsubmit} autocomplete="off" novalidate bind:this={form}>
     <div class="seg-row" role="radiogroup" aria-label="Protocol" use:slidingPill>
       {#each PROTOCOLS as pr (pr.id)}

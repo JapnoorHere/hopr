@@ -67,9 +67,7 @@ const uptime = $derived.by(() => {
 <Drawer
   title={t("history.title")}
   width="480px"
-  pinned={shell.pinned}
   onclose={() => shell.close()}
-  onpin={() => shell.togglePin()}
 >
   <div class="flex flex-col gap-2 pt-1">
     <div class="tabs" role="tablist" aria-label="History" use:slidingPill>

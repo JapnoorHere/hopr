@@ -130,7 +130,7 @@ const groups = $derived.by(() => {
 const hostName = $derived(library.host(hostId)?.label ?? "host");
 </script>
 
-<Drawer title="Tunnels" width="480px" pinned={shell.pinned} onclose={() => shell.close()} onpin={() => shell.togglePin()}>
+<Drawer title="Tunnels" width="480px" onclose={() => shell.close()}>
   <div class="flex flex-col gap-3 pt-1">
     {#if tunnels.editing === null}
       <button type="button" class="btn-primary self-start" disabled={sshHosts.length === 0} onclick={() => edit(null)}>

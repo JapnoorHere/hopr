@@ -158,7 +158,7 @@ function describe(s: ImportSummary): string {
 }
 </script>
 
-<Drawer title={t("import.title")} pinned={shell.pinned} onclose={() => shell.close()} onpin={() => shell.togglePin()}>
+<Drawer title={t("import.title")} onclose={() => shell.close()}>
   <section class="pt-2">
     <h3 class="label-caps mb-1 text-faint">{t("import.fromConfig")}</h3>
     {#if preview}
