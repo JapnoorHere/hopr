@@ -190,7 +190,7 @@ function knownName(k: KnownHost): string {
 }
 </script>
 
-<Drawer title="Keys" pinned={shell.pinned} onclose={() => shell.close()} onpin={() => shell.togglePin()}>
+<Drawer title="Keys" onclose={() => shell.close()}>
   {#if mode === "list"}
     <div class="flex gap-2 pt-2">
       <button type="button" class="btn-primary flex-1" onclick={() => reset("generate")}>Generate</button>

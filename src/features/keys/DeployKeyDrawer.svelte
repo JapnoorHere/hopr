@@ -74,7 +74,7 @@ async function deploy(e: SubmitEvent) {
 }
 </script>
 
-<Drawer title="Deploy key" pinned={false} onclose={() => (library.deploying = null)}>
+<Drawer title="Deploy key" onclose={() => (library.deploying = null)}>
   <form class="flex flex-col gap-4 pt-2" onsubmit={deploy} autocomplete="off" novalidate bind:this={form}>
     <p class="text-xs text-muted">
       Adds the public key to <span class="font-mono">~/.ssh/authorized_keys</span> on the host, once, and fixes the

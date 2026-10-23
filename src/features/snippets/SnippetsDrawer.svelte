@@ -93,7 +93,7 @@ const groups = $derived.by(() => {
 const missing = $derived(secretsIn(body).filter((n) => !snippets.secrets.includes(n)));
 </script>
 
-<Drawer title="Snippets" width="480px" pinned={shell.pinned} onclose={() => shell.close()} onpin={() => shell.togglePin()}>
+<Drawer title="Snippets" width="480px" onclose={() => shell.close()}>
   <div class="flex flex-col gap-3 pt-1">
     {#if snippets.pending}
       {@const p = snippets.pending}
