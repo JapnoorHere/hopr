@@ -26,11 +26,12 @@ import HistorySettings from "$features/settings/HistorySettings.svelte";
 import KeyboardSettings from "$features/settings/KeyboardSettings.svelte";
 import SyncSettings from "$features/settings/SyncSettings.svelte";
 import TerminalSettings from "$features/settings/TerminalSettings.svelte";
+import ThemePicker from "$features/settings/ThemePicker.svelte";
 import TransfersSettings from "$features/settings/TransfersSettings.svelte";
 import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
 import SecuritySettings from "$features/vault/SecuritySettings.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { BACKDROPS, DENSITIES, type Density, MOTIONS, THEMES } from "$lib/design/theme";
+import { BACKDROPS, DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { sink, slidingPill, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
@@ -44,13 +45,14 @@ const SECTIONS = [
     id: "appearance",
     label: "Appearance",
     icon: Palette,
-    keywords: "theme dark light colour color density motion animation mica backdrop language",
+    keywords:
+      "theme dark light colour color custom terminal palette ansi density motion animation mica backdrop language",
   },
   {
     id: "terminal",
     label: "Terminal",
     icon: TerminalWindow,
-    keywords: "font size cursor colours palette scrollback copy paste bell blocks",
+    keywords: "font size cursor scrollback copy paste bell blocks",
   },
   {
     id: "keyboard",
@@ -306,29 +308,7 @@ $effect(() => {
       <section data-section="appearance" hidden={hiddenSections.appearance}>
         <h2 class="title">Appearance</h2>
         <p class="lead">How Hopr looks and moves.</p>
-        <div class="group">
-          <h3 class="label-caps mb-2 text-faint">{t("settings.theme")}</h3>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Theme">
-            {#each THEMES as th (th.id)}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={appearance.current.theme === th.id}
-                data-theme={th.id}
-                class="card"
-                class:selected={appearance.current.theme === th.id}
-                onclick={() => appearance.update({ theme: th.id })}
-              >
-                <span class="flex gap-1">
-                  <span class="h-6 flex-1 rounded-sm bg-surface-2"></span>
-                  <span class="h-6 w-2 rounded-sm bg-accent"></span>
-                </span>
-                <span class="mt-2 block text-sm font-medium text-fg">{th.name}</span>
-                <span class="block text-xs text-muted">{th.feel}</span>
-              </button>
-            {/each}
-          </div>
-        </div>
+        <ThemePicker />
         <div class="group">
           <h3 class="label-caps mb-2 text-faint">{t("settings.density")}</h3>
           <div class="seg-row" role="radiogroup" aria-label="Density" use:slidingPill>
@@ -606,26 +586,6 @@ $effect(() => {
   .group :global(> section),
   .group :global(> section:first-child) {
     margin-top: 0;
-  }
-  .card {
-    padding: 8px;
-    text-align: left;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    transition:
-      border-color var(--dur-fast) var(--ease-out),
-      transform var(--dur-instant) var(--ease-out);
-  }
-  .card:hover {
-    border-color: var(--border-strong);
-  }
-  .card:active {
-    transform: scale(0.98);
-  }
-  .card.selected {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
   }
   .seg-row {
     display: flex;

@@ -12,6 +12,7 @@ import { untrack } from "svelte";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { INVISIBLE, resolveCssColor, terminalTheme } from "$lib/design/palettes";
+import { terminalColors } from "$lib/design/themes";
 import { inTauri } from "$lib/ipc";
 import { isMac, motionLevel } from "$lib/platform";
 import { shortcuts } from "$lib/shortcuts";
@@ -140,7 +141,7 @@ $effect(() => {
       ...options(p),
       allowProposedApi: true,
       macOptionIsMeta: true,
-      theme: terminalTheme(appearance.current.theme, undefined, prefs.current.palette),
+      theme: terminalTheme(terminalColors(appearance.spec)),
     });
     instance = t;
     const fit = new FitAddon();
@@ -525,7 +526,7 @@ $effect(() => {
 $effect(() => {
   const t = term;
   const p = prefs.current;
-  const theme = terminalTheme(appearance.current.theme, undefined, p.palette);
+  const theme = terminalTheme(terminalColors(appearance.spec));
   void appearance.current.motion;
   if (!t) return;
   if (p.cursorGlide && motionLevel() === "full") {
@@ -546,13 +547,12 @@ $effect(() => {
 });
 
 const matchColors = $derived.by(() => {
-  void appearance.current.theme;
-  const css = getComputedStyle(document.documentElement);
+  const tk = appearance.tokens;
   return {
-    matchBackground: resolveCssColor(css.getPropertyValue("--warning"), 0.35),
-    activeMatchBackground: resolveCssColor(css.getPropertyValue("--accent"), 0.7),
-    matchOverviewRuler: resolveCssColor(css.getPropertyValue("--warning")),
-    activeMatchColorOverviewRuler: resolveCssColor(css.getPropertyValue("--accent")),
+    matchBackground: resolveCssColor(tk.warning, 0.35),
+    activeMatchBackground: resolveCssColor(tk.accent, 0.7),
+    matchOverviewRuler: resolveCssColor(tk.warning),
+    activeMatchColorOverviewRuler: resolveCssColor(tk.accent),
   };
 });
 

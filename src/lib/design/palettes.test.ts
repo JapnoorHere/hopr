@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contrast, hexToOklch, matte, oklchToHex, TERMINAL_PALETTES } from "./palettes";
-
-// The app themes' text colours (tokens.css), for palettes that use the theme's text.
-const THEME_TEXT: Record<string, string> = {
-  ember: oklchToHex(0.93, 0.01, 80),
-  moss: oklchToHex(0.93, 0.015, 140),
-  tide: oklchToHex(0.93, 0.01, 210),
-  paper: oklchToHex(0.22, 0.012, 60),
-};
+import { contrast, hexToOklch, matte, oklchToHex } from "./palettes";
 
 describe("colour maths", () => {
   it("round-trips through OKLCH", () => {
@@ -29,23 +21,4 @@ describe("colour maths", () => {
     expect(contrast("#000000", "#ffffff")).toBeCloseTo(21, 0);
     expect(contrast("#777777", "#777777")).toBeCloseTo(1, 5);
   });
-});
-
-describe("terminal palettes", () => {
-  for (const [id, p] of Object.entries(TERMINAL_PALETTES)) {
-    it(`${p.name} stays readable on its background`, () => {
-      const text = p.foreground ?? THEME_TEXT[id] ?? "#ffffff";
-      expect(contrast(text, p.reference)).toBeGreaterThanOrEqual(7);
-      for (const c of [
-        p.ansi.red,
-        p.ansi.green,
-        p.ansi.yellow,
-        p.ansi.blue,
-        p.ansi.magenta,
-        p.ansi.cyan,
-      ]) {
-        expect(contrast(c, p.reference), `${c} on ${p.reference}`).toBeGreaterThanOrEqual(3);
-      }
-    });
-  }
 });

@@ -1,11 +1,10 @@
 /**
- * Terminal colors. ANSI palettes are separate from UI themes (HOPR_PLAN §7.4) so users can
- * keep a familiar palette inside any UI theme. Each built-in theme ships a matching one.
+ * Colour maths and the terminal's colours. Every theme (themes.ts) carries its own 16 ANSI
+ * colours, so the terminal always matches the app.
  */
 import type { ITheme } from "@xterm/xterm";
-import type { ThemeId } from "./theme";
 
-type Ansi16 = Required<
+export type Ansi16 = Required<
   Pick<
     ITheme,
     | "black"
@@ -27,7 +26,7 @@ type Ansi16 = Required<
   >
 >;
 
-function ansi(c: string[]): Ansi16 {
+export function ansi(c: string[]): Ansi16 {
   const [k, r, g, y, b, m, cy, w, bk, br, bg, by, bb, bm, bc, bw] = c as [
     string,
     string,
@@ -65,81 +64,6 @@ function ansi(c: string[]): Ansi16 {
     brightWhite: bw,
   };
 }
-
-export const ANSI_PALETTES: Record<ThemeId, Ansi16> = {
-  ember: ansi([
-    "#1c1a18",
-    "#e5675a",
-    "#a9c46a",
-    "#f2b544",
-    "#7aa6d6",
-    "#c993c7",
-    "#74c2b4",
-    "#d9d2c5",
-    "#6b635a",
-    "#ff8a7a",
-    "#c3df85",
-    "#ffcf6b",
-    "#9cc2ee",
-    "#e0b0dd",
-    "#93dccd",
-    "#f5efe4",
-  ]),
-  moss: ansi([
-    "#121a16",
-    "#f07167",
-    "#b6f36a",
-    "#e9d968",
-    "#6fb3d2",
-    "#c39bd3",
-    "#6fd3b8",
-    "#cfe0d4",
-    "#4f6157",
-    "#ff9488",
-    "#cfff8f",
-    "#f6ea8a",
-    "#94cde6",
-    "#dab8e6",
-    "#94ecd2",
-    "#eef7f0",
-  ]),
-  tide: ansi([
-    "#10191d",
-    "#ef6f6c",
-    "#8fd694",
-    "#f0c96a",
-    "#5fb0f0",
-    "#b79cf0",
-    "#4fd1c5",
-    "#cfdde2",
-    "#4b5d65",
-    "#ff918e",
-    "#aef0b2",
-    "#ffdc8a",
-    "#86c7ff",
-    "#cfb9ff",
-    "#7ce8de",
-    "#f0f7f9",
-  ]),
-  paper: ansi([
-    "#2b2622",
-    "#c8331f",
-    "#4f7a28",
-    "#9a6b00",
-    "#2d5f9a",
-    "#8a3f86",
-    "#1f7a72",
-    "#d6cfc2",
-    "#6d655c",
-    "#e4572e",
-    "#66973a",
-    "#b8860b",
-    "#3d79c2",
-    "#a8559f",
-    "#2b958b",
-    "#f4f1ea",
-  ]),
-};
 
 /** Fully transparent, for hiding xterm's own cursor under the glide cursor. */
 export const INVISIBLE = "#00000000";
@@ -223,199 +147,30 @@ export function contrast(a: string, b: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
-// ── Terminal palettes ─────────────────────────────────────────────────────────────
+// ── Terminal theme ────────────────────────────────────────────────────────────────
 
-/** A terminal palette. Theme palettes take background and text from the app theme. */
-export interface TerminalPalette {
-  name: string;
-  feel: string;
-  /** Own background/foreground/cursor; absent = the app theme's. */
-  background?: string;
-  foreground?: string;
-  cursor?: string;
-  /** The background it is designed for (swatches and contrast checks). */
-  reference: string;
+/** What the terminal needs from a theme, as #rrggbb. */
+export interface TerminalColors {
+  background: string;
+  foreground: string;
+  cursor: string;
+  /** Faint text: scrollbar and inactive selection. */
+  faint: string;
   ansi: Ansi16;
 }
 
-const matteAnsi = (a: Ansi16): Ansi16 =>
-  Object.fromEntries(Object.entries(a).map(([k, v]) => [k, matte(v, 0.68)])) as Ansi16;
-
-export const PALETTE_IDS = [
-  "theme",
-  "ember",
-  "moss",
-  "tide",
-  "paper",
-  "rose-pine",
-  "kanagawa",
-  "catppuccin-mocha",
-  "gruvbox-material",
-] as const;
-export type PaletteId = (typeof PALETTE_IDS)[number];
-
-export const TERMINAL_PALETTES: Record<Exclude<PaletteId, "theme">, TerminalPalette> = {
-  ember: {
-    name: "Ember Matte",
-    feel: "Warm charcoal",
-    reference: "#141210",
-    ansi: matteAnsi(ANSI_PALETTES.ember),
-  },
-  moss: {
-    name: "Moss Matte",
-    feel: "Deep olive",
-    reference: "#0e1511",
-    ansi: matteAnsi(ANSI_PALETTES.moss),
-  },
-  tide: {
-    name: "Tide Matte",
-    feel: "Slate blue",
-    reference: "#0c1418",
-    ansi: matteAnsi(ANSI_PALETTES.tide),
-  },
-  paper: {
-    name: "Paper Matte",
-    feel: "Warm off-white",
-    reference: "#f3efe6",
-    ansi: matteAnsi(ANSI_PALETTES.paper),
-  },
-  // Community palettes (MIT), with their published colours.
-  "rose-pine": {
-    name: "Rosé Pine",
-    feel: "Dusky plum",
-    background: "#191724",
-    foreground: "#e0def4",
-    cursor: "#ebbcba",
-    reference: "#191724",
-    ansi: ansi([
-      "#26233a",
-      "#eb6f92",
-      "#31748f",
-      "#f6c177",
-      "#9ccfd8",
-      "#c4a7e7",
-      "#ebbcba",
-      "#e0def4",
-      "#6e6a86",
-      "#eb6f92",
-      "#31748f",
-      "#f6c177",
-      "#9ccfd8",
-      "#c4a7e7",
-      "#ebbcba",
-      "#e0def4",
-    ]),
-  },
-  kanagawa: {
-    name: "Kanagawa",
-    feel: "Ink and wave",
-    background: "#1f1f28",
-    foreground: "#dcd7ba",
-    cursor: "#c8c093",
-    reference: "#1f1f28",
-    ansi: ansi([
-      "#16161d",
-      "#c34043",
-      "#76946a",
-      "#c0a36e",
-      "#7e9cd8",
-      "#957fb8",
-      "#6a9589",
-      "#c8c093",
-      "#727169",
-      "#e82424",
-      "#98bb6c",
-      "#e6c384",
-      "#7fb4ca",
-      "#938aa9",
-      "#7aa89f",
-      "#dcd7ba",
-    ]),
-  },
-  "catppuccin-mocha": {
-    name: "Catppuccin Mocha",
-    feel: "Soft pastel",
-    background: "#1e1e2e",
-    foreground: "#cdd6f4",
-    cursor: "#f5e0dc",
-    reference: "#1e1e2e",
-    ansi: ansi([
-      "#45475a",
-      "#f38ba8",
-      "#a6e3a1",
-      "#f9e2af",
-      "#89b4fa",
-      "#f5c2e7",
-      "#94e2d5",
-      "#bac2de",
-      "#585b70",
-      "#f38ba8",
-      "#a6e3a1",
-      "#f9e2af",
-      "#89b4fa",
-      "#f5c2e7",
-      "#94e2d5",
-      "#a6adc8",
-    ]),
-  },
-  "gruvbox-material": {
-    name: "Gruvbox Material",
-    feel: "Retro, soft brown",
-    background: "#282828",
-    foreground: "#d4be98",
-    cursor: "#d4be98",
-    reference: "#282828",
-    ansi: ansi([
-      "#32302f",
-      "#ea6962",
-      "#a9b665",
-      "#d8a657",
-      "#7daea3",
-      "#d3869b",
-      "#89b482",
-      "#d4be98",
-      "#928374",
-      "#ea6962",
-      "#a9b665",
-      "#d8a657",
-      "#7daea3",
-      "#d3869b",
-      "#89b482",
-      "#ddc7a1",
-    ]),
-  },
-};
-
-/** The palette a terminal uses: "theme" means the app theme's matte palette. */
-export function resolvePalette(theme: ThemeId, id: PaletteId): TerminalPalette {
-  return TERMINAL_PALETTES[id === "theme" ? theme : id];
-}
-
-/**
- * xterm theme: the palette's colours, with background, text and cursor from the app theme
- * unless the palette brings its own. Selection is a translucent wash of the cursor colour.
- */
-export function terminalTheme(
-  theme: ThemeId,
-  root: HTMLElement = document.documentElement,
-  palette: PaletteId = "theme",
-): ITheme {
-  const css = getComputedStyle(root);
-  const token = (name: string, alpha?: number) =>
-    resolveCssColor(css.getPropertyValue(name), alpha);
-  const p = resolvePalette(theme, palette);
-  const bg = p.background ?? token("--bg");
-  const cursor = p.cursor ?? token("--accent");
+/** xterm theme from a theme's colours. Selection is a translucent wash of the cursor colour. */
+export function terminalTheme(c: TerminalColors): ITheme {
   return {
-    background: bg,
-    foreground: p.foreground ?? token("--text"),
-    cursor,
-    cursorAccent: bg,
-    selectionBackground: `${cursor.slice(0, 7)}4d`,
-    selectionInactiveBackground: token("--text-faint", 0.25),
-    scrollbarSliderBackground: token("--text-faint", 0.25),
-    scrollbarSliderHoverBackground: token("--text-faint", 0.4),
-    scrollbarSliderActiveBackground: token("--text-faint", 0.5),
-    ...p.ansi,
+    background: c.background,
+    foreground: c.foreground,
+    cursor: c.cursor,
+    cursorAccent: c.background,
+    selectionBackground: `${c.cursor}4d`,
+    selectionInactiveBackground: `${c.faint}40`,
+    scrollbarSliderBackground: `${c.faint}40`,
+    scrollbarSliderHoverBackground: `${c.faint}66`,
+    scrollbarSliderActiveBackground: `${c.faint}80`,
+    ...c.ansi,
   };
 }

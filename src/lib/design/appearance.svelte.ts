@@ -7,9 +7,13 @@ import {
   safeStorage,
   saveAppearance,
 } from "./theme";
+import { themeSpec, themeTokens } from "./themes";
 
 class AppearanceStore {
   current = $state<Appearance>(loadAppearance(safeStorage()));
+  /** The theme in use, and its tokens: computed, so readers never wait on the DOM. */
+  spec = $derived(themeSpec(this.current.theme, this.current.custom));
+  tokens = $derived(themeTokens(this.spec));
 
   init() {
     applyAppearance(this.current);
@@ -46,8 +50,7 @@ class AppearanceStore {
     if (!inTauri) return;
     try {
       const win = getCurrentWindow();
-      const dark =
-        getComputedStyle(document.documentElement).getPropertyValue("--scheme").trim() !== "light";
+      const dark = this.tokens.scheme !== "light";
       await win.setTheme(dark ? "dark" : "light");
       if (this.current.backdrop === "mica") await win.setEffects({ effects: ["mica" as never] });
       else await win.clearEffects();

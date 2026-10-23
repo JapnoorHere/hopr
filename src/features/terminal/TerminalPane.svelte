@@ -6,8 +6,6 @@ import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { snippets } from "$features/snippets/snippets.svelte";
-import { appearance } from "$lib/design/appearance.svelte";
-import { resolvePalette } from "$lib/design/palettes";
 import { blurFade, rise, shake, sink, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
 import { toast } from "$lib/ui/toast.svelte";
@@ -58,8 +56,6 @@ $effect(() => {
   });
 });
 const names = $derived(session.hops);
-// A palette with its own background (Rosé Pine, Kanagawa…) colours the whole pane.
-const paneBg = $derived(resolvePalette(appearance.current.theme, prefs.current.palette).background);
 
 // Command block actions (terminal revamp T4), from an exit chip or the pinned header.
 async function copyText(text: string, what: string) {
@@ -128,7 +124,6 @@ function onStripKey(e: KeyboardEvent) {
 
 <div
   class="relative h-full w-full bg-bg pt-3 pb-2 pl-3.5"
-  style:background={paneBg}
   class:revealing
   class:ended={ended}
   class:beam-border={broadcast.includes(session.key)}

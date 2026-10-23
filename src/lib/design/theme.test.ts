@@ -7,6 +7,7 @@ import {
   resolveMotion,
   saveAppearance,
 } from "./theme";
+import { customFrom } from "./themes";
 
 function memoryStorage(): Storage {
   const m = new Map<string, string>();
@@ -28,6 +29,7 @@ describe("parseAppearance", () => {
       parseAppearance({ theme: "moss", density: "compact", motion: "off", backdrop: "mica" }),
     ).toEqual({
       theme: "moss",
+      custom: null,
       density: "compact",
       motion: "off",
       backdrop: "mica",
@@ -37,6 +39,7 @@ describe("parseAppearance", () => {
   it("falls back per field on invalid input", () => {
     expect(parseAppearance({ theme: "neon", density: "spacious", motion: "wild" })).toEqual({
       theme: "ember",
+      custom: null,
       density: "spacious",
       motion: "system",
       backdrop: "solid",
@@ -44,12 +47,27 @@ describe("parseAppearance", () => {
     expect(parseAppearance(null)).toEqual(DEFAULT_APPEARANCE);
     expect(parseAppearance({ density: "toString" })).toEqual(DEFAULT_APPEARANCE);
   });
+
+  it("keeps a custom theme only with valid colours", () => {
+    const custom = customFrom("nord");
+    expect(parseAppearance({ theme: "custom", custom }).theme).toBe("custom");
+    expect(parseAppearance({ theme: "custom", custom: { ...custom, bg: "red" } })).toMatchObject({
+      theme: "ember",
+      custom: null,
+    });
+  });
 });
 
 describe("storage round trip", () => {
   it("saves and loads", () => {
     const s = memoryStorage();
-    const a = { theme: "paper", density: "spacious", motion: "reduced", backdrop: "mica" } as const;
+    const a = {
+      theme: "paper",
+      custom: null,
+      density: "spacious",
+      motion: "reduced",
+      backdrop: "mica",
+    } as const;
     saveAppearance(a, s);
     expect(loadAppearance(s)).toEqual(a);
   });
@@ -65,9 +83,13 @@ describe("storage round trip", () => {
 describe("applyAppearance", () => {
   it("sets theme attribute and density variable", () => {
     const el = document.createElement("div");
-    applyAppearance({ theme: "tide", density: "compact", motion: "off", backdrop: "mica" }, el);
+    applyAppearance(
+      { theme: "tide", custom: null, density: "compact", motion: "off", backdrop: "mica" },
+      el,
+    );
     expect(el.dataset.backdrop).toBe("mica");
     expect(el.dataset.theme).toBe("tide");
+    expect(el.style.getPropertyValue("--bg")).toBe("oklch(0.16 0.015 225)");
     expect(el.style.getPropertyValue("--density")).toBe("0.8");
     expect(el.dataset.motion).toBe("off");
   });

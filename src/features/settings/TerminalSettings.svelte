@@ -2,10 +2,10 @@
 import { FONT_SIZE, FONTS, SCROLLBACK } from "$features/terminal/prefs";
 import { prefs } from "$features/terminal/prefs.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { PALETTE_IDS, resolvePalette } from "$lib/design/palettes";
+import { terminalColors } from "$lib/design/themes";
 
 const p = $derived(prefs.current);
-const pv = $derived(resolvePalette(appearance.current.theme, p.palette));
+const pv = $derived(terminalColors(appearance.spec));
 
 function num(e: Event): number {
   return Number((e.currentTarget as HTMLInputElement).value);
@@ -21,12 +21,13 @@ function on(e: Event): boolean {
 
 <div class="group flex flex-col gap-3">
   <h3 class="label-caps text-faint">Colours</h3>
-  <!-- Live preview: the chosen colours, font and cursor on a small sample session. -->
+  <p class="-mt-1 text-xs text-muted">The terminal uses your theme's colours. Pick or make one in Appearance.</p>
+  <!-- Live preview: the theme's colours, font and cursor on a small sample session. -->
   <div
     class="preview"
     aria-hidden="true"
-    style:background={pv.background ?? "var(--bg)"}
-    style:color={pv.foreground ?? "var(--text)"}
+    style:background={pv.background}
+    style:color={pv.foreground}
     style:font-family={`"${p.fontFamily}", monospace`}
     style:font-size="{Math.max(10, p.fontSize - 2)}px"
     style:line-height={p.lineHeight}
@@ -37,31 +38,7 @@ function on(e: Event): boolean {
     <div style:color={pv.ansi.cyan}>  https://docs.example.com</div>
     <div>
       <span style:color={pv.ansi.green}>dev@api</span> <span style:color={pv.ansi.blue}>~/app</span> ❯
-      <span class="pcursor" data-shape={p.cursorStyle} style:background={pv.cursor ?? "var(--accent)"}></span>
-    </div>
-  </div>
-  <div class="field">
-    <span class="text-xs text-muted">Colours</span>
-    <div class="palettes" role="radiogroup" aria-label="Terminal colours">
-      {#each PALETTE_IDS as id (id)}
-        {@const pal = resolvePalette(appearance.current.theme, id)}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={p.palette === id}
-          class="pal"
-          class:on={p.palette === id}
-          onclick={() => prefs.update({ palette: id })}
-          title={pal.feel}
-        >
-          <span class="strip" style:background={pal.background ?? "var(--bg)"}>
-            {#each [pal.ansi.red, pal.ansi.yellow, pal.ansi.green, pal.ansi.cyan, pal.ansi.blue, pal.ansi.magenta] as c, i (i)}
-              <span class="chip" style:background={c}></span>
-            {/each}
-          </span>
-          <span class="truncate text-xs text-fg">{id === "theme" ? "Match app theme" : pal.name}</span>
-        </button>
-      {/each}
+      <span class="pcursor" data-shape={p.cursorStyle} style:background={pv.cursor}></span>
     </div>
   </div>
 </div>
@@ -187,43 +164,5 @@ function on(e: Event): boolean {
     50% {
       opacity: 0.15;
     }
-  }
-  .palettes {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-  }
-  .pal {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 5px;
-    text-align: left;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    transition:
-      border-color var(--dur-fast) var(--ease-out),
-      transform var(--dur-instant) var(--ease-out);
-  }
-  .pal:hover {
-    border-color: var(--border-strong);
-  }
-  .pal:active {
-    transform: scale(0.97);
-  }
-  .pal.on {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-  .strip {
-    display: flex;
-    gap: 3px;
-    padding: 6px;
-    border-radius: 4px;
-  }
-  .chip {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
   }
 </style>

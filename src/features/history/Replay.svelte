@@ -7,6 +7,7 @@ import { prefs } from "$features/terminal/prefs.svelte";
 import { wrap } from "$features/vault/vault.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { terminalTheme } from "$lib/design/palettes";
+import { terminalColors } from "$lib/design/themes";
 import { commands } from "$lib/ipc";
 import { sink, springIn } from "$lib/motion";
 import { type Cast, type CastEvent, findText, outputUntil, parseCast, squeezeIdle } from "./cast";
@@ -203,7 +204,7 @@ $effect(() => {
       disableStdin: true,
       cursorBlink: false,
       allowProposedApi: true,
-      theme: terminalTheme(appearance.current.theme, undefined, prefs.current.palette),
+      theme: terminalTheme(terminalColors(appearance.spec)),
     });
     term.open(host);
     // Take focus from the terminal underneath, so keys (Space, Esc) reach the player.

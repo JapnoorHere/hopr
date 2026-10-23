@@ -1,7 +1,5 @@
 /** Terminal preferences (HOPR_PLAN T10, T14, T16). Per device, stored in localStorage. */
 
-import { PALETTE_IDS, type PaletteId } from "$lib/design/palettes";
-
 export const FONTS = ["Commit Mono", "Geist Mono Variable", "JetBrains Mono Variable"] as const;
 export type Font = (typeof FONTS)[number];
 
@@ -22,8 +20,6 @@ export interface TerminalPrefs {
   bell: "none" | "visual" | "sound";
   /** What a remote program writing the clipboard (OSC 52) may do. */
   osc52: "deny" | "ask" | "allow";
-  /** Terminal colours: "theme" follows the app theme, or a palette of its own. */
-  palette: PaletteId;
   /** Command blocks (needs shell integration): separators, exit chips, pinned command. */
   blocks: "off" | "separators" | "full";
 }
@@ -41,7 +37,6 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   rightClickCopyPaste: true,
   bell: "visual",
   osc52: "ask",
-  palette: "theme",
   blocks: "full",
 };
 
@@ -71,7 +66,6 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     rightClickCopyPaste: bool(r.rightClickCopyPaste, d.rightClickCopyPaste),
     bell: oneOf(r.bell, ["none", "visual", "sound"] as const, d.bell),
     osc52: oneOf(r.osc52, ["deny", "ask", "allow"] as const, d.osc52),
-    palette: oneOf(r.palette, PALETTE_IDS, d.palette),
     blocks: oneOf(r.blocks, ["off", "separators", "full"] as const, d.blocks),
   };
 }

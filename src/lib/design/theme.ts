@@ -1,13 +1,16 @@
 /** Appearance model: theme, density and motion. Pure functions so they test without a DOM framework. */
 
-export const THEMES = [
-  { id: "ember", name: "Ember", feel: "Cozy, distinctive" },
-  { id: "moss", name: "Moss", feel: "Hacker, refined" },
-  { id: "tide", name: "Tide", feel: "Calm, techy" },
-  { id: "paper", name: "Paper", feel: "A rare light theme" },
-] as const;
+import {
+  type CustomTheme,
+  isThemeId,
+  parseCustom,
+  type ThemeId,
+  TOKENS,
+  themeSpec,
+  themeTokens,
+} from "./themes";
 
-export type ThemeId = (typeof THEMES)[number]["id"];
+export { THEMES, type ThemeId } from "./themes";
 
 export const DENSITIES = { compact: 0.8, comfortable: 1, spacious: 1.25 } as const;
 export type Density = keyof typeof DENSITIES;
@@ -23,7 +26,10 @@ export const BACKDROPS = ["solid", "mica"] as const;
 export type Backdrop = (typeof BACKDROPS)[number];
 
 export interface Appearance {
-  theme: ThemeId;
+  /** A built-in theme id, or "custom". */
+  theme: ThemeId | "custom";
+  /** The custom theme's colours, kept even while a built-in theme is in use. */
+  custom: CustomTheme | null;
   density: Density;
   motion: MotionPref;
   backdrop: Backdrop;
@@ -31,16 +37,13 @@ export interface Appearance {
 
 export const DEFAULT_APPEARANCE: Appearance = {
   theme: "ember",
+  custom: null,
   density: "comfortable",
   motion: "system",
   backdrop: "solid",
 };
 
 const STORAGE_KEY = "hopr.appearance";
-
-function isThemeId(v: unknown): v is ThemeId {
-  return THEMES.some((t) => t.id === v);
-}
 
 function isDensity(v: unknown): v is Density {
   return typeof v === "string" && Object.hasOwn(DENSITIES, v);
@@ -68,8 +71,13 @@ export function resolveMotion(pref: MotionPref, systemReduced: boolean): MotionL
 export function parseAppearance(raw: unknown): Appearance {
   if (typeof raw !== "object" || raw === null) return { ...DEFAULT_APPEARANCE };
   const r = raw as Record<string, unknown>;
+  const custom = parseCustom(r.custom);
   return {
-    theme: isThemeId(r.theme) ? r.theme : DEFAULT_APPEARANCE.theme,
+    theme:
+      isThemeId(r.theme) || (r.theme === "custom" && custom)
+        ? (r.theme as ThemeId | "custom")
+        : DEFAULT_APPEARANCE.theme,
+    custom,
     density: isDensity(r.density) ? r.density : DEFAULT_APPEARANCE.density,
     motion: isMotion(r.motion) ? r.motion : DEFAULT_APPEARANCE.motion,
     backdrop: BACKDROPS.some((b) => b === r.backdrop)
@@ -80,6 +88,8 @@ export function parseAppearance(raw: unknown): Appearance {
 
 export function applyAppearance(a: Appearance, root: HTMLElement = document.documentElement) {
   root.dataset.theme = a.theme;
+  const tokens = themeTokens(themeSpec(a.theme, a.custom));
+  for (const k of TOKENS) root.style.setProperty(`--${k}`, tokens[k]);
   root.style.setProperty("--density", String(DENSITIES[a.density]));
   root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
   root.dataset.backdrop = a.backdrop;
