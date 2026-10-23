@@ -564,3 +564,13 @@ input[type="range"]:focus-visible {
 input[type="range"]:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 35%, transparent);
 }
+
+/* Settings search: every match, and the one Enter took you to. */
+::highlight(settings-hit) {
+  background-color: color-mix(in oklab, var(--accent) 28%, transparent);
+  color: var(--text);
+}
+::highlight(settings-now) {
+  background-color: var(--accent);
+  color: var(--accent-fg);
+}

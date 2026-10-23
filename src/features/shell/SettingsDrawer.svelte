@@ -18,7 +18,7 @@ import {
   TerminalWindow,
   X,
 } from "phosphor-svelte";
-import { tick } from "svelte";
+import { onDestroy, tick } from "svelte";
 import { fade } from "svelte/transition";
 import BackupSettings from "$features/settings/BackupSettings.svelte";
 import DesktopSettings from "$features/settings/DesktopSettings.svelte";
@@ -129,7 +129,74 @@ $effect(() => {
       next[s.id] = !(whole || any);
     }
     hiddenSections = next;
+    void tick().then(() => findAll(q));
   });
+});
+
+// Find in page: every match of the search is highlighted; Enter / Shift+Enter step through
+// them like a text search, scrolling the current one into view.
+let hits: Range[] = [];
+let hitAt = $state(-1);
+let hitCount = $state(0);
+
+function findAll(q: string) {
+  hits = [];
+  if (q && content) {
+    const walk = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) =>
+        n.parentElement?.closest("[hidden], select, .bar")
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT,
+    });
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const text = (n.textContent ?? "").toLowerCase();
+      for (let i = text.indexOf(q); i >= 0; i = text.indexOf(q, i + q.length)) {
+        const r = document.createRange();
+        r.setStart(n, i);
+        r.setEnd(n, i + q.length);
+        hits.push(r);
+      }
+    }
+  }
+  hitCount = hits.length;
+  hitAt = -1;
+  paint();
+}
+
+function paint() {
+  if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
+  CSS.highlights.set("settings-hit", new Highlight(...hits));
+  const now = hits.at(hitAt);
+  if (now) CSS.highlights.set("settings-now", new Highlight(now));
+  else CSS.highlights.delete("settings-now");
+}
+
+function step(by: number) {
+  if (!hits.length || !content) return;
+  hitAt = (hitAt + by + hits.length) % hits.length;
+  paint();
+  const r = hits[hitAt]?.getBoundingClientRect();
+  const box = content.getBoundingClientRect();
+  if (r && (r.top < box.top + 24 || r.bottom > box.bottom - 24)) {
+    content.scrollBy({
+      top: r.top - box.top - box.height / 3,
+      behavior: motionLevel() === "full" ? "smooth" : "auto",
+    });
+  }
+}
+
+function onSearchKey(e: KeyboardEvent) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    step(e.shiftKey ? -1 : 1);
+  }
+}
+
+onDestroy(() => {
+  if (typeof CSS !== "undefined" && "highlights" in CSS) {
+    CSS.highlights.delete("settings-hit");
+    CSS.highlights.delete("settings-now");
+  }
 });
 
 function go(id: SectionId) {
@@ -193,8 +260,12 @@ $effect(() => {
           placeholder="Search settings"
           aria-label="Search settings"
           spellcheck="false"
+          onkeydown={onSearchKey}
         />
         {#if query}
+          <span class="count" title="Enter for next, Shift+Enter for previous">
+            {hitCount ? `${hitAt + 1 || "–"}/${hitCount}` : "0"}
+          </span>
           <button type="button" class="clear" aria-label="Clear search" onclick={() => (query = "")}>
             <X size={12} />
           </button>
@@ -427,6 +498,12 @@ $effect(() => {
     outline: none;
   }
   .search input::placeholder {
+    color: var(--text-faint);
+  }
+  .count {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
     color: var(--text-faint);
   }
   .clear {
