@@ -7,7 +7,7 @@ interface Props {
   shortcut?: string;
   active?: boolean;
   disabled?: boolean;
-  tip?: "right" | "bottom" | "bottom-end" | "top";
+  tip?: "right" | "bottom" | "bottom-start" | "bottom-end" | "top";
   size?: number;
   onclick?: () => void;
   children: Snippet;
@@ -32,6 +32,7 @@ let {
   aria-label={label}
   {disabled}
   {onclick}
+  onpointerup={(e) => e.currentTarget.blur()}
   data-tip={tip}
   style:width="{size}px"
   style:height="{size}px"
@@ -69,6 +70,14 @@ let {
   }
   .btn:disabled {
     opacity: 0.4;
+  }
+  /* A mouse click drops focus (pointerup), so this ring only shows for the keyboard: a thin
+     line inside the button rather than a thick box around it. */
+  .btn:focus-visible {
+    outline: 1.5px solid color-mix(in oklab, var(--accent) 75%, transparent);
+    outline-offset: -1.5px;
+    background: var(--surface-3);
+    color: var(--text);
   }
   .tip {
     position: absolute;
@@ -111,6 +120,10 @@ let {
     top: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
+  }
+  [data-tip="bottom-start"] .tip {
+    top: calc(100% + 6px);
+    left: 0;
   }
   [data-tip="bottom-end"] .tip {
     top: calc(100% + 6px);

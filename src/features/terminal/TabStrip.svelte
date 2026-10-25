@@ -101,7 +101,7 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
     </div>
   {/each}
   <div class="mb-1 ml-1">
-    <IconButton label="New tab" shortcut="Ctrl+Shift+T" size={26} onclick={() => sessions.showHome()}>
+    <IconButton label="New tab" shortcut="Ctrl+Shift+T" size={26} tip="bottom-start" onclick={() => sessions.showHome()}>
       <Plus size={14} />
     </IconButton>
   </div>
