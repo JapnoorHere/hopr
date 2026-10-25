@@ -183,8 +183,32 @@ pub mod keychain {
     const SERVICE: &str = "dev.hopr.app";
     const USER: &str = "vault-dek";
 
+    /// The open profile: each profile remembers its own key. The original profile keeps the
+    /// old name, so a key remembered before profiles existed still works.
+    static PROFILE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+    pub fn set_profile(id: &str) {
+        let _ = PROFILE.set(id.to_owned());
+    }
+
+    fn user_for(id: &str) -> String {
+        if id == crate::profiles::DEFAULT_ID {
+            USER.to_owned()
+        } else {
+            format!("{USER}.{id}")
+        }
+    }
+
     fn entry() -> Option<keyring::Entry> {
-        keyring::Entry::new(SERVICE, USER).ok()
+        let id = PROFILE.get().map_or(crate::profiles::DEFAULT_ID, String::as_str);
+        keyring::Entry::new(SERVICE, &user_for(id)).ok()
+    }
+
+    /// Forget a (deleted) profile's remembered key.
+    pub fn forget_for(id: &str) {
+        if let Ok(e) = keyring::Entry::new(SERVICE, &user_for(id)) {
+            let _ = e.delete_credential();
+        }
     }
 
     pub fn store(dek: &[u8]) -> bool {

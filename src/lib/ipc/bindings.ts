@@ -9,6 +9,20 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 export const commands = {
 	/**  Version and platform of the running build. */
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
+	/**  Every profile, the open one, and whether to show the picker now. */
+	profilesGet: () => __TAURI_INVOKE<ProfilesView>("profiles_get"),
+	/**  A new, empty profile (its vault is set up the first time it opens). */
+	profileCreate: (name: string, color: string) => typedError<Profile, AppError>(__TAURI_INVOKE("profile_create", { name, color })),
+	/**  Rename a profile or change its colour. */
+	profileUpdate: (id: string, name: string | null, color: string | null) => typedError<Profile, AppError>(__TAURI_INVOKE("profile_update", { id, name, color })),
+	/**  Remember the open profile's theme colours for the picker. */
+	profileSetLook: (look: ProfileLook) => typedError<null, AppError>(__TAURI_INVOKE("profile_set_look", { look })),
+	/**  Show the picker every time Hopr opens, or open the last profile straight away. */
+	profilesSetAskAtStart: (ask: boolean) => typedError<null, AppError>(__TAURI_INVOKE("profiles_set_ask_at_start", { ask })),
+	/**  Delete a profile and all its data (hosts, keys, history, backups). Not the open one. */
+	profileDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("profile_delete", { id })),
+	/**  Open another profile: Hopr restarts into it (without asking again). */
+	profileSwitch: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("profile_switch", { id })),
 	/**  Current vault status. */
 	vaultStatus: () => typedError<VaultStatus, AppError>(__TAURI_INVOKE("vault_status")),
 	/**  Create the vault. Returns the recovery key, shown to the user exactly once. */
@@ -1027,6 +1041,34 @@ truncated: boolean } |
 dataUrl: string } | 
 /**  Not previewable. */
 { kind: "binary" };
+
+export type Profile = {
+	id: string,
+	/**  What the person called it. Empty for the original data until they name it. */
+	name: string,
+	/**  #rrggbb, the avatar colour. */
+	color: string,
+	/**  Unix seconds. */
+	createdAt: number,
+	look: ProfileLook | null,
+};
+
+/**  A profile's colours, so the picker can draw it in its own theme before it is opened. */
+export type ProfileLook = {
+	bg: string,
+	text: string,
+	accent: string,
+};
+
+/**  What the UI sees. */
+export type ProfilesView = {
+	profiles: Profile[],
+	/**  The open profile. */
+	current: string,
+	askAtStart: boolean,
+	/**  Show the picker now (this launch). */
+	askNow: boolean,
+};
 
 /**  One input field of an authentication prompt. */
 export type PromptField = {

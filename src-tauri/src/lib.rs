@@ -9,6 +9,7 @@ mod grouprun;
 mod history;
 mod library;
 mod platform;
+mod profiles;
 mod recording;
 mod sessions;
 mod sftp;
@@ -34,6 +35,13 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             commands::app_info,
+            profiles::profiles_get,
+            profiles::profile_create,
+            profiles::profile_update,
+            profiles::profile_set_look,
+            profiles::profiles_set_ask_at_start,
+            profiles::profile_delete,
+            profiles::profile_switch,
             vault::vault_status,
             vault::vault_create,
             vault::vault_unlock,
@@ -235,10 +243,16 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
             // HOPR_DATA_DIR lets tests (and portable installs) keep data out of the user's profile.
-            let data_dir = match std::env::var_os("HOPR_DATA_DIR") {
+            let root = match std::env::var_os("HOPR_DATA_DIR") {
                 Some(dir) => std::path::PathBuf::from(dir),
                 None => app.path().app_data_dir()?,
             };
+            // Each profile is its own data folder; open the last used one.
+            let profiles = profiles::Profiles::open(root);
+            let data_dir = profiles.data_dir();
+            std::fs::create_dir_all(&data_dir)?;
+            state::keychain::set_profile(profiles.current());
+            app.manage(profiles);
             let db_path = data_dir.join("hopr.db");
             // A restore staged before the last restart replaces the database now.
             if hopr_store::backup::apply_pending_restore(&db_path)? {
