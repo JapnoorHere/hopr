@@ -6,11 +6,14 @@ import "./app.css";
 import { mount } from "svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import App from "./App.svelte";
+import { profiles } from "./features/profiles/profiles.svelte";
 import QuickTerminal from "./features/shell/QuickTerminal.svelte";
 import { initSessionEvents } from "./features/terminal/session.svelte";
 import { vault } from "./features/vault/vault.svelte";
 import { isQuickWindow } from "./lib/window";
 
+// Which profile is open decides whose theme and saved layout load, so it comes first.
+await profiles.load().catch(() => undefined);
 appearance.init();
 void initSessionEvents();
 void vault.init();

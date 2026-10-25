@@ -19,7 +19,7 @@ import { shell } from "$features/shell/shell.state.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import { parseTarget } from "$features/terminal/target";
 import { workspaces } from "$features/workspace/workspaces.svelte";
-import { safeStorage } from "$lib/design/theme";
+import { safeStorage, scoped } from "$lib/design/theme";
 import { saveText } from "$lib/download";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import {
@@ -53,11 +53,11 @@ let bulkTag = $state("");
 // List or grid, remembered on this device.
 type HostView = "list" | "grid";
 const VIEW_KEY = "hopr.hosts.view";
-let view = $state<HostView>(safeStorage()?.getItem(VIEW_KEY) === "grid" ? "grid" : "list");
+let view = $state<HostView>(safeStorage()?.getItem(scoped(VIEW_KEY)) === "grid" ? "grid" : "list");
 function setView(v: HostView) {
   view = v;
   try {
-    safeStorage()?.setItem(VIEW_KEY, v);
+    safeStorage()?.setItem(scoped(VIEW_KEY), v);
   } catch {
     // Not remembered; it still applies now.
   }

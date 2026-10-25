@@ -710,3 +710,36 @@ export function parseCustom(raw: unknown): CustomTheme | null {
   }
   return { bg, text, accent, ansi: out as Ansi16 };
 }
+
+/** Avatar colours for profiles: distinct, and readable with dark or white initials. */
+export const PROFILE_COLORS = [
+  "#7aa2f7",
+  "#bb9af7",
+  "#f7768e",
+  "#ff9e64",
+  "#e0af68",
+  "#9ece6a",
+  "#73daca",
+  "#7dcfff",
+  "#c0caf5",
+  "#a9b1d6",
+] as const;
+
+/** A profile's saved colours as a theme (the picker draws each profile in its own look). */
+export function lookSpec(look: { bg: string; text: string; accent: string } | null): ThemeSpec {
+  const base = builtIn("ember");
+  if (!look) return base;
+  return {
+    ...base,
+    id: "look",
+    tokens: undefined,
+    bg: look.bg,
+    text: look.text,
+    accent: look.accent,
+  };
+}
+
+/** Ink for text on a colour: dark on light colours, white on dark ones. */
+export function inkOn(hex: string): string {
+  return hexToOklch(hex)[0] > 0.62 ? "#16161d" : "#ffffff";
+}

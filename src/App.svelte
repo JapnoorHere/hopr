@@ -16,6 +16,8 @@ import DeployKeyDrawer from "$features/keys/DeployKeyDrawer.svelte";
 import KeysDrawer from "$features/keys/KeysDrawer.svelte";
 import Palette from "$features/palette/Palette.svelte";
 import { palette } from "$features/palette/palette-state.svelte";
+import ProfilePicker from "$features/profiles/ProfilePicker.svelte";
+import { profiles } from "$features/profiles/profiles.svelte";
 import AuditDrawer from "$features/settings/AuditDrawer.svelte";
 import UpdateToast from "$features/settings/UpdateToast.svelte";
 import { updates } from "$features/settings/updates.svelte";
@@ -41,6 +43,7 @@ import { vault } from "$features/vault/vault.svelte";
 import { registerAppCommands } from "$features/workspace/commands";
 import Workspace from "$features/workspace/Workspace.svelte";
 import { workspaces } from "$features/workspace/workspaces.svelte";
+import { appearance } from "$lib/design/appearance.svelte";
 import { i18n } from "$lib/i18n/i18n.svelte";
 import { commands, events, inTauri } from "$lib/ipc";
 import { matches, shortcuts } from "$lib/shortcuts";
@@ -63,6 +66,10 @@ $effect(() => {
 });
 $effect(() => {
   if (vault.unlocked) void historyPrefs.load();
+});
+// The profile picker draws each profile in its own theme: keep this one's colours saved.
+$effect(() => {
+  if (isMainWindow) profiles.syncLook(appearance.spec);
 });
 // Sync on unlock and every few minutes; stop when locked (main window only).
 $effect(() => {
@@ -242,6 +249,7 @@ function onkeydown(e: KeyboardEvent) {
 <div class="app-root flex h-full flex-col bg-bg text-fg">
   <TitleBar />
   <div class="relative flex min-h-0 flex-1">
+    {#if profiles.picking}<ProfilePicker dismissible={profiles.fromMenu} />{/if}
     {#if onboarding}
       <Onboarding />
     {:else if vault.status}

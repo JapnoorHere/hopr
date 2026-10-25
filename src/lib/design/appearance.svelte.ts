@@ -16,6 +16,8 @@ class AppearanceStore {
   tokens = $derived(themeTokens(this.spec));
 
   init() {
+    // Read again: the open profile's storage scope is set by now.
+    this.current = loadAppearance(safeStorage());
     applyAppearance(this.current);
     void this.#backdrop();
     // "System" motion follows Windows' animation setting live.

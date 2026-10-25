@@ -17,6 +17,14 @@ class ShellState {
   /** Which Keys panel to show the next time the Keys drawer opens. */
   keysIntent = $state<"list" | "generate" | "import">("list");
 
+  /** Settings opens scrolled to this section (then it is cleared). */
+  settingsSection = $state<string | null>(null);
+
+  openSettings(section: string | null = null) {
+    this.settingsSection = section;
+    this.drawer = "settings";
+  }
+
   toggle(id: DrawerId) {
     this.drawer = this.drawer === id ? null : id;
   }

@@ -1,3 +1,4 @@
+import { scoped } from "$lib/design/theme";
 /** Frecency for palette results: how often and how recently each item was chosen. */
 
 export interface Use {
@@ -31,7 +32,7 @@ export function record(uses: Uses, id: string, now = Date.now()): Uses {
 
 export function load(): Uses {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "{}") as Uses;
+    return JSON.parse(localStorage.getItem(scoped(KEY)) ?? "{}") as Uses;
   } catch {
     return {};
   }
@@ -39,7 +40,7 @@ export function load(): Uses {
 
 export function save(uses: Uses) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(uses));
+    localStorage.setItem(scoped(KEY), JSON.stringify(uses));
   } catch {
     // Storage unavailable (private mode): frecency just doesn't persist.
   }

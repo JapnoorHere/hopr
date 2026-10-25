@@ -4,6 +4,7 @@
  */
 
 import { wrap } from "$features/vault/vault.svelte";
+import { scoped } from "$lib/design/theme";
 import {
   type AppError,
   type ConflictPolicy,
@@ -23,7 +24,7 @@ type Res<T> = { status: "ok"; data: T } | { status: "error"; error: AppError };
 
 function loadBookmarks(): Record<string, string[]> {
   try {
-    const raw = JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? "{}");
+    const raw = JSON.parse(localStorage.getItem(scoped(BOOKMARKS_KEY)) ?? "{}");
     return raw && typeof raw === "object" ? raw : {};
   } catch {
     return {};
@@ -251,7 +252,7 @@ class FilesStore {
     const next = list.includes(path) ? list.filter((p) => p !== path) : [...list, path];
     this.bookmarks = { ...this.bookmarks, [this.hostId]: next };
     try {
-      localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
+      localStorage.setItem(scoped(BOOKMARKS_KEY), JSON.stringify(this.bookmarks));
     } catch {
       // Storage unavailable: bookmarks last for this run.
     }

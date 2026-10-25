@@ -95,6 +95,19 @@ export function applyAppearance(a: Appearance, root: HTMLElement = document.docu
   root.dataset.backdrop = a.backdrop;
 }
 
+/**
+ * Browser-storage keys that belong to a profile (its theme, layout, recents) carry the
+ * profile's id; device-wide ones (fonts, shortcuts, language) don't. The original profile
+ * keeps the plain keys, so nothing saved before profiles existed is lost.
+ */
+let scope = "";
+export function setStorageScope(profileId: string) {
+  scope = profileId === "default" ? "" : profileId;
+}
+export function scoped(key: string): string {
+  return scope ? `${key}@${scope}` : key;
+}
+
 /** Storage can be missing or throw (private mode, blocked site data). */
 export function safeStorage(): Storage | null {
   try {
@@ -106,7 +119,7 @@ export function safeStorage(): Storage | null {
 
 export function loadAppearance(storage: Storage | null): Appearance {
   try {
-    const raw = storage?.getItem(STORAGE_KEY);
+    const raw = storage?.getItem(scoped(STORAGE_KEY));
     return raw ? parseAppearance(JSON.parse(raw)) : { ...DEFAULT_APPEARANCE };
   } catch {
     return { ...DEFAULT_APPEARANCE };
@@ -115,7 +128,7 @@ export function loadAppearance(storage: Storage | null): Appearance {
 
 export function saveAppearance(a: Appearance, storage: Storage | null) {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(a));
+    storage?.setItem(scoped(STORAGE_KEY), JSON.stringify(a));
   } catch {
     // Non-critical convenience; ignore quota or access errors.
   }

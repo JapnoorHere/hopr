@@ -16,10 +16,12 @@ import {
   ShieldCheck,
   SquaresFour,
   TerminalWindow,
+  UserCircle,
   X,
 } from "phosphor-svelte";
 import { onDestroy, tick } from "svelte";
 import { fade } from "svelte/transition";
+import ProfilesSettings from "$features/profiles/ProfilesSettings.svelte";
 import BackupSettings from "$features/settings/BackupSettings.svelte";
 import DesktopSettings from "$features/settings/DesktopSettings.svelte";
 import HistorySettings from "$features/settings/HistorySettings.svelte";
@@ -47,6 +49,12 @@ const SECTIONS = [
     icon: Palette,
     keywords:
       "theme dark light colour color custom terminal palette ansi density motion animation mica backdrop language",
+  },
+  {
+    id: "profiles",
+    label: "Profiles",
+    icon: UserCircle,
+    keywords: "profile profiles switch separate vault account picker startup",
   },
   {
     id: "terminal",
@@ -234,6 +242,15 @@ function onKey(e: KeyboardEvent) {
 $effect(() => {
   searchBox?.focus();
 });
+
+// Opened for one section (Manage profiles…): go straight there.
+$effect(() => {
+  const want = shell.settingsSection;
+  if (!want || !content) return;
+  shell.settingsSection = null;
+  const id = SECTIONS.find((x) => x.id === want)?.id;
+  if (id) void tick().then(() => go(id));
+});
 </script>
 
 <svelte:window onkeydowncapture={(e) => e.key === "Escape" && onKey(e)} />
@@ -410,6 +427,11 @@ $effect(() => {
         <h2 class="title">Backups</h2>
         <p class="lead">Encrypted backups, and moving settings between computers.</p>
         <div class="group"><BackupSettings /></div>
+      </section>
+      <section data-section="profiles" hidden={hiddenSections.profiles}>
+        <h2 class="title">Profiles</h2>
+        <p class="lead">Separate vaults on this computer, and which one opens at start.</p>
+        <ProfilesSettings />
       </section>
       <section data-section="app" hidden={hiddenSections.app}>
         <h2 class="title">App &amp; updates</h2>
