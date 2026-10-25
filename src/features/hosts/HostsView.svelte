@@ -4,9 +4,11 @@ import {
   DotsThree,
   DownloadSimple,
   Export,
+  ListBullets,
   MagnifyingGlass,
   PencilSimple,
   Plus,
+  SquaresFour,
   Star,
   TerminalWindow,
 } from "phosphor-svelte";
@@ -17,6 +19,7 @@ import { shell } from "$features/shell/shell.state.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import { parseTarget } from "$features/terminal/target";
 import { workspaces } from "$features/workspace/workspaces.svelte";
+import { safeStorage } from "$lib/design/theme";
 import { saveText } from "$lib/download";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import {
@@ -46,6 +49,19 @@ let rowMenu = $state<string | null>(null);
 let list: HTMLDivElement | undefined = $state();
 const selected = new SvelteSet<string>();
 let bulkTag = $state("");
+
+// List or grid, remembered on this device.
+type HostView = "list" | "grid";
+const VIEW_KEY = "hopr.hosts.view";
+let view = $state<HostView>(safeStorage()?.getItem(VIEW_KEY) === "grid" ? "grid" : "list");
+function setView(v: HostView) {
+  view = v;
+  try {
+    safeStorage()?.setItem(VIEW_KEY, v);
+  } catch {
+    // Not remembered; it still applies now.
+  }
+}
 
 const sections = $derived(sectionHosts(library.hosts, library.groups, query));
 const visibleIds = $derived([...new Set(sections.flatMap((s) => s.hosts.map((h) => h.id)))]);
@@ -406,14 +422,27 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   {:else}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="min-h-0 flex-1 overflow-y-auto px-4 py-3"
+      class="hosts min-h-0 flex-1 overflow-y-auto px-6 py-4"
+      class:grid-view={view === "grid"}
       class:selecting={selected.size > 0}
       bind:this={list}
       onkeydown={onListKey}
     >
+      <div class="viewbar">
+        <span class="text-xs text-faint">{library.hosts.length} host{library.hosts.length === 1 ? "" : "s"}</span>
+        <div class="seg" role="radiogroup" aria-label="Layout">
+          <button type="button" role="radio" aria-checked={view === "list"} class:on={view === "list"} title="List" onclick={() => setView("list")}>
+            <ListBullets size={14} /> List
+          </button>
+          <button type="button" role="radio" aria-checked={view === "grid"} class:on={view === "grid"} title="Grid" onclick={() => setView("grid")}>
+            <SquaresFour size={14} /> Grid
+          </button>
+        </div>
+      </div>
       {#each sections as section (section.id)}
-        <section class="mb-4">
-          <h3 class="label-caps mb-1 px-2 text-faint">{section.title}</h3>
+        <section class="mb-5">
+          <h3 class="label-caps mb-2 px-1 text-faint">{section.title} <span class="count">{section.hosts.length}</span></h3>
+          <div class="items">
           {#each section.hosts as h, i (h.id)}
             <div
               class="row"
@@ -446,7 +475,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                   aria-label={reachTitle(h)}
                   role="img"
                 ></span>
-                <span class="min-w-0 flex-1">
+                <span class="who min-w-0 flex-1">
                   <span class="block truncate text-sm text-fg">
                     {#each highlight(h.label, query) as part, pi (pi)}{#if part.hit}<mark class="hit">{part.text}</mark>{:else}{part.text}{/if}{/each}
                   </span>
@@ -466,6 +495,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                   <span class="tag">{tag}</span>
                 {/each}
               </button>
+              <div class="actions">
               <button
                 type="button"
                 class="icon"
@@ -521,8 +551,10 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                   </div>
                 {/if}
               </div>
+              </div>
             </div>
           {/each}
+          </div>
         </section>
       {:else}
         <p class="px-2 py-6 text-center text-sm text-muted">No hosts match “{query}”.</p>
@@ -566,24 +598,135 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   .search {
     padding-left: 32px;
   }
+  .viewbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+  .seg {
+    display: flex;
+    padding: 2px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 9px;
+    font-size: 12px;
+    color: var(--text-faint);
+    border-radius: calc(var(--radius-sm) - 2px);
+    transition:
+      color var(--dur-fast) var(--ease-out),
+      background var(--dur-fast) var(--ease-out);
+  }
+  .seg button:hover {
+    color: var(--text);
+  }
+  .seg button.on {
+    color: var(--text);
+    background: var(--surface-3);
+  }
+  .count {
+    margin-left: 4px;
+    color: var(--text-faint);
+    opacity: 0.7;
+  }
   .row {
     position: relative;
     display: flex;
     align-items: center;
     gap: 2px;
-    padding-right: 6px;
-    padding-left: 6px;
-    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      transform var(--dur) var(--ease-out);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  /* List: each section is one card; hosts are separated by hairlines. */
+  .hosts:not(.grid-view) .items {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .hosts:not(.grid-view) .row + .row {
+    border-top: 1px solid var(--border);
+  }
+  .hosts:not(.grid-view) .row:first-child {
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+  }
+  .hosts:not(.grid-view) .row:last-child {
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
   }
   .row:hover,
   .row:focus-within {
     background: var(--surface-2);
+  }
+  /* Grid: every host is a card, details wrap under the name, actions sit in the corner. */
+  .grid-view .items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+  }
+  .grid-view .row {
+    display: block;
+    min-height: 92px;
+    padding: 12px 14px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .grid-view .row:hover,
+  .grid-view .row:focus-within {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+  .grid-view .row :global([data-host-row]) {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    width: 100%;
+    min-height: 66px;
+    padding: 0;
+    gap: 6px 8px;
+  }
+  .grid-view .who {
+    flex-basis: calc(100% - 20px);
+  }
+  /* Only the name line leaves room for the corner buttons. */
+  .grid-view .who > :first-child {
+    padding-right: 84px;
+  }
+  .grid-view .actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+  .grid-view .pick {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
   }
   .row.picked {
     background: color-mix(in oklab, var(--accent) 12%, transparent);
   }
   .row.prod {
     box-shadow: inset 2px 0 0 var(--danger);
+  }
+  .grid-view .row.prod {
+    box-shadow: inset 3px 0 0 var(--danger);
   }
   .pick {
     flex-shrink: 0;
