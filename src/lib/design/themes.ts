@@ -462,7 +462,7 @@ const BUILT_IN = [
       text: "oklch(0.22 0.012 60)",
       "text-muted": "oklch(0.42 0.012 60)",
       "text-faint": "oklch(0.55 0.012 60)",
-      accent: "oklch(0.6 0.19 35)",
+      accent: "oklch(0.56 0.19 35)",
       "accent-fg": "oklch(0.98 0.01 85)",
       success: "oklch(0.52 0.14 150)",
       warning: "oklch(0.6 0.14 75)",
@@ -586,23 +586,66 @@ const lch = (L: number, C: number, H: number, alpha?: number) =>
   `oklch(${n(L)} ${n(C)} ${n(H)}${alpha === undefined ? "" : ` / ${alpha}`})`;
 const css = (hex: string) => lch(...hexToOklch(hex));
 
+/** Minimum contrast against the panels text sits on (WCAG 2 ratios). */
+const MIN = { text: 7, muted: 5, faint: 3.8, status: 3.5, accent: 3, onAccent: 4.5 } as const;
+
+/**
+ * Move a colour's lightness away from `against` (towards light on dark themes, towards dark on
+ * light ones) just far enough to reach `min` contrast. Hue and chroma stay, so the theme's feel
+ * does too; colours that already read well don't move.
+ */
+function readable(L: number, C: number, H: number, against: string, min: number, lighter: boolean) {
+  let l = L;
+  for (let i = 0; i < 200 && contrast(oklchToHex(l, C, H), against) < min; i++) {
+    l = lighter ? Math.min(1, l + 0.005) : Math.max(0, l - 0.005);
+    if (l === 0 || l === 1) break;
+  }
+  return l;
+}
+
 /** Every design token for a theme, as CSS colours. */
 export function themeTokens(spec: ThemeSpec): Tokens {
   const [L, C, H] = hexToOklch(spec.bg);
-  const [tL, tC, tH] = hexToOklch(spec.text);
-  const [aL, aC, aH] = hexToOklch(spec.accent);
+  const [tL0, tC, tH] = hexToOklch(spec.text);
+  const [aL0, aC, aH] = hexToOklch(spec.accent);
   const dark = isDark(spec);
   const clampL = (v: number) => Math.min(1, Math.max(0, v));
-  const surface = dark
-    ? [1, 2, 3, 4].map((i) => lch(clampL(L + 0.025 * i), C, H))
-    : [-0.025, -0.05, 0.015, 0.03].map((d) => lch(clampL(L + d), C, H));
-  // Text on the accent: whichever of a deep accent-tinted ink or near-white reads better.
-  const ink = oklchToHex(0.2, aC * 0.15, aH);
-  const white = oklchToHex(0.98, 0.01, aH);
-  const fg =
-    contrast(spec.accent, ink) >= contrast(spec.accent, white)
-      ? lch(0.2, aC * 0.15, aH)
-      : lch(0.98, 0.01, aH);
+  const surfaceL = dark
+    ? [1, 2, 3, 4].map((i) => clampL(L + 0.025 * i))
+    : [-0.025, -0.05, 0.015, 0.03].map((d) => clampL(L + d));
+  const surface = surfaceL.map((l) => lch(l, C, H));
+  // Text is checked against the panel it usually sits on (cards, menus), not just the page.
+  const panel = oklchToHex(surfaceL[1] as number, C, H);
+  const page = spec.bg;
+  const fit = (l: number, c: number, h: number, min: number, against = panel) =>
+    lch(readable(l, c, h, against, min, dark), c, h);
+  const tL = readable(tL0, tC, tH, panel, MIN.text, dark);
+  const status = (hex: string) => {
+    const [l, c, h] = hexToOklch(hex);
+    return fit(l, c, h, MIN.status);
+  };
+  // The accent shows as text and as a fill; it must stand out from the page and carry text.
+  let aL = readable(aL0, aC, aH, page, MIN.accent, dark);
+  const ink = { l: 0.2, c: aC * 0.15 };
+  const paperInk = { l: 0.98, c: 0.01 };
+  const onAccent = (l: number) => {
+    const a = oklchToHex(l, aC, aH);
+    return contrast(a, oklchToHex(ink.l, ink.c, aH)) >=
+      contrast(a, oklchToHex(paperInk.l, paperInk.c, aH))
+      ? ink
+      : paperInk;
+  };
+  let fgInk = onAccent(aL);
+  // Still weak: move the accent away from its text colour until the label reads.
+  for (
+    let i = 0;
+    i < 100 && contrast(oklchToHex(aL, aC, aH), oklchToHex(fgInk.l, fgInk.c, aH)) < MIN.onAccent;
+    i++
+  ) {
+    aL = fgInk === ink ? Math.min(1, aL + 0.005) : Math.max(0, aL - 0.005);
+  }
+  fgInk = onAccent(aL);
+  const fg = lch(fgInk.l, fgInk.c, aH);
   const computed: Tokens = {
     bg: css(spec.bg),
     "surface-1": surface[0] as string,
@@ -611,14 +654,14 @@ export function themeTokens(spec: ThemeSpec): Tokens {
     "surface-4": surface[3] as string,
     border: dark ? "oklch(1 0 0 / 0.08)" : lch(0.2, 0.02, H, 0.12),
     "border-strong": dark ? "oklch(1 0 0 / 0.14)" : lch(0.2, 0.02, H, 0.2),
-    text: css(spec.text),
-    "text-muted": lch(L + (tL - L) * 0.75, tC, tH),
-    "text-faint": lch(L + (tL - L) * 0.55, tC, tH),
+    text: lch(tL, tC, tH),
+    "text-muted": fit(L + (tL - L) * 0.75, tC, tH, MIN.muted),
+    "text-faint": fit(L + (tL - L) * 0.55, tC, tH, MIN.faint),
     accent: lch(aL, aC, aH),
     "accent-fg": fg,
-    success: css(spec.ansi.green),
-    warning: css(spec.ansi.yellow),
-    danger: css(spec.ansi.red),
+    success: status(spec.ansi.green),
+    warning: status(spec.ansi.yellow),
+    danger: status(spec.ansi.red),
     scheme: dark ? "dark" : "light",
   };
   return { ...computed, ...spec.tokens };
@@ -656,12 +699,18 @@ export function terminalBackground(
 /** The terminal's colours for a theme. */
 export function terminalColors(spec: ThemeSpec, b?: TerminalBackground): TerminalColors {
   const [L] = hexToOklch(spec.bg);
-  const [tL, tC, tH] = hexToOklch(spec.text);
+  const [tL0, tC, tH] = hexToOklch(spec.text);
+  // Terminal text gets the same floor as the app's text, against the terminal background.
+  const tL = readable(tL0, tC, tH, spec.bg, MIN.text, isDark(spec));
   return {
     background: terminalBackground(spec, b),
-    foreground: spec.text,
+    foreground: tL === tL0 ? spec.text : oklchToHex(tL, tC, tH),
     cursor: spec.accent,
-    faint: oklchToHex(L + (tL - L) * 0.55, tC, tH),
+    faint: oklchToHex(
+      readable(L + (tL - L) * 0.55, tC, tH, spec.bg, MIN.faint, isDark(spec)),
+      tC,
+      tH,
+    ),
     ansi: spec.ansi,
   };
 }

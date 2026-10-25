@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contrast, hexToOklch } from "./palettes";
+import { contrast, hexToOklch, oklchToHex } from "./palettes";
 import {
   customFrom,
   isDark,
@@ -116,4 +116,35 @@ describe("terminal background", () => {
   it("adds alpha when see-through", () => {
     expect(terminalBackground(themeSpec("nord", null), { lift: 0, opacity: 50 })).toBe("#2e344080");
   });
+});
+
+/** "oklch(L C H)" or "oklch(L C H / a)" as #rrggbb (alpha ignored). */
+function hexOf(token: string): string {
+  const [L, C, H] = token.slice(6, -1).split("/")[0]!.trim().split(/\s+/).map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  return oklchToHex(L, C, H);
+}
+
+describe("every theme is readable", () => {
+  for (const th of THEMES) {
+    it(`${th.name}: text, muted, faint, status and accent stand out`, () => {
+      const t = themeTokens(th);
+      const panel = hexOf(t["surface-2"]);
+      const on = (k: keyof typeof t) => contrast(hexOf(t[k]), panel);
+      expect(on("text"), "text").toBeGreaterThanOrEqual(7);
+      expect(on("text-muted"), "muted").toBeGreaterThanOrEqual(4.5);
+      expect(on("text-faint"), "faint").toBeGreaterThanOrEqual(3.5);
+      for (const k of ["success", "warning", "danger"] as const) {
+        expect(on(k), k).toBeGreaterThanOrEqual(3);
+      }
+      expect(contrast(hexOf(t.accent), hexOf(t.bg)), "accent").toBeGreaterThanOrEqual(3);
+      expect(
+        contrast(hexOf(t.accent), hexOf(t["accent-fg"])),
+        "text on accent",
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 });
