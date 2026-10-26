@@ -388,6 +388,11 @@ $effect(() => {
         </div>
       </section>
 
+      <section data-section="profiles" hidden={hiddenSections.profiles}>
+        <h2 class="title">Profiles</h2>
+        <p class="lead">Separate vaults on this computer, and which one opens at start.</p>
+        <ProfilesSettings />
+      </section>
       <section data-section="terminal" hidden={hiddenSections.terminal}>
         <h2 class="title">Terminal</h2>
         <p class="lead">Colours, type, cursor and how copy and paste behave.</p>
@@ -427,11 +432,6 @@ $effect(() => {
         <h2 class="title">Backups</h2>
         <p class="lead">Encrypted backups, and moving settings between computers.</p>
         <div class="group"><BackupSettings /></div>
-      </section>
-      <section data-section="profiles" hidden={hiddenSections.profiles}>
-        <h2 class="title">Profiles</h2>
-        <p class="lead">Separate vaults on this computer, and which one opens at start.</p>
-        <ProfilesSettings />
       </section>
       <section data-section="app" hidden={hiddenSections.app}>
         <h2 class="title">App &amp; updates</h2>
