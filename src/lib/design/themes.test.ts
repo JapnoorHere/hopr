@@ -25,7 +25,7 @@ describe("built-in themes", () => {
   it("keeps the original hand-tuned tokens", () => {
     const ember = themeTokens(themeSpec("ember", null));
     expect(ember.bg).toBe("oklch(0.165 0.006 60)");
-    expect(ember["surface-2"]).toBe("oklch(0.215 0.008 60)");
+    expect(ember.accent).toBe("oklch(0.78 0.15 70)");
   });
 
   it("splits into dark and light by background", () => {
@@ -135,8 +135,12 @@ describe("every theme is readable", () => {
       const panel = hexOf(t["surface-2"]);
       const on = (k: keyof typeof t) => contrast(hexOf(t[k]), panel);
       expect(on("text"), "text").toBeGreaterThanOrEqual(7);
-      expect(on("text-muted"), "muted").toBeGreaterThanOrEqual(4.5);
-      expect(on("text-faint"), "faint").toBeGreaterThanOrEqual(3.5);
+      expect(on("text-muted"), "muted").toBeGreaterThanOrEqual(6);
+      expect(on("text-faint"), "faint").toBeGreaterThanOrEqual(4.5);
+      // Cards and menus must be visible against the page, even on true black.
+      expect(contrast(hexOf(t["surface-1"]), hexOf(t.bg)), "card vs page").toBeGreaterThanOrEqual(
+        1.05,
+      );
       for (const k of ["success", "warning", "danger"] as const) {
         expect(on(k), k).toBeGreaterThanOrEqual(3);
       }

@@ -89,13 +89,7 @@ const BUILT_IN = [
     ),
     tokens: {
       bg: "oklch(0.165 0.006 60)",
-      "surface-1": "oklch(0.19 0.007 60)",
-      "surface-2": "oklch(0.215 0.008 60)",
-      "surface-3": "oklch(0.245 0.009 60)",
-      "surface-4": "oklch(0.275 0.01 60)",
       text: "oklch(0.93 0.01 80)",
-      "text-muted": "oklch(0.74 0.012 75)",
-      "text-faint": "oklch(0.58 0.012 70)",
       accent: "oklch(0.78 0.15 70)",
       "accent-fg": "oklch(0.2 0.02 60)",
       success: "oklch(0.78 0.16 145)",
@@ -132,13 +126,7 @@ const BUILT_IN = [
     ),
     tokens: {
       bg: "oklch(0.155 0.01 160)",
-      "surface-1": "oklch(0.18 0.011 160)",
-      "surface-2": "oklch(0.205 0.012 160)",
-      "surface-3": "oklch(0.235 0.013 160)",
-      "surface-4": "oklch(0.265 0.014 160)",
       text: "oklch(0.93 0.015 140)",
-      "text-muted": "oklch(0.74 0.015 140)",
-      "text-faint": "oklch(0.58 0.015 140)",
       accent: "oklch(0.9 0.19 130)",
       "accent-fg": "oklch(0.2 0.03 140)",
       success: "oklch(0.8 0.16 155)",
@@ -175,13 +163,7 @@ const BUILT_IN = [
     ),
     tokens: {
       bg: "oklch(0.16 0.015 225)",
-      "surface-1": "oklch(0.185 0.016 225)",
-      "surface-2": "oklch(0.21 0.017 225)",
-      "surface-3": "oklch(0.24 0.018 225)",
-      "surface-4": "oklch(0.27 0.019 225)",
       text: "oklch(0.93 0.01 210)",
-      "text-muted": "oklch(0.74 0.014 215)",
-      "text-faint": "oklch(0.58 0.014 215)",
       accent: "oklch(0.8 0.12 185)",
       "accent-fg": "oklch(0.2 0.03 200)",
       success: "oklch(0.79 0.15 150)",
@@ -460,8 +442,6 @@ const BUILT_IN = [
       border: "oklch(0.2 0.02 60 / 0.12)",
       "border-strong": "oklch(0.2 0.02 60 / 0.2)",
       text: "oklch(0.22 0.012 60)",
-      "text-muted": "oklch(0.42 0.012 60)",
-      "text-faint": "oklch(0.55 0.012 60)",
       accent: "oklch(0.56 0.19 35)",
       "accent-fg": "oklch(0.98 0.01 85)",
       success: "oklch(0.52 0.14 150)",
@@ -587,7 +567,9 @@ const lch = (L: number, C: number, H: number, alpha?: number) =>
 const css = (hex: string) => lch(...hexToOklch(hex));
 
 /** Minimum contrast against the panels text sits on (WCAG 2 ratios). */
-const MIN = { text: 7, muted: 5, faint: 3.8, status: 3.5, accent: 3, onAccent: 4.5 } as const;
+const MIN = { text: 7, muted: 6, faint: 4.5, status: 3.5, accent: 3, onAccent: 4.5 } as const;
+/** How far each panel layer must stand out from the page (dark: lighter, light: deeper). */
+const PANEL_STEP = [1.1, 1.2, 1.32, 1.45] as const;
 
 /**
  * Move a colour's lightness away from `against` (towards light on dark themes, towards dark on
@@ -610,8 +592,12 @@ export function themeTokens(spec: ThemeSpec): Tokens {
   const [aL0, aC, aH] = hexToOklch(spec.accent);
   const dark = isDark(spec);
   const clampL = (v: number) => Math.min(1, Math.max(0, v));
+  // Panels step away from the page by at least a visible amount: on near-black a fixed
+  // lightness step is invisible, so each layer is pushed until it reaches its contrast step.
   const surfaceL = dark
-    ? [1, 2, 3, 4].map((i) => clampL(L + 0.025 * i))
+    ? [1, 2, 3, 4].map((i) =>
+        readable(clampL(L + 0.025 * i), C, H, spec.bg, PANEL_STEP[i - 1] as number, true),
+      )
     : [-0.025, -0.05, 0.015, 0.03].map((d) => clampL(L + d));
   const surface = surfaceL.map((l) => lch(l, C, H));
   // Text is checked against the panel it usually sits on (cards, menus), not just the page.
@@ -652,8 +638,8 @@ export function themeTokens(spec: ThemeSpec): Tokens {
     "surface-2": surface[1] as string,
     "surface-3": surface[2] as string,
     "surface-4": surface[3] as string,
-    border: dark ? "oklch(1 0 0 / 0.08)" : lch(0.2, 0.02, H, 0.12),
-    "border-strong": dark ? "oklch(1 0 0 / 0.14)" : lch(0.2, 0.02, H, 0.2),
+    border: dark ? "oklch(1 0 0 / 0.1)" : lch(0.2, 0.02, H, 0.13),
+    "border-strong": dark ? "oklch(1 0 0 / 0.18)" : lch(0.2, 0.02, H, 0.22),
     text: lch(tL, tC, tH),
     "text-muted": fit(L + (tL - L) * 0.75, tC, tH, MIN.muted),
     "text-faint": fit(L + (tL - L) * 0.55, tC, tH, MIN.faint),
