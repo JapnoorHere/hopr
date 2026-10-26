@@ -53,22 +53,12 @@ function options(p: TerminalPrefs): ITerminalOptions {
     // Matte look: bold stays its colour, an unfocused pane shows a hollow cursor.
     drawBoldTextInBrightColors: false,
     cursorInactiveStyle: "outline",
-    // A see-through background (Settings > Terminal > Background) needs this.
-    allowTransparency: true,
   };
 }
 
-function background(p: TerminalPrefs) {
-  return { lift: p.bgLift, opacity: p.bgOpacity };
-}
-
-/**
- * xterm theme. See-through: xterm draws on a clear canvas and the pane card paints the
- * translucent background once (stacked layers of it would add up to nearly solid).
- */
+/** xterm theme: the app theme's colours, with the terminal background lifted if asked. */
 function xtermTheme(p: TerminalPrefs) {
-  const theme = terminalTheme(terminalColors(appearance.spec, background(p)));
-  return p.bgOpacity < 100 ? { ...theme, background: INVISIBLE } : theme;
+  return terminalTheme(terminalColors(appearance.spec, { lift: p.bgLift, opacity: 100 }));
 }
 
 /** Capture-phase paste guard: runs before xterm's own textarea handler. */

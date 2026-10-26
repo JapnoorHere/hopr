@@ -33,7 +33,7 @@ import TransfersSettings from "$features/settings/TransfersSettings.svelte";
 import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
 import SecuritySettings from "$features/vault/SecuritySettings.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { BACKDROPS, DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
+import { DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { sink, slidingPill, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
@@ -48,7 +48,7 @@ const SECTIONS = [
     label: "Appearance",
     icon: Palette,
     keywords:
-      "theme dark light colour color custom terminal palette ansi density motion animation mica backdrop language",
+      "theme dark light colour color custom terminal palette ansi density motion animation language",
   },
   {
     id: "profiles",
@@ -356,22 +356,6 @@ $effect(() => {
             {/each}
           </div>
           <p class="mt-2 text-xs text-muted">{t("settings.motionHint")}</p>
-        </div>
-        <div class="group">
-          <h3 class="label-caps mb-2 text-faint">{t("settings.backdrop")}</h3>
-          <div class="seg-row" role="radiogroup" aria-label="Window backdrop" use:slidingPill>
-            {#each BACKDROPS as b (b)}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={appearance.current.backdrop === b}
-                class="seg"
-                class:on={appearance.current.backdrop === b}
-                onclick={() => appearance.update({ backdrop: b })}>{t(`backdrop.${b}`)}</button
-              >
-            {/each}
-          </div>
-          <p class="mt-2 text-xs text-muted">{t("settings.backdropHint")}</p>
         </div>
         <div class="group">
           <h3 class="label-caps mb-2 text-faint">{t("settings.language")}</h3>

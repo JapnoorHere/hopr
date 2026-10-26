@@ -1,12 +1,11 @@
 <script lang="ts">
-import { BG_OPACITY, FONT_SIZE, FONTS, SCROLLBACK } from "$features/terminal/prefs";
+import { FONT_SIZE, FONTS, SCROLLBACK } from "$features/terminal/prefs";
 import { prefs } from "$features/terminal/prefs.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { terminalColors } from "$lib/design/themes";
 
 const p = $derived(prefs.current);
-const pv = $derived(terminalColors(appearance.spec, { lift: p.bgLift, opacity: p.bgOpacity }));
-const solid = $derived(appearance.current.backdrop === "solid");
+const pv = $derived(terminalColors(appearance.spec, { lift: p.bgLift, opacity: 100 }));
 
 function num(e: Event): number {
   return Number((e.currentTarget as HTMLInputElement).value);
@@ -46,34 +45,11 @@ function on(e: Event): boolean {
 
 <div class="group flex flex-col gap-3">
   <h3 class="label-caps text-faint">Background</h3>
-  <div class="grid grid-cols-2 gap-3">
-    <label class="field">
-      <span class="text-xs text-muted">Brightness ({p.bgLift ? `+${p.bgLift}%` : "theme's own"})</span>
-      <input type="range" min="0" max="100" step="5" value={p.bgLift} oninput={(e) => prefs.update({ bgLift: num(e) })} />
-    </label>
-    <label class="field">
-      <span class="text-xs text-muted">Opacity ({p.bgOpacity}%)</span>
-      <input
-        type="range"
-        min={BG_OPACITY.min}
-        max={BG_OPACITY.max}
-        step="5"
-        value={p.bgOpacity}
-        oninput={(e) => prefs.update({ bgOpacity: num(e) })}
-      />
-    </label>
-  </div>
-  {#if p.bgOpacity < 100 && solid}
-    <div class="hint">
-      <span class="flex-1">See-through shows the window backdrop, which is solid right now.</span>
-      <button type="button" class="pill" onclick={() => appearance.update({ backdrop: "acrylic" })}>Use Acrylic</button>
-      <button type="button" class="pill" onclick={() => appearance.update({ backdrop: "mica" })}>Use Mica</button>
-    </div>
-  {:else}
-    <p class="-mt-1 text-xs text-faint">
-      Brightness lifts a very dark background. Below 100% opacity the window backdrop ({appearance.current.backdrop}) shows through.
-    </p>
-  {/if}
+  <label class="field">
+    <span class="text-xs text-muted">Brightness ({p.bgLift ? `+${p.bgLift}%` : "theme's own"})</span>
+    <input type="range" min="0" max="100" step="5" value={p.bgLift} oninput={(e) => prefs.update({ bgLift: num(e) })} />
+  </label>
+  <p class="-mt-1 text-xs text-faint">Lifts a very dark background towards charcoal (or deepens a light one).</p>
 </div>
 
 <div class="group flex flex-col gap-3">
@@ -166,30 +142,6 @@ function on(e: Event): boolean {
 </div>
 
 <style>
-  .hint {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    background: color-mix(in oklab, var(--accent) 8%, transparent);
-    border: 1px solid color-mix(in oklab, var(--accent) 25%, var(--border));
-    border-radius: var(--radius);
-  }
-  .pill {
-    height: 26px;
-    padding: 0 10px;
-    font-size: 12px;
-    color: var(--accent-fg);
-    background: var(--accent);
-    border-radius: 999px;
-    transition: filter var(--dur-fast) var(--ease-out);
-  }
-  .pill:hover {
-    filter: brightness(1.08);
-  }
   .preview {
     padding: 10px 12px;
     overflow: hidden;

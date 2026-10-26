@@ -21,10 +21,6 @@ export type MotionPref = (typeof MOTIONS)[number];
 /** What the page actually uses: `reduced` keeps fades and colour changes, drops movement and loops. */
 export type MotionLevel = Exclude<MotionPref, "system">;
 
-/** Window backdrop: a solid frame, Windows 11 Mica (desktop tint) or Acrylic (blurs what's behind). */
-export const BACKDROPS = ["solid", "mica", "acrylic"] as const;
-export type Backdrop = (typeof BACKDROPS)[number];
-
 export interface Appearance {
   /** A built-in theme id, or "custom". */
   theme: ThemeId | "custom";
@@ -32,7 +28,6 @@ export interface Appearance {
   custom: CustomTheme | null;
   density: Density;
   motion: MotionPref;
-  backdrop: Backdrop;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -40,7 +35,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   custom: null,
   density: "comfortable",
   motion: "system",
-  backdrop: "solid",
 };
 
 const STORAGE_KEY = "hopr.appearance";
@@ -80,9 +74,6 @@ export function parseAppearance(raw: unknown): Appearance {
     custom,
     density: isDensity(r.density) ? r.density : DEFAULT_APPEARANCE.density,
     motion: isMotion(r.motion) ? r.motion : DEFAULT_APPEARANCE.motion,
-    backdrop: BACKDROPS.some((b) => b === r.backdrop)
-      ? (r.backdrop as Backdrop)
-      : DEFAULT_APPEARANCE.backdrop,
   };
 }
 
@@ -92,7 +83,6 @@ export function applyAppearance(a: Appearance, root: HTMLElement = document.docu
   for (const k of TOKENS) root.style.setProperty(`--${k}`, tokens[k]);
   root.style.setProperty("--density", String(DENSITIES[a.density]));
   root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
-  root.dataset.backdrop = a.backdrop;
 }
 
 /**

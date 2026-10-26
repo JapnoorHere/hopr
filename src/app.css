@@ -450,19 +450,6 @@
 }
 
 /*
- * Mica / Acrylic backdrop (Settings > Appearance): the window is transparent and Windows draws
- * the effect behind it. The frame (title bar, sidebar, status bar, the desk between panes)
- * turns translucent so it shows through; terminals stay solid unless their opacity is lowered.
- */
-:root:not([data-backdrop="solid"]) body,
-:root:not([data-backdrop="solid"]) .app-root {
-  background: transparent;
-}
-:root:not([data-backdrop="solid"]) .frame {
-  background: color-mix(in oklab, var(--surface-1) 42%, transparent);
-}
-
-/*
  * Checkboxes: our own look everywhere (no browser default). A rounded box that fills with
  * the accent when ticked; the check mark pops in on the bounce curve.
  */

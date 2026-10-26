@@ -19,7 +19,7 @@ class AppearanceStore {
     // Read again: the open profile's storage scope is set by now.
     this.current = loadAppearance(safeStorage());
     applyAppearance(this.current);
-    void this.#backdrop();
+    void this.#windowTheme();
     // "System" motion follows Windows' animation setting live.
     try {
       globalThis
@@ -44,21 +44,19 @@ class AppearanceStore {
       apply();
     }
     saveAppearance(this.current, safeStorage());
-    if (patch.backdrop !== undefined || patch.theme !== undefined) void this.#backdrop();
+    if (patch.theme !== undefined) void this.#windowTheme();
   }
 
-  /** Ask Windows for the Mica backdrop (or remove it), matching the theme's light/dark. */
-  async #backdrop() {
+  /** Match the window frame to the theme's light/dark, and clear any old backdrop effect. */
+  async #windowTheme() {
     if (!inTauri) return;
     try {
       const win = getCurrentWindow();
       const dark = this.tokens.scheme !== "light";
       await win.setTheme(dark ? "dark" : "light");
-      if (this.current.backdrop !== "solid")
-        await win.setEffects({ effects: [this.current.backdrop as never] });
-      else await win.clearEffects();
+      await win.clearEffects();
     } catch {
-      // Older Windows or no permission: the frame stays solid, which is the fallback.
+      // Older Windows or no permission: nothing to change.
     }
   }
 }

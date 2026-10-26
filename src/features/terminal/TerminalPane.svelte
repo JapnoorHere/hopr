@@ -70,10 +70,10 @@ $effect(() => {
   });
 });
 const names = $derived(session.hops);
-// The terminal's background (lifted, maybe see-through) is painted once, by the pane's card.
+// The terminal's background (maybe lifted) also fills the pane's card around it.
 $effect(() => {
   const p = prefs.current;
-  const bg = terminalBackground(appearance.spec, { lift: p.bgLift, opacity: p.bgOpacity });
+  const bg = terminalBackground(appearance.spec, { lift: p.bgLift, opacity: 100 });
   document.documentElement.style.setProperty("--term-bg", bg);
 });
 

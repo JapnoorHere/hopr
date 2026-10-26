@@ -27,12 +27,12 @@ describe("parseAppearance", () => {
   it("accepts valid input", () => {
     expect(
       parseAppearance({ theme: "moss", density: "compact", motion: "off", backdrop: "mica" }),
-    ).toEqual({
+    ).toEqual(parseAppearance({ theme: "moss", density: "compact", motion: "off" }));
+    expect(parseAppearance({ theme: "moss", density: "compact", motion: "off" })).toEqual({
       theme: "moss",
       custom: null,
       density: "compact",
       motion: "off",
-      backdrop: "mica",
     });
   });
 
@@ -42,7 +42,6 @@ describe("parseAppearance", () => {
       custom: null,
       density: "spacious",
       motion: "system",
-      backdrop: "solid",
     });
     expect(parseAppearance(null)).toEqual(DEFAULT_APPEARANCE);
     expect(parseAppearance({ density: "toString" })).toEqual(DEFAULT_APPEARANCE);
@@ -66,7 +65,6 @@ describe("storage round trip", () => {
       custom: null,
       density: "spacious",
       motion: "reduced",
-      backdrop: "mica",
     } as const;
     saveAppearance(a, s);
     expect(loadAppearance(s)).toEqual(a);
@@ -83,11 +81,7 @@ describe("storage round trip", () => {
 describe("applyAppearance", () => {
   it("sets theme attribute and density variable", () => {
     const el = document.createElement("div");
-    applyAppearance(
-      { theme: "tide", custom: null, density: "compact", motion: "off", backdrop: "mica" },
-      el,
-    );
-    expect(el.dataset.backdrop).toBe("mica");
+    applyAppearance({ theme: "tide", custom: null, density: "compact", motion: "off" }, el);
     expect(el.dataset.theme).toBe("tide");
     expect(el.style.getPropertyValue("--bg")).toBe("oklch(0.16 0.015 225)");
     expect(el.style.getPropertyValue("--density")).toBe("0.8");

@@ -31,12 +31,6 @@ export const en = {
   "motion.full": "Full",
   "motion.reduced": "Reduced",
   "motion.off": "Off",
-  "settings.backdrop": "Window backdrop",
-  "settings.backdropHint":
-    "Mica tints the frame with your desktop colour; Acrylic blurs whatever is behind the window (Windows 11). Lower the terminal's opacity in Terminal settings to see through it too.",
-  "backdrop.solid": "Solid",
-  "backdrop.mica": "Mica",
-  "backdrop.acrylic": "Acrylic",
 
   "import.title": "Import",
   "import.fromConfig": "From ~/.ssh/config",
