@@ -209,8 +209,19 @@ onDestroy(() => {
   }
 });
 
+/**
+ * A jump from the list is under way: the clicked item stays lit while the page scrolls past
+ * the sections in between. Cleared when the scroll settles, or as soon as you scroll yourself.
+ */
+let jumping = false;
+let jumpTimer: ReturnType<typeof setTimeout> | undefined;
+
 function go(id: SectionId) {
   current = id;
+  jumping = true;
+  clearTimeout(jumpTimer);
+  // Fallback in case "scrollend" never fires (already in place, or nothing to scroll).
+  jumpTimer = setTimeout(() => (jumping = false), 1200);
   content
     ?.querySelector(`[data-section="${id}"]`)
     ?.scrollIntoView({ behavior: motionLevel() === "full" ? "smooth" : "auto", block: "start" });
@@ -218,7 +229,7 @@ function go(id: SectionId) {
 
 /** Light up the section being read in the list. */
 function spy() {
-  if (!content) return;
+  if (!content || jumping) return;
   const top = content.getBoundingClientRect().top + 72;
   let at: SectionId = SECTIONS[0].id;
   for (const s of SECTIONS) {
@@ -320,7 +331,14 @@ $effect(() => {
         <X size={15} />
       </button>
     </header>
-    <div class="content" bind:this={content} onscroll={spy}>
+    <div
+      class="content"
+      bind:this={content}
+      onscroll={spy}
+      onscrollend={() => (jumping = false)}
+      onwheel={() => (jumping = false)}
+      onpointerdown={() => (jumping = false)}
+    >
 
       <section data-section="appearance" hidden={hiddenSections.appearance}>
         <h2 class="title">Appearance</h2>
