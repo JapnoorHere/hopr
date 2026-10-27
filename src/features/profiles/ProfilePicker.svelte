@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
  * "Choose a profile": shown when Hopr opens (like a browser's profile picker) and from the
- * switcher. Each tile is drawn in that profile's own theme. Picking the open profile carries
+ * switcher. Each tile is drawn in that profile's own theme on the plain background. Picking the open profile carries
  * on; another one restarts Hopr into it.
  */
 import { DotsThree, Plus, X } from "phosphor-svelte";
@@ -21,12 +21,9 @@ import { profileName, profiles } from "./profiles.svelte";
 let { dismissible = false }: { dismissible?: boolean } = $props();
 
 let editing = $state<Profile | null | "new">(null);
-let hovered = $state<Profile | null>(null);
 /** Switching away with tabs open asks first. */
 let confirming = $state<Profile | null>(null);
 let grid = $state<HTMLDivElement>();
-
-const glow = $derived(hovered?.color ?? profiles.active?.color ?? null);
 
 async function pick(p: Profile) {
   if (p.id !== profiles.current && sessions.tabs.length > 0 && confirming?.id !== p.id) {
@@ -71,7 +68,6 @@ $effect(() => {
 <svelte:window onkeydowncapture={onkey} />
 
 <div class="picker" role="dialog" aria-modal="true" aria-label="Choose a profile" transition:fade={{ duration: motion(180) }}>
-  {#if glow}<div class="glow" style:--glow={glow}></div>{/if}
   {#if dismissible}
     <button type="button" class="dismiss" aria-label="Close" title="Close (Esc)" onclick={close}><X size={16} /></button>
   {/if}
@@ -96,9 +92,6 @@ $effect(() => {
             data-tile
             data-id={p.id}
             style={themeStyle(lookSpec(p.look))}
-            onpointerenter={() => (hovered = p)}
-            onpointerleave={() => (hovered = null)}
-            onfocus={() => (hovered = p)}
             onclick={() => pick(p)}
             title={i < 9 ? `Open (${i + 1})` : "Open"}
           >
@@ -164,20 +157,7 @@ $effect(() => {
     place-items: center;
     overflow: auto;
     background: var(--bg);
-  }
-  /* A soft wash of the hovered profile's colour behind everything. */
-  .glow {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(
-      60% 50% at 50% 42%,
-      color-mix(in oklab, var(--glow) 16%, transparent),
-      transparent 70%
-    );
-    transition: background var(--dur-slow) var(--ease-out);
-  }
-  .dismiss {
+  }  .dismiss {
     position: absolute;
     top: 14px;
     right: 14px;
