@@ -1,49 +1,78 @@
 <script lang="ts">
-/** Hopr logo: two hops between three points. Uses currentColor. `animated` draws it once:
- *  the points appear, then each hop arcs from one to the next. */
+/**
+ * Hopr logo: a > prompt that hops (dots growing as they travel) onto an underscore cursor.
+ * Uses currentColor. At 24px and below it switches to a heavier three-dot cut that stays
+ * crisp. `animated` plays it once: the prompt draws, the dots hop in, the cursor blinks.
+ * The app icon is drawn from the same shapes (src-tauri/icons/source/).
+ */
 let { size = 20, animated = false }: { size?: number; animated?: boolean } = $props();
+const small = $derived(size <= 24);
 </script>
 
-<svg
-  width={size}
-  height={size}
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.6"
-  stroke-linecap="round"
-  aria-hidden="true"
-  class:animated
->
-  <path d="M4 16.5C5.8 9 10.2 9 12 16.5" pathLength="1" class="hop one" />
-  <path d="M12 16.5C13.8 9 18.2 9 20 16.5" pathLength="1" class="hop two" />
-  <circle cx="4" cy="16.5" r="1.7" fill="currentColor" stroke="none" class="pt a" />
-  <circle cx="12" cy="16.5" r="1.7" fill="currentColor" stroke="none" class="pt b" />
-  <circle cx="20" cy="16.5" r="1.7" fill="currentColor" stroke="none" class="pt c" />
+<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class:animated>
+  {#if small}
+    <path
+      class="prompt"
+      pathLength="1"
+      d="M3.2 7.2L8.8 12L3.2 16.8"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="3.1"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle class="dot d1" cx="11.6" cy="7.9" r="1.45" opacity="0.7" />
+    <circle class="dot d2" cx="15" cy="5.7" r="1.75" opacity="0.88" />
+    <circle class="dot d3" cx="18.6" cy="8.3" r="2.05" />
+    <rect class="cursor" x="12.2" y="15.8" width="9.4" height="3.6" rx="1.8" />
+  {:else}
+    <path
+      class="prompt"
+      pathLength="1"
+      d="M3.4 7.6L8.6 12L3.4 16.4"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle class="dot d1" cx="10.9" cy="8.4" r="0.95" opacity="0.55" />
+    <circle class="dot d2" cx="13.2" cy="6.1" r="1.15" opacity="0.7" />
+    <circle class="dot d3" cx="16.1" cy="6" r="1.35" opacity="0.85" />
+    <circle class="dot d4" cx="18.3" cy="8.7" r="1.55" />
+    <rect class="cursor" x="12.6" y="16.2" width="8.4" height="3.1" rx="1.55" />
+  {/if}
 </svg>
 
 <style>
-  .animated .hop {
+  .animated .prompt {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
-    animation: mark-draw 420ms var(--ease-out) forwards;
+    animation: mark-draw 380ms var(--ease-out) 120ms forwards;
   }
-  .animated .one {
-    animation-delay: 180ms;
-  }
-  .animated .two {
-    animation-delay: 480ms;
-  }
-  .animated .pt {
+  .animated .dot {
     transform-box: fill-box;
     transform-origin: center;
-    animation: mark-pop 360ms var(--ease-bounce) backwards;
+    animation: mark-pop 300ms var(--ease-bounce) backwards;
   }
-  .animated .b {
+  .animated .d1 {
     animation-delay: 420ms;
   }
-  .animated .c {
-    animation-delay: 760ms;
+  .animated .d2 {
+    animation-delay: 510ms;
+  }
+  .animated .d3 {
+    animation-delay: 600ms;
+  }
+  .animated .d4 {
+    animation-delay: 690ms;
+  }
+  .animated .cursor {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation:
+      mark-land 320ms var(--ease-spring) 780ms backwards,
+      mark-blink 1s steps(1) 1.2s 2;
   }
   @keyframes mark-draw {
     to {
@@ -56,12 +85,23 @@ let { size = 20, animated = false }: { size?: number; animated?: boolean } = $pr
       opacity: 0;
     }
   }
-  :global(:root[data-motion="reduced"]) .animated .hop,
-  :global(:root[data-motion="off"]) .animated .hop {
+  @keyframes mark-land {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes mark-blink {
+    50% {
+      opacity: 0.2;
+    }
+  }
+  :global(:root[data-motion="reduced"]) .animated .prompt,
+  :global(:root[data-motion="off"]) .animated .prompt {
     animation: none;
     stroke-dashoffset: 0;
   }
-  :global(:root[data-motion="reduced"]) .animated .pt {
+  :global(:root[data-motion="reduced"]) .animated .dot,
+  :global(:root[data-motion="reduced"]) .animated .cursor {
     animation: none;
   }
 </style>
