@@ -20,15 +20,28 @@ import { shell } from "./shell.state.svelte";
 
 // One highlight that slides between items instead of jumping (motion plan, M3).
 let nav = $state<HTMLElement>();
-let pill = $state<{ y: number; h: number } | null>(null);
+let pill = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+
+/** Measure the active button: the pill matches its box exactly, whatever the density. */
+function measure() {
+  // An open drawer wins over the Hosts view behind it.
+  const on = [...(nav?.querySelectorAll<HTMLElement>(".btn.active") ?? [])].at(-1);
+  pill = on ? { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight } : null;
+}
+
 $effect(() => {
   void shell.drawer;
   void sessions.activeKey;
-  void tick().then(() => {
-    // An open drawer wins over the Hosts view behind it.
-    const on = [...(nav?.querySelectorAll<HTMLElement>(".btn.active") ?? [])].at(-1);
-    pill = on ? { y: on.offsetTop, h: on.offsetHeight } : null;
-  });
+  void tick().then(measure);
+});
+
+// Anything that re-lays out the rail (density, window size, fonts loading) moves the
+// buttons, so the pill follows instead of drifting out of line.
+$effect(() => {
+  if (!nav) return;
+  const ro = new ResizeObserver(() => measure());
+  ro.observe(nav);
+  return () => ro.disconnect();
 });
 </script>
 
@@ -38,7 +51,13 @@ $effect(() => {
   bind:this={nav}
 >
   {#if pill}
-    <span class="pill" style:transform="translateY({pill.y}px)" style:height="{pill.h}px" aria-hidden="true"></span>
+    <span
+      class="pill"
+      style:transform="translate({pill.x}px, {pill.y}px)"
+      style:width="{pill.w}px"
+      style:height="{pill.h}px"
+      aria-hidden="true"
+    ></span>
   {/if}
   <IconButton
     label={t("rail.hosts")}
@@ -87,8 +106,7 @@ $effect(() => {
   .pill {
     position: absolute;
     top: 0;
-    left: 8px;
-    width: 32px;
+    left: 0;
     border-radius: var(--radius-sm);
     background: color-mix(in oklab, var(--accent) 13%, transparent);
     box-shadow: inset 2px 0 0 var(--accent);
