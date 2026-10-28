@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
  * Hopr logo: a > prompt that hops (dots growing as they travel) onto an underscore cursor.
- * Always Hopr yellow (the --brand token), whatever the theme. At 24px and below it switches
+ * In the theme's accent colour (the app icon is white). At 24px and below it switches
  * to a heavier three-dot cut that stays crisp. `animated` plays it once: the prompt draws,
  * the dots hop in, the cursor blinks.
  * The app icon is drawn from the same shapes (src-tauri/icons/source/).
@@ -47,7 +47,7 @@ const small = $derived(size <= 24);
 
 <style>
   .mark {
-    color: var(--brand);
+    color: var(--accent);
   }
   .animated .prompt {
     stroke-dasharray: 1;
