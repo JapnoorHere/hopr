@@ -243,10 +243,14 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
             // HOPR_DATA_DIR lets tests (and portable installs) keep data out of the user's profile.
-            let root = match std::env::var_os("HOPR_DATA_DIR") {
+            let custom = std::env::var_os("HOPR_DATA_DIR");
+            let root = match &custom {
                 Some(dir) => std::path::PathBuf::from(dir),
                 None => app.path().app_data_dir()?,
             };
+            if custom.is_some() {
+                state::keychain::set_data_scope(&root);
+            }
             // Each profile is its own data folder; open the last used one.
             let profiles = profiles::Profiles::open(root);
             let data_dir = profiles.data_dir();

@@ -187,20 +187,46 @@ pub mod keychain {
     /// old name, so a key remembered before profiles existed still works.
     static PROFILE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
+    /// A custom data folder (HOPR_DATA_DIR: tests, portable copies) gets its own names, so its
+    /// profiles never overwrite the keys remembered by the normal install.
+    static SCOPE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
     pub fn set_profile(id: &str) {
         let _ = PROFILE.set(id.to_owned());
     }
 
+    pub fn set_data_scope(root: &std::path::Path) {
+        let _ = SCOPE.set(fingerprint(&root.to_string_lossy().to_lowercase()));
+    }
+
+    /// FNV-1a: a short, stable fingerprint of the folder path (same every run and build).
+    fn fingerprint(text: &str) -> String {
+        let hash = text.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+            (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+        });
+        format!("{hash:016x}")
+    }
+
     fn user_for(id: &str) -> String {
-        if id == crate::profiles::DEFAULT_ID {
+        scoped(id, SCOPE.get().map(String::as_str))
+    }
+
+    fn scoped(id: &str, scope: Option<&str>) -> String {
+        let base = if id == crate::profiles::DEFAULT_ID {
             USER.to_owned()
         } else {
             format!("{USER}.{id}")
+        };
+        match scope {
+            Some(s) => format!("{base}@{s}"),
+            None => base,
         }
     }
 
     fn entry() -> Option<keyring::Entry> {
-        let id = PROFILE.get().map_or(crate::profiles::DEFAULT_ID, String::as_str);
+        let id = PROFILE
+            .get()
+            .map_or(crate::profiles::DEFAULT_ID, String::as_str);
         keyring::Entry::new(SERVICE, &user_for(id)).ok()
     }
 
@@ -228,6 +254,28 @@ pub mod keychain {
     pub fn forget() {
         if let Some(e) = entry() {
             let _ = e.delete_credential();
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn the_normal_install_keeps_the_original_names() {
+            assert_eq!(scoped(crate::profiles::DEFAULT_ID, None), "vault-dek");
+            assert_eq!(scoped("abc", None), "vault-dek.abc");
+        }
+
+        #[test]
+        fn a_custom_data_folder_gets_its_own_names() {
+            let a = fingerprint("d:/hopr-tmp/one");
+            assert_eq!(a, fingerprint("d:/hopr-tmp/one"));
+            assert_ne!(a, fingerprint("d:/hopr-tmp/two"));
+            assert_eq!(
+                scoped(crate::profiles::DEFAULT_ID, Some(&a)),
+                format!("vault-dek@{a}")
+            );
         }
     }
 }

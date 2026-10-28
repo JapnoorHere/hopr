@@ -123,7 +123,8 @@ impl Registry {
 
     /// Drop anything malformed and make sure the original data is always listed.
     fn repaired(mut self) -> Self {
-        self.profiles.retain(|p| valid_id(&p.id) && valid_color(&p.color));
+        self.profiles
+            .retain(|p| valid_id(&p.id) && valid_color(&p.color));
         let mut seen = std::collections::HashSet::new();
         self.profiles.retain(|p| seen.insert(p.id.clone()));
         if !self.profiles.iter().any(|p| p.id == DEFAULT_ID) {
@@ -201,7 +202,9 @@ impl Registry {
     /// Remove a profile from the list. The open one and the only one can't go.
     pub fn remove(&mut self, id: &str, current: &str) -> Result<(), AppError> {
         if id == current {
-            return Err(invalid("Switch to another profile before deleting this one"));
+            return Err(invalid(
+                "Switch to another profile before deleting this one",
+            ));
         }
         if self.profiles.len() <= 1 {
             return Err(invalid("Hopr needs at least one profile"));
@@ -299,10 +302,7 @@ impl Profiles {
     }
 
     /// Change the registry and save it; nothing is kept if saving fails.
-    fn edit<T>(
-        &self,
-        f: impl FnOnce(&mut Registry) -> Result<T, AppError>,
-    ) -> Result<T, AppError> {
+    fn edit<T>(&self, f: impl FnOnce(&mut Registry) -> Result<T, AppError>) -> Result<T, AppError> {
         let mut reg = self.registry.lock().unwrap_or_else(|e| e.into_inner());
         let mut next = reg.clone();
         let out = f(&mut next)?;
@@ -347,7 +347,10 @@ pub fn profile_update(
 #[tauri::command]
 #[specta::specta]
 pub fn profile_set_look(state: S<'_>, look: ProfileLook) -> Result<(), AppError> {
-    if ![&look.bg, &look.text, &look.accent].iter().all(|c| valid_color(c)) {
+    if ![&look.bg, &look.text, &look.accent]
+        .iter()
+        .all(|c| valid_color(c))
+    {
         return Err(invalid("Colours must be #rrggbb"));
     }
     let current = state.current.clone();
