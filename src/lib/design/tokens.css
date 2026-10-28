@@ -101,7 +101,6 @@
   --success: oklch(0.78 0.16 145);
   --warning: oklch(0.85 0.15 95);
   --danger: oklch(0.66 0.19 28);
-  --brand: oklch(0.79 0.14 72);
   --scheme: dark;
 }
 

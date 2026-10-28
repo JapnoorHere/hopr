@@ -29,7 +29,6 @@ export const TOKENS = [
   "success",
   "warning",
   "danger",
-  "brand",
   "scheme",
 ] as const;
 export type Token = (typeof TOKENS)[number];
@@ -675,8 +674,6 @@ export function themeTokens(spec: ThemeSpec): Tokens {
     success: status(spec.ansi.green),
     warning: status(spec.ansi.yellow),
     danger: status(spec.ansi.red),
-    // Hopr yellow for the logo, the same in every theme (a touch deeper on light ones).
-    brand: dark ? "oklch(0.79 0.14 72)" : "oklch(0.66 0.15 66)",
     scheme: dark ? "dark" : "light",
   };
   return { ...computed, ...spec.tokens };
