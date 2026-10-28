@@ -1,15 +1,16 @@
 <script lang="ts">
 /**
  * Hopr logo: a > prompt that hops (dots growing as they travel) onto an underscore cursor.
- * Uses currentColor. At 24px and below it switches to a heavier three-dot cut that stays
- * crisp. `animated` plays it once: the prompt draws, the dots hop in, the cursor blinks.
+ * Always Hopr yellow (the --brand token), whatever the theme. At 24px and below it switches
+ * to a heavier three-dot cut that stays crisp. `animated` plays it once: the prompt draws,
+ * the dots hop in, the cursor blinks.
  * The app icon is drawn from the same shapes (src-tauri/icons/source/).
  */
 let { size = 20, animated = false }: { size?: number; animated?: boolean } = $props();
 const small = $derived(size <= 24);
 </script>
 
-<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class:animated>
+<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="mark" class:animated>
   {#if small}
     <path
       class="prompt"
@@ -45,6 +46,9 @@ const small = $derived(size <= 24);
 </svg>
 
 <style>
+  .mark {
+    color: var(--brand);
+  }
   .animated .prompt {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
