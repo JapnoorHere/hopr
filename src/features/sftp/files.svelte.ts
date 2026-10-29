@@ -4,7 +4,6 @@
  */
 
 import { wrap } from "$features/vault/vault.svelte";
-import { scoped } from "$lib/design/theme";
 import {
   type AppError,
   type ConflictPolicy,
@@ -15,6 +14,7 @@ import {
   type QueueResult,
   type RemoteEntry,
 } from "$lib/ipc";
+import { readJson, scoped, writeJson } from "$lib/storage";
 import { toast } from "$lib/ui/toast.svelte";
 import { filterEntries, parentPath, type SortKey, sortEntries } from "./format";
 
@@ -22,13 +22,14 @@ const BOOKMARKS_KEY = "hopr.sftp.bookmarks";
 
 type Res<T> = { status: "ok"; data: T } | { status: "error"; error: AppError };
 
-function loadBookmarks(): Record<string, string[]> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(scoped(BOOKMARKS_KEY)) ?? "{}");
-    return raw && typeof raw === "object" ? raw : {};
-  } catch {
-    return {};
-  }
+type Bookmarks = Record<string, string[]>;
+
+function loadBookmarks(): Bookmarks {
+  return readJson(
+    scoped(BOOKMARKS_KEY),
+    (raw) => (raw && typeof raw === "object" ? (raw as Bookmarks) : {}),
+    {},
+  );
 }
 
 class FilesStore {
@@ -251,11 +252,7 @@ class FilesStore {
     const list = this.bookmarks[this.hostId] ?? [];
     const next = list.includes(path) ? list.filter((p) => p !== path) : [...list, path];
     this.bookmarks = { ...this.bookmarks, [this.hostId]: next };
-    try {
-      localStorage.setItem(scoped(BOOKMARKS_KEY), JSON.stringify(this.bookmarks));
-    } catch {
-      // Storage unavailable: bookmarks last for this run.
-    }
+    writeJson(scoped(BOOKMARKS_KEY), this.bookmarks);
   }
 }
 

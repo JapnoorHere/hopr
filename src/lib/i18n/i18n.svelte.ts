@@ -3,7 +3,7 @@
  * placeholders, and the chosen locale (system default or explicit), kept per device.
  * Missing translations fall back to English, so a partial catalog never shows a key.
  */
-import { safeStorage } from "$lib/design/theme";
+import { readText, writeText } from "$lib/storage";
 import { de } from "./de";
 import { en, type MessageKey, type Messages } from "./en";
 
@@ -36,7 +36,7 @@ export function format(message: string, vars?: Record<string, string | number>):
 }
 
 function loadPref(): LocalePref {
-  const v = safeStorage()?.getItem(STORAGE_KEY);
+  const v = readText(STORAGE_KEY);
   return v === "system" || (v && Object.hasOwn(LOCALES, v)) ? (v as LocalePref) : "system";
 }
 
@@ -55,7 +55,7 @@ class I18n {
 
   set(pref: LocalePref) {
     this.pref = pref;
-    safeStorage()?.setItem(STORAGE_KEY, pref);
+    writeText(STORAGE_KEY, pref);
     document.documentElement.lang = resolveLocale(pref, systemLanguages());
   }
 

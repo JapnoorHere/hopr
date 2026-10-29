@@ -1,23 +1,17 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { inTauri } from "$lib/ipc";
-import {
-  type Appearance,
-  applyAppearance,
-  loadAppearance,
-  safeStorage,
-  saveAppearance,
-} from "./theme";
+import { type Appearance, applyAppearance, loadAppearance, saveAppearance } from "./theme";
 import { themeSpec, themeTokens } from "./themes";
 
 class AppearanceStore {
-  current = $state<Appearance>(loadAppearance(safeStorage()));
+  current = $state<Appearance>(loadAppearance());
   /** The theme in use, and its tokens: computed, so readers never wait on the DOM. */
   spec = $derived(themeSpec(this.current.theme, this.current.custom));
   tokens = $derived(themeTokens(this.spec));
 
   init() {
     // Read again: the open profile's storage scope is set by now.
-    this.current = loadAppearance(safeStorage());
+    this.current = loadAppearance();
     applyAppearance(this.current);
     void this.#windowTheme();
     // "System" motion follows Windows' animation setting live.
@@ -43,7 +37,7 @@ class AppearanceStore {
     } else {
       apply();
     }
-    saveAppearance(this.current, safeStorage());
+    saveAppearance(this.current);
     if (patch.theme !== undefined) void this.#windowTheme();
   }
 

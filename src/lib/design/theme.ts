@@ -1,5 +1,6 @@
 /** Appearance model: theme, density and motion. Pure functions so they test without a DOM framework. */
 
+import { readJson, safeStorage, scoped, writeJson } from "$lib/storage";
 import {
   type CustomTheme,
   isThemeId,
@@ -85,41 +86,11 @@ export function applyAppearance(a: Appearance, root: HTMLElement = document.docu
   root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
 }
 
-/**
- * Browser-storage keys that belong to a profile (its theme, layout, recents) carry the
- * profile's id; device-wide ones (fonts, shortcuts, language) don't. The original profile
- * keeps the plain keys, so nothing saved before profiles existed is lost.
- */
-let scope = "";
-export function setStorageScope(profileId: string) {
-  scope = profileId === "default" ? "" : profileId;
-}
-export function scoped(key: string): string {
-  return scope ? `${key}@${scope}` : key;
+/** The open profile's appearance (a profile-scoped key). */
+export function loadAppearance(storage = safeStorage()): Appearance {
+  return readJson(scoped(STORAGE_KEY), parseAppearance, { ...DEFAULT_APPEARANCE }, storage);
 }
 
-/** Storage can be missing or throw (private mode, blocked site data). */
-export function safeStorage(): Storage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function loadAppearance(storage: Storage | null): Appearance {
-  try {
-    const raw = storage?.getItem(scoped(STORAGE_KEY));
-    return raw ? parseAppearance(JSON.parse(raw)) : { ...DEFAULT_APPEARANCE };
-  } catch {
-    return { ...DEFAULT_APPEARANCE };
-  }
-}
-
-export function saveAppearance(a: Appearance, storage: Storage | null) {
-  try {
-    storage?.setItem(scoped(STORAGE_KEY), JSON.stringify(a));
-  } catch {
-    // Non-critical convenience; ignore quota or access errors.
-  }
+export function saveAppearance(a: Appearance, storage = safeStorage()) {
+  writeJson(scoped(STORAGE_KEY), a, storage);
 }
