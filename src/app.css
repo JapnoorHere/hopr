@@ -418,6 +418,7 @@
     opacity var(--dur-fast) var(--ease-out);
 }
 [data-pill] > :is(.on, [aria-checked="true"], [aria-selected="true"]) {
+  /* biome-ignore lint/complexity/noImportantStyles: the sliding pill paints the active state, so each control's own fill must yield */
   background: transparent !important;
 }
 [data-pill] > button {
