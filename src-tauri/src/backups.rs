@@ -36,10 +36,6 @@ pub struct BackupInfo {
     pub automatic: bool,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn stamp(t: OffsetDateTime) -> String {
     format!(
         "{:04}{:02}{:02}-{:02}{:02}{:02}",
@@ -77,7 +73,7 @@ pub async fn write_backup(state: &AppState, automatic: bool) -> Result<BackupInf
             .store
             .vault_header()
             .await?
-            .ok_or_else(|| invalid("Create a vault first"))?,
+            .ok_or_else(|| AppError::invalid("Create a vault first"))?,
     };
     let db = state.store.snapshot_bytes().await?;
     let sealed = backup::seal(&vault, &header, &db)?;
@@ -155,26 +151,24 @@ pub async fn backup_restore(
     let (file, source) = match (name, bytes) {
         (Some(name), None) => {
             if name.contains(['/', '\\']) || !name.ends_with(".hopr") {
-                return Err(invalid("Unknown backup"));
+                return Err(AppError::invalid("Unknown backup"));
             }
             let data = std::fs::read(state.backups_dir().join(&name))
-                .map_err(|_| invalid("That backup no longer exists"))?;
+                .map_err(|_| AppError::invalid("That backup no longer exists"))?;
             (data, name)
         }
         (None, Some(bytes)) => {
             if bytes.len() > 512 * 1024 * 1024 {
-                return Err(invalid("That file is too large"));
+                return Err(AppError::invalid("That file is too large"));
             }
             (bytes, "a .hopr file".to_owned())
         }
-        _ => return Err(invalid("Choose one backup to restore")),
+        _ => return Err(AppError::invalid("Choose one backup to restore")),
     };
     let pw = SecretString::from(password);
     let (header, db) = tokio::task::spawn_blocking(move || backup::open(&file, &pw))
         .await
-        .map_err(|e| {
-            AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
-        })??;
+        .map_err(|e| AppError::internal("Background task failed", e))??;
     backup::stage_restore(&state.db_path(), &db)?;
     state.audit(
         "backup.restore",

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hopr_core::session::{COMMAND_CAPACITY, FlowControl, SessionCommand, SessionHandle};
-use hopr_core::{AppError, CloseReason, ErrorCode, SessionId, SessionState};
+use hopr_core::{AppError, CloseReason, SessionId, SessionState};
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -145,7 +145,7 @@ fn pty_size(cols: u32, rows: u32) -> PtySize {
 }
 
 fn pty_error(e: impl std::fmt::Display) -> AppError {
-    AppError::new(ErrorCode::Internal, "Couldn't start the local shell").with_detail(e.to_string())
+    AppError::internal("Couldn't start the local shell", e)
 }
 
 /// Start a local shell in a PTY. Output goes to `output` (bounded).

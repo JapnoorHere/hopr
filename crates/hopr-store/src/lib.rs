@@ -60,14 +60,11 @@ pub enum StoreError {
 impl From<StoreError> for AppError {
     fn from(e: StoreError) -> Self {
         match e {
-            StoreError::NotFound(what) => AppError::new(
-                ErrorCode::InvalidInput,
-                format!("That {what} no longer exists"),
-            ),
-            StoreError::InUse(msg) => AppError::new(ErrorCode::InvalidInput, msg),
-            StoreError::Vault(VaultError::WrongPassword) => {
-                AppError::new(ErrorCode::InvalidInput, "Incorrect password")
+            StoreError::NotFound(what) => {
+                AppError::invalid(format!("That {what} no longer exists"))
             }
+            StoreError::InUse(msg) => AppError::invalid(msg),
+            StoreError::Vault(VaultError::WrongPassword) => AppError::invalid("Incorrect password"),
             other => AppError::new(
                 ErrorCode::Storage,
                 "Couldn't read or write the Hopr database",

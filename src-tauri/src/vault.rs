@@ -35,24 +35,22 @@ pub struct VaultStatus {
     pub biometric_available: bool,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn vault_err(e: VaultError) -> AppError {
     match e {
-        VaultError::WrongPassword => invalid("Incorrect password"),
-        VaultError::MalformedRecoveryKey => invalid("That doesn't look like a recovery key"),
-        other => AppError::new(ErrorCode::Internal, "Vault error").with_detail(other.to_string()),
+        VaultError::WrongPassword => AppError::invalid("Incorrect password"),
+        VaultError::MalformedRecoveryKey => {
+            AppError::invalid("That doesn't look like a recovery key")
+        }
+        other => AppError::internal("Vault error", other),
     }
 }
 
 fn check_new_password(p: &str) -> Result<(), AppError> {
     if p.chars().count() < 8 {
-        return Err(invalid("Use at least 8 characters"));
+        return Err(AppError::invalid("Use at least 8 characters"));
     }
     if p.len() > 1024 {
-        return Err(invalid("That password is too long"));
+        return Err(AppError::invalid("That password is too long"));
     }
     Ok(())
 }
@@ -60,9 +58,9 @@ fn check_new_password(p: &str) -> Result<(), AppError> {
 async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> T + Send + 'static,
 ) -> Result<T, AppError> {
-    tokio::task::spawn_blocking(f).await.map_err(|e| {
-        AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
-    })
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::internal("Background task failed", e))
 }
 
 async fn header(state: &AppState) -> Result<VaultHeader, AppError> {
@@ -70,7 +68,7 @@ async fn header(state: &AppState) -> Result<VaultHeader, AppError> {
         .store
         .vault_header()
         .await?
-        .ok_or_else(|| invalid("Create a vault first"))
+        .ok_or_else(|| AppError::invalid("Create a vault first"))
 }
 
 /// Current vault status.
@@ -112,7 +110,7 @@ pub async fn vault_set_biometric(state: S<'_>, enabled: bool) -> Result<(), AppE
     let vault = state.vault()?;
     if enabled {
         if !biometric::available().await {
-            return Err(invalid(
+            return Err(AppError::invalid(
                 "Windows Hello isn't set up on this device. Set it up in Windows Settings first.",
             ));
         }
@@ -146,7 +144,7 @@ pub async fn vault_set_biometric(state: S<'_>, enabled: bool) -> Result<(), AppE
 #[specta::specta]
 pub async fn vault_unlock_biometric(state: S<'_>) -> Result<(), AppError> {
     if !biometric_on(&state).await {
-        return Err(invalid("Unlock with Windows Hello is off"));
+        return Err(AppError::invalid("Unlock with Windows Hello is off"));
     }
     let header = header(&state).await?;
     let ok = biometric::verify("Unlock Hopr".into())
@@ -154,12 +152,13 @@ pub async fn vault_unlock_biometric(state: S<'_>) -> Result<(), AppError> {
         .map_err(|e| AppError::new(ErrorCode::Internal, "Windows Hello failed").with_detail(e))?;
     if !ok {
         state.audit("vault.unlock_failed", None, "Windows Hello not confirmed");
-        return Err(invalid("Windows Hello didn't confirm it's you"));
+        return Err(AppError::invalid("Windows Hello didn't confirm it's you"));
     }
-    let dek = keychain::load()
-        .ok_or_else(|| invalid("This device no longer has the vault key; enter your password"))?;
+    let dek = keychain::load().ok_or_else(|| {
+        AppError::invalid("This device no longer has the vault key; enter your password")
+    })?;
     let vault = hopr_vault::unlock_with_dek(&header, &dek)
-        .map_err(|_| invalid("The stored key no longer matches; enter your password"))?;
+        .map_err(|_| AppError::invalid("The stored key no longer matches; enter your password"))?;
     unlocked(&state, vault, "Windows Hello");
     Ok(())
 }
@@ -169,7 +168,7 @@ pub async fn vault_unlock_biometric(state: S<'_>) -> Result<(), AppError> {
 #[specta::specta]
 pub async fn vault_create(state: S<'_>, password: String) -> Result<String, AppError> {
     if state.store.vault_header().await?.is_some() {
-        return Err(invalid("A vault already exists"));
+        return Err(AppError::invalid("A vault already exists"));
     }
     check_new_password(&password)?;
     let password = SecretString::from(password);
@@ -221,11 +220,13 @@ pub async fn vault_unlock(state: S<'_>, password: String, remember: bool) -> Res
 #[specta::specta]
 pub async fn vault_unlock_remembered(state: S<'_>) -> Result<(), AppError> {
     if biometric_on(&state).await {
-        return Err(invalid("Unlock with Windows Hello or your password"));
+        return Err(AppError::invalid(
+            "Unlock with Windows Hello or your password",
+        ));
     }
     let header = header(&state).await?;
-    let dek =
-        keychain::load().ok_or_else(|| invalid("This device doesn't remember the vault key"))?;
+    let dek = keychain::load()
+        .ok_or_else(|| AppError::invalid("This device doesn't remember the vault key"))?;
     match hopr_vault::unlock_with_dek(&header, &dek) {
         Ok(v) => {
             unlocked(&state, v, "Remembered device key");
@@ -233,7 +234,7 @@ pub async fn vault_unlock_remembered(state: S<'_>) -> Result<(), AppError> {
         }
         Err(_) => {
             keychain::forget(); // stale (e.g. vault re-created)
-            Err(invalid(
+            Err(AppError::invalid(
                 "The remembered key no longer matches; enter your password",
             ))
         }
@@ -339,7 +340,7 @@ pub fn vault_activity(state: S<'_>) {
 pub async fn vault_set_auto_lock(state: S<'_>, minutes: u32) -> Result<(), AppError> {
     state.require_unlocked()?;
     if minutes > 24 * 60 {
-        return Err(invalid("Choose at most 24 hours"));
+        return Err(AppError::invalid("Choose at most 24 hours"));
     }
     state.store.set_setting(AUTO_LOCK_KEY, &minutes).await?;
     state.set_auto_lock_minutes(minutes);
@@ -361,7 +362,7 @@ pub async fn vault_set_auto_lock(state: S<'_>, minutes: u32) -> Result<(), AppEr
 pub async fn vault_set_clipboard_clear(state: S<'_>, seconds: u32) -> Result<(), AppError> {
     state.require_unlocked()?;
     if seconds > 600 {
-        return Err(invalid("Choose at most 10 minutes"));
+        return Err(AppError::invalid("Choose at most 10 minutes"));
     }
     state
         .store

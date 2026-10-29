@@ -53,18 +53,14 @@ pub struct ImportSummary {
     pub warnings: Vec<String>,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn task_err(e: tokio::task::JoinError) -> AppError {
-    AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
+    AppError::internal("Background task failed", e)
 }
 
 fn label_ok(s: &str) -> Result<String, AppError> {
     let t = s.trim();
     if t.is_empty() || t.len() > 120 || t.chars().any(char::is_control) {
-        return Err(invalid("Enter a name (up to 120 characters)"));
+        return Err(AppError::invalid("Enter a name (up to 120 characters)"));
     }
     Ok(t.to_owned())
 }
@@ -105,12 +101,14 @@ pub async fn key_set_certificate(
         .await?
         .into_iter()
         .find(|k| k.id == id)
-        .ok_or_else(|| invalid("That key no longer exists"))?;
+        .ok_or_else(|| AppError::invalid("That key no longer exists"))?;
     let text = certificate
         .map(|c| c.trim().to_owned())
         .filter(|c| !c.is_empty());
     let info = match &text {
-        Some(c) if c.len() > 64 * 1024 => return Err(invalid("That certificate is too large")),
+        Some(c) if c.len() > 64 * 1024 => {
+            return Err(AppError::invalid("That certificate is too large"));
+        }
         Some(c) => Some(hopr_ssh::keys::parse_certificate(c, &key.public_key)?.1),
         None => None,
     };
@@ -188,7 +186,7 @@ pub async fn host_duplicate(state: S<'_>, id: String) -> Result<Host, AppError> 
 pub async fn hosts_bulk_edit(state: S<'_>, edit: BulkEdit) -> Result<u32, AppError> {
     state.require_unlocked()?;
     if edit.ids.len() > 10_000 {
-        return Err(invalid("Too many hosts in one edit"));
+        return Err(AppError::invalid("Too many hosts in one edit"));
     }
     let n = state.store.bulk_edit(&edit).await?;
     Ok(u32::try_from(n).unwrap_or(u32::MAX))
@@ -326,7 +324,7 @@ pub async fn host_copy_password(state: S<'_>, id: String) -> Result<u32, AppErro
     let creds = state.store.host_credentials(&vault, &id).await?;
     let pw = creds
         .password
-        .ok_or_else(|| invalid(&format!("{} has no saved password", host.label)))?;
+        .ok_or_else(|| AppError::invalid(format!("{} has no saved password", host.label)))?;
     let secs = state.clipboard_clear_secs();
     clipboard::copy_secret(pw.expose_secret().to_owned(), secs).await?;
     state.audit(
@@ -367,7 +365,7 @@ pub async fn key_deploy(
         .await?
         .into_iter()
         .find(|k| k.id == key_id)
-        .ok_or_else(|| invalid("That key no longer exists"))?;
+        .ok_or_else(|| AppError::invalid("That key no longer exists"))?;
     let script = deploy_script(&key.public_key)?;
     let password = password.filter(|p| !p.is_empty()).map(SecretString::from);
     let route = sessions::host_route(state.inner(), &host_id, password).await?;
@@ -502,7 +500,9 @@ pub async fn key_import(
     let vault = state.vault()?;
     let label = label_ok(&label)?;
     if text.len() > 64 * 1024 {
-        return Err(invalid("That file is too large to be a private key"));
+        return Err(AppError::invalid(
+            "That file is too large to be a private key",
+        ));
     }
     let parsed = hopr_ssh::keys::import(&text, passphrase.as_deref())?;
     Ok(state.store.add_key(&vault, new_key(label, parsed)).await?)
@@ -591,7 +591,7 @@ fn read_ssh_config() -> Result<ConfigImport, AppError> {
     let dir = home.join(".ssh");
     let path = dir.join("config");
     let text = std::fs::read_to_string(&path)
-        .map_err(|_| invalid(&format!("No SSH config found at {}", path.display())))?;
+        .map_err(|_| AppError::invalid(format!("No SSH config found at {}", path.display())))?;
     Ok(hopr_import::parse_ssh_config(
         &text,
         &dir,
@@ -760,7 +760,7 @@ pub async fn import_known_hosts(state: S<'_>) -> Result<ImportSummary, AppError>
     state.require_unlocked()?;
     let path = home_dir()?.join(".ssh").join("known_hosts");
     let text = std::fs::read_to_string(&path)
-        .map_err(|_| invalid(&format!("No known_hosts file at {}", path.display())))?;
+        .map_err(|_| AppError::invalid(format!("No known_hosts file at {}", path.display())))?;
     let parsed = hopr_import::parse_known_hosts(&text);
     let mut summary = ImportSummary {
         warnings: parsed.warnings,

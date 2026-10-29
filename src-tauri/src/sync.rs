@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use data_encoding::BASE64;
-use hopr_core::{AppError, ErrorCode};
+use hopr_core::AppError;
 use hopr_store::sync;
 use hopr_vault::KdfParams;
 use secrecy::{ExposeSecret, SecretString};
@@ -23,10 +23,6 @@ use crate::state::AppState;
 const CONFIG_KEY: &str = "sync.config";
 const KEY_KEY: &str = "sync.key";
 const KEY_AAD: &[u8] = b"sync.key";
-
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -135,25 +131,25 @@ pub async fn sync_enable(
     let folder = folder.trim().to_owned();
     let device_name = device_name.trim().to_owned();
     if folder.is_empty() {
-        return Err(invalid("Choose the folder to sync through"));
+        return Err(AppError::invalid("Choose the folder to sync through"));
     }
     if device_name.is_empty() || device_name.len() > 60 {
-        return Err(invalid("Name this device (up to 60 characters)"));
+        return Err(AppError::invalid("Name this device (up to 60 characters)"));
     }
     if passphrase.expose_secret().chars().count() < 8 {
-        return Err(invalid("Use a sync passphrase of at least 8 characters"));
+        return Err(AppError::invalid(
+            "Use a sync passphrase of at least 8 characters",
+        ));
     }
     let path = PathBuf::from(&folder);
     let key = tokio::task::spawn_blocking(move || {
         sync::open_folder(&path, &passphrase, KdfParams::DEFAULT)
     })
     .await
-    .map_err(|e| {
-        AppError::new(ErrorCode::Internal, "Sync setup failed").with_detail(e.to_string())
-    })?
+    .map_err(|e| AppError::internal("Sync setup failed", e))?
     .map_err(|e| match e {
         hopr_store::StoreError::Vault(_) => {
-            invalid("That passphrase doesn't open this sync folder")
+            AppError::invalid("That passphrase doesn't open this sync folder")
         }
         other => AppError::from(other),
     })?;
@@ -199,15 +195,15 @@ async fn run(state: &Arc<AppState>, lock: &SyncLock) -> Result<SyncReport, AppEr
     let vault = state.vault()?;
     let mut cfg = config(state)
         .await?
-        .ok_or_else(|| invalid("Sync isn't turned on"))?;
+        .ok_or_else(|| AppError::invalid("Sync isn't turned on"))?;
     let sealed: String = state
         .store
         .setting(KEY_KEY)
         .await?
-        .ok_or_else(|| invalid("Turn sync on again: its key is missing"))?;
+        .ok_or_else(|| AppError::invalid("Turn sync on again: its key is missing"))?;
     let raw = BASE64
         .decode(sealed.as_bytes())
-        .map_err(|_| invalid("The saved sync key is damaged; turn sync on again"))?;
+        .map_err(|_| AppError::invalid("The saved sync key is damaged; turn sync on again"))?;
     let dek: Zeroizing<Vec<u8>> = vault
         .decrypt(KEY_AAD, &raw)
         .map_err(|e| AppError::from(hopr_store::StoreError::from(e)))?;

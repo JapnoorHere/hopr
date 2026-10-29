@@ -67,6 +67,16 @@ impl AppError {
         }
     }
 
+    /// Bad input from the user or the UI; the message says what to fix.
+    pub fn invalid(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::InvalidInput, message)
+    }
+
+    /// An unexpected failure: a plain message for people, the cause kept as detail.
+    pub fn internal(message: impl Into<String>, cause: impl std::fmt::Display) -> Self {
+        Self::new(ErrorCode::Internal, message).with_detail(cause.to_string())
+    }
+
     /// Attach a technical detail string.
     #[must_use]
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {

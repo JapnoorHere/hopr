@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
+use hopr_core::AppError;
 use hopr_core::model::{Snippet, SnippetInput};
-use hopr_core::{AppError, ErrorCode};
 use hopr_store::snippets::valid_secret_name;
 use secrecy::ExposeSecret;
 use tauri::State;
@@ -12,10 +12,6 @@ use zeroize::Zeroizing;
 
 use crate::sessions::SessionManager;
 use crate::state::AppState;
-
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
 
 #[tauri::command]
 #[specta::specta]
@@ -64,12 +60,12 @@ pub async fn secret_set(
     let vault = state.vault()?;
     let name = name.trim().to_owned();
     if !valid_secret_name(&name) {
-        return Err(invalid(
+        return Err(AppError::invalid(
             "Secret names use letters, digits, '_', '-' and '.' (up to 64)",
         ));
     }
     if value.is_empty() || value.len() > 8192 {
-        return Err(invalid("Enter a value (up to 8 KB)"));
+        return Err(AppError::invalid("Enter a value (up to 8 KB)"));
     }
     state.store.set_secret(&vault, &name, &value).await?;
     state.audit("secret.set", None, format!("Saved snippet secret {name}"));
@@ -133,7 +129,7 @@ pub async fn session_type(
     enter: bool,
 ) -> Result<u32, AppError> {
     if text.len() > 64 * 1024 {
-        return Err(invalid("That is too much text to type at once"));
+        return Err(AppError::invalid("That is too much text to type at once"));
     }
     let names: Vec<String> = secret_refs(&text).into_iter().map(str::to_owned).collect();
     let mut filled = Zeroizing::new(text);
@@ -141,7 +137,7 @@ pub async fn session_type(
         let vault = state.vault()?;
         for name in &names {
             let value = state.store.get_secret(&vault, name).await?.ok_or_else(|| {
-                invalid(&format!(
+                AppError::invalid(format!(
                     "No secret named \"{name}\"; add it under Snippets → Secrets"
                 ))
             })?;

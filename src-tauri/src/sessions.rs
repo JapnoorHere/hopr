@@ -192,13 +192,9 @@ pub struct SessionStateEvent {
     pub state: SessionState,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn check_size(cols: u32, rows: u32) -> Result<(), AppError> {
     if !(1..=1000).contains(&cols) || !(1..=1000).contains(&rows) {
-        return Err(invalid("Invalid terminal size"));
+        return Err(AppError::invalid("Invalid terminal size"));
     }
     Ok(())
 }
@@ -209,13 +205,13 @@ fn check_quick(host: &str, port: u16, username: &str) -> Result<(), AppError> {
         || host.len() > 253
         || host.chars().any(|c| c.is_whitespace() || c.is_control())
     {
-        return Err(invalid("Enter a valid hostname or IP address"));
+        return Err(AppError::invalid("Enter a valid hostname or IP address"));
     }
     if username.trim().is_empty() || username.len() > 64 || username.chars().any(char::is_control) {
-        return Err(invalid("Enter a valid username"));
+        return Err(AppError::invalid("Enter a valid username"));
     }
     if port == 0 {
-        return Err(invalid("Port must be between 1 and 65535"));
+        return Err(AppError::invalid("Port must be between 1 and 65535"));
     }
     Ok(())
 }
@@ -351,10 +347,9 @@ async fn host_hop(
         AuthKind::Password => password_credentials(creds.password, creds.totp_seed),
         AuthKind::Key | AuthKind::Agent => {
             let mut c = if h.auth == AuthKind::Key {
-                let key_id = h
-                    .key_id
-                    .clone()
-                    .ok_or_else(|| invalid(&format!("{} has no key selected", h.label)))?;
+                let key_id = h.key_id.clone().ok_or_else(|| {
+                    AppError::invalid(format!("{} has no key selected", h.label))
+                })?;
                 let private = state.store.key_private(vault, &key_id).await?;
                 let key = hopr_ssh::keys::load(&private)?;
                 let mut c = Vec::with_capacity(2);
@@ -438,7 +433,7 @@ pub(crate) async fn host_route(
     if let Some(h) = chain.last()
         && h.protocol != Protocol::Ssh
     {
-        return Err(invalid(&format!(
+        return Err(AppError::invalid(format!(
             "{} is a {} host; files, keys and tunnels need SSH",
             h.label,
             h.protocol.as_str()
@@ -619,14 +614,11 @@ pub async fn session_open(
             state.require_unlocked()?;
             let shells = tokio::task::spawn_blocking(hopr_term::detect_shells)
                 .await
-                .map_err(|e| {
-                    AppError::new(ErrorCode::Internal, "Shell detection failed")
-                        .with_detail(e.to_string())
-                })?;
+                .map_err(|e| AppError::internal("Shell detection failed", e))?;
             let shell = shells
                 .iter()
                 .find(|s| s.id == shell_id)
-                .ok_or_else(|| invalid("That shell is no longer available"))?;
+                .ok_or_else(|| AppError::invalid("That shell is no longer available"))?;
             local_name = Some(shell.name.clone());
             hopr_term::spawn_local(id.clone(), shell, cols, rows, tx, flow.clone())?
         }

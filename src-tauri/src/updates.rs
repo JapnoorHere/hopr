@@ -81,7 +81,7 @@ pub async fn update_download(pending: State<'_, Pending>) -> Result<(), AppError
         .lock()
         .ok()
         .and_then(|p| p.clone())
-        .ok_or_else(|| AppError::new(ErrorCode::InvalidInput, "Check for updates first"))?;
+        .ok_or_else(|| AppError::invalid("Check for updates first"))?;
     let bytes = update
         .download(|_, _| {}, || {})
         .await
@@ -99,14 +99,10 @@ pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Resu
     let update = pending.update.lock().ok().and_then(|p| p.clone());
     let bytes = pending.bytes.lock().ok().and_then(|mut b| b.take());
     let (Some(update), Some(bytes)) = (update, bytes) else {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
-            "Download the update first",
-        ));
+        return Err(AppError::invalid("Download the update first"));
     };
-    update.install(bytes).map_err(|e| {
-        AppError::new(ErrorCode::Internal, "Installing the update failed")
-            .with_detail(e.to_string())
-    })?;
+    update
+        .install(bytes)
+        .map_err(|e| AppError::internal("Installing the update failed", e))?;
     app.restart();
 }

@@ -22,10 +22,6 @@ const PER_HOST_TIMEOUT: Duration = Duration::from_secs(300);
 /// Output kept per stream in an event.
 const MAX_EVENT_OUTPUT: usize = 64 * 1024;
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 /// Where one host is in a run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
@@ -134,7 +130,7 @@ async fn run_one(ctx: Arc<Ctx>, h: Host) {
             Err(e) => Err(e),
         }
     } else {
-        Err(invalid("Not an SSH host"))
+        Err(AppError::invalid("Not an SSH host"))
     };
     ev.duration_ms = Some(u32::try_from(started.elapsed().as_millis()).unwrap_or(u32::MAX));
     match result {
@@ -174,10 +170,10 @@ pub async fn group_run(
 ) -> Result<String, AppError> {
     state.require_unlocked()?;
     if host_ids.is_empty() || host_ids.len() > 500 {
-        return Err(invalid("Choose between 1 and 500 hosts"));
+        return Err(AppError::invalid("Choose between 1 and 500 hosts"));
     }
     if command.trim().is_empty() || command.len() > 16 * 1024 {
-        return Err(invalid("Enter a command (up to 16 KB)"));
+        return Err(AppError::invalid("Enter a command (up to 16 KB)"));
     }
     let parallel = parallel.clamp(1, 32);
     let mut hosts = Vec::with_capacity(host_ids.len());

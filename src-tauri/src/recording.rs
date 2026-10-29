@@ -35,7 +35,7 @@ fn path_of(state: &AppState, name: &str) -> Result<PathBuf, AppError> {
         && !name.contains(['/', '\\', ':'])
         && !name.contains("..");
     if !ok {
-        return Err(AppError::new(ErrorCode::InvalidInput, "Not a recording"));
+        return Err(AppError::invalid("Not a recording"));
     }
     Ok(dir(state).join(name))
 }
@@ -212,8 +212,7 @@ pub async fn recording_read(
     let meta =
         std::fs::metadata(&path).map_err(|e| io_err("That recording no longer exists", &e))?;
     if meta.len() > MAX_READ {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
+        return Err(AppError::invalid(
             "This recording is too large to replay here (over 64 MB)",
         ));
     }
@@ -255,9 +254,7 @@ pub async fn recording_export(
             .blocking_save_file()
     })
     .await
-    .map_err(|e| {
-        AppError::new(ErrorCode::Internal, "Save dialog failed").with_detail(e.to_string())
-    })?;
+    .map_err(|e| AppError::internal("Save dialog failed", e))?;
     let Some(dest) = picked.and_then(|p| p.into_path().ok()) else {
         return Ok(None);
     };

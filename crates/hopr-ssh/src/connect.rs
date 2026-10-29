@@ -254,8 +254,7 @@ async fn establish(
 ) -> Result<Connection, SessionState> {
     let handles = dial_chain(&params, state, questions).await?;
     let shell_err = |e: russh::Error| SessionState::Failed {
-        error: AppError::new(ErrorCode::Internal, "The server refused to open a shell")
-            .with_detail(e.to_string()),
+        error: AppError::internal("The server refused to open a shell", e),
     };
     let Some(target_handle) = handles.last() else {
         return Err(failed(ErrorCode::InvalidInput, "Nothing to connect to"));

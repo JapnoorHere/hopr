@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
+use hopr_core::AppError;
 use hopr_core::model::Workspace;
-use hopr_core::{AppError, ErrorCode};
 use tauri::State;
 
 use crate::state::AppState;
@@ -14,10 +14,7 @@ fn check_layout(layout_json: &str) -> Result<(), AppError> {
     if layout_json.len() > 512 * 1024
         || serde_json::from_str::<serde_json::Value>(layout_json).is_err()
     {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
-            "Invalid workspace layout",
-        ));
+        return Err(AppError::invalid("Invalid workspace layout"));
     }
     Ok(())
 }
@@ -41,10 +38,7 @@ pub async fn workspace_save(
     state.require_unlocked()?;
     let name = name.trim();
     if name.is_empty() || name.len() > 80 || name.chars().any(char::is_control) {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
-            "Enter a name (up to 80 characters)",
-        ));
+        return Err(AppError::invalid("Enter a name (up to 80 characters)"));
     }
     check_layout(&layout_json)?;
     Ok(state.store.save_workspace(name, &layout_json).await?)

@@ -4,8 +4,8 @@
 
 use std::sync::{Arc, Mutex};
 
+use hopr_core::AppError;
 use hopr_core::model::{CommandRecord, ConnectionRecord};
-use hopr_core::{AppError, ErrorCode};
 use hopr_store::NewCommand;
 use hopr_store::history::is_excluded;
 use serde::{Deserialize, Serialize};
@@ -65,10 +65,6 @@ impl HistoryState {
     }
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 #[tauri::command]
 #[specta::specta]
 pub fn history_settings(history: State<'_, HistoryState>) -> HistorySettings {
@@ -83,10 +79,12 @@ pub async fn history_set_settings(
     settings: HistorySettings,
 ) -> Result<(), AppError> {
     if settings.exclude.len() > 100 || settings.exclude.iter().any(|p| p.len() > 200) {
-        return Err(invalid("Up to 100 exclude patterns of 200 characters each"));
+        return Err(AppError::invalid(
+            "Up to 100 exclude patterns of 200 characters each",
+        ));
     }
     if settings.notify_after_secs > 86_400 {
-        return Err(invalid("Notify after at most a day"));
+        return Err(AppError::invalid("Notify after at most a day"));
     }
     let mut s = settings;
     s.exclude = s
@@ -217,8 +215,5 @@ pub fn notify(app: AppHandle, title: String, body: String) -> Result<(), AppErro
         .title(clip(&title, 120))
         .body(clip(&body, 400))
         .show()
-        .map_err(|e| {
-            AppError::new(ErrorCode::Internal, "Couldn't show a notification")
-                .with_detail(e.to_string())
-        })
+        .map_err(|e| AppError::internal("Couldn't show a notification", e))
 }
