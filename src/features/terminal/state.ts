@@ -1,7 +1,13 @@
-import type { SessionState } from "$lib/ipc";
+import type { CloseReason, SessionState } from "$lib/ipc";
 
 /** How a state is shown as light (HOPR_PLAN §1.3): live, busy, warn, down, idle. */
 export type Tone = "live" | "busy" | "warn" | "down" | "idle";
+
+const CLOSED: Record<CloseReason, { label: string; tone: Tone }> = {
+  user_closed: { label: "Closed", tone: "idle" },
+  remote_exited: { label: "Session ended", tone: "idle" },
+  connection_lost: { label: "Connection lost", tone: "down" },
+};
 
 export function describeState(state: SessionState): { label: string; tone: Tone } {
   switch (state.kind) {
@@ -30,19 +36,10 @@ export function describeState(state: SessionState): { label: string; tone: Tone 
         tone: "warn",
       };
     case "closed":
-      switch (state.reason) {
-        case "user_closed":
-          return { label: "Closed", tone: "idle" };
-        case "remote_exited":
-          return { label: "Session ended", tone: "idle" };
-        case "connection_lost":
-          return { label: "Connection lost", tone: "down" };
-      }
-      break;
+      return CLOSED[state.reason];
     case "failed":
       return { label: state.error.message, tone: "down" };
   }
-  return { label: "Unknown", tone: "idle" };
 }
 
 export function isBusy(state: SessionState): boolean {
