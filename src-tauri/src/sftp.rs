@@ -32,10 +32,6 @@ const PREVIEW_MAX: usize = 256 * 1024;
 /// Largest image shown in the preview.
 const IMAGE_MAX: usize = 4 * 1024 * 1024;
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 /// Open SFTP sessions by host id, plus the transfer queue and local edits.
 pub struct Files {
     sessions: tokio::sync::Mutex<HashMap<String, Arc<Sftp>>>,
@@ -105,7 +101,7 @@ async fn label_of(app: &AppHandle, host_id: &str) -> String {
 
 fn check_path(path: &str) -> Result<(), AppError> {
     if path.is_empty() || path.len() > 4096 || path.contains('\0') {
-        return Err(invalid("Invalid path"));
+        return Err(AppError::invalid("Invalid path"));
     }
     Ok(())
 }
@@ -113,7 +109,7 @@ fn check_path(path: &str) -> Result<(), AppError> {
 fn check_name(name: &str) -> Result<(), AppError> {
     let n = name.trim();
     if n.is_empty() || n.contains('/') || n == "." || n == ".." || n.len() > 255 {
-        return Err(invalid("Enter a name without slashes"));
+        return Err(AppError::invalid("Enter a name without slashes"));
     }
     Ok(())
 }
@@ -214,7 +210,7 @@ pub async fn sftp_remove(
     for p in &paths {
         check_path(p)?;
         if p == "/" {
-            return Err(invalid("Refusing to delete /"));
+            return Err(AppError::invalid("Refusing to delete /"));
         }
         s.remove(p).await?;
     }
@@ -233,7 +229,7 @@ pub async fn sftp_chmod(
 ) -> Result<(), AppError> {
     check_path(&path)?;
     if mode > 0o7777 {
-        return Err(invalid("Invalid permissions"));
+        return Err(AppError::invalid("Invalid permissions"));
     }
     sftp(&app, &host_id)
         .await?
@@ -714,10 +710,10 @@ pub async fn transfers_upload(
         let name = local
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
-            .ok_or_else(|| invalid("Invalid file"))?;
+            .ok_or_else(|| AppError::invalid("Invalid file"))?;
         let mut remote = hopr_sftp::join(&dir, &name);
         let meta = std::fs::metadata(&local)
-            .map_err(|_| invalid(&format!("Can't read {}", local.display())))?;
+            .map_err(|_| AppError::invalid(format!("Can't read {}", local.display())))?;
         if top && s.exists(&remote).await {
             match policy {
                 ConflictPolicy::Skip => continue,
@@ -729,8 +725,8 @@ pub async fn transfers_upload(
             if !s.exists(&remote).await {
                 s.mkdir(&remote).await?;
             }
-            let entries =
-                std::fs::read_dir(&local).map_err(|_| invalid("Can't read that folder"))?;
+            let entries = std::fs::read_dir(&local)
+                .map_err(|_| AppError::invalid("Can't read that folder"))?;
             for e in entries.flatten() {
                 stack.push((e.path(), remote.clone(), false));
             }
@@ -805,7 +801,7 @@ pub async fn transfers_download(
         }
         if entry.kind == RemoteKind::Dir {
             std::fs::create_dir_all(&target)
-                .map_err(|_| invalid(&format!("Can't create {}", target.display())))?;
+                .map_err(|_| AppError::invalid(format!("Can't create {}", target.display())))?;
             for child in s.list(&remote).await? {
                 stack.push((child.path, target.clone(), false));
             }
@@ -890,7 +886,9 @@ pub async fn transfers_set_settings(
     settings: TransferSettings,
 ) -> Result<(), AppError> {
     if !(1..=8).contains(&settings.concurrency) || settings.limit_kbps > 10_000_000 {
-        return Err(invalid("Choose 1–8 transfers and a sensible limit"));
+        return Err(AppError::invalid(
+            "Choose 1–8 transfers and a sensible limit",
+        ));
     }
     let state = app.state::<Arc<AppState>>().inner().clone();
     state
@@ -923,7 +921,8 @@ pub struct LocalEntry {
 }
 
 fn list_local(path: &str) -> Result<Vec<LocalEntry>, AppError> {
-    let rd = std::fs::read_dir(path).map_err(|_| invalid(&format!("Can't open {path}")))?;
+    let rd =
+        std::fs::read_dir(path).map_err(|_| AppError::invalid(format!("Can't open {path}")))?;
     let mut out: Vec<LocalEntry> = rd
         .flatten()
         .filter_map(|e| {
@@ -956,9 +955,7 @@ fn list_local(path: &str) -> Result<Vec<LocalEntry>, AppError> {
 pub async fn local_list(path: String) -> Result<Vec<LocalEntry>, AppError> {
     tokio::task::spawn_blocking(move || list_local(&path))
         .await
-        .map_err(|e| {
-            AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
-        })?
+        .map_err(|e| AppError::internal("Background task failed", e))?
 }
 
 /// Where the local pane starts: the home folder.
@@ -1038,7 +1035,7 @@ fn signal(app: &AppHandle, id: &str, pause: bool) -> Result<(), AppError> {
         let j = jobs
             .iter()
             .find(|j| j.info.id == id)
-            .ok_or_else(|| invalid("No such transfer"))?;
+            .ok_or_else(|| AppError::invalid("No such transfer"))?;
         j.pausing.store(pause, Ordering::Relaxed);
         j.cancel.store(true, Ordering::Relaxed);
         j.info.status == TransferStatus::Queued
@@ -1089,7 +1086,7 @@ pub fn transfer_resume(app: AppHandle, id: String) -> Result<(), AppError> {
             t.error = None;
         }
     })
-    .ok_or_else(|| invalid("No such transfer"))?;
+    .ok_or_else(|| AppError::invalid("No such transfer"))?;
     if t.status == TransferStatus::Queued {
         emit(&app, &t);
         if let Ok(mut q) = app.state::<Files>().queue.lock() {
@@ -1168,7 +1165,7 @@ async fn upload_edit(
             .map_err(|_| AppError::new(ErrorCode::Internal, "Edits poisoned"))?;
         let e = edits
             .get(edit_id)
-            .ok_or_else(|| invalid("That edit has ended"))?;
+            .ok_or_else(|| AppError::invalid("That edit has ended"))?;
         (
             e.host_id.clone(),
             e.remote.clone(),
@@ -1207,7 +1204,7 @@ pub async fn sftp_edit(
     let s = sftp(&app, &host_id).await?;
     let entry = s.stat(&path).await?;
     if entry.kind != RemoteKind::File {
-        return Err(invalid("Only files can be edited"));
+        return Err(AppError::invalid("Only files can be edited"));
     }
     let edit_id = uuid::Uuid::new_v4().to_string();
     let local = std::env::temp_dir()
@@ -1232,10 +1229,7 @@ pub async fn sftp_edit(
     if open {
         app.opener()
             .open_path(local.to_string_lossy(), None::<&str>)
-            .map_err(|e| {
-                AppError::new(ErrorCode::Internal, "Couldn't open an editor")
-                    .with_detail(e.to_string())
-            })?;
+            .map_err(|e| AppError::internal("Couldn't open an editor", e))?;
     }
     edit_event(&app, &edit_id, &path, "opened", None);
 

@@ -101,7 +101,7 @@ impl Connection {
     fn target(&self) -> Result<&Handle<Client>, AppError> {
         self.handles
             .last()
-            .ok_or_else(|| AppError::new(ErrorCode::InvalidInput, "Nothing to connect to"))
+            .ok_or_else(|| AppError::invalid("Nothing to connect to"))
     }
 }
 
@@ -204,10 +204,7 @@ async fn run(
     command: &str,
     stdin: &[u8],
 ) -> Result<ExecOutput, AppError> {
-    let fail = |e: russh::Error| {
-        AppError::new(ErrorCode::Internal, "The server refused to run the command")
-            .with_detail(e.to_string())
-    };
+    let fail = |e: russh::Error| AppError::internal("The server refused to run the command", e);
     let mut channel = connection
         .target()?
         .channel_open_session()

@@ -30,13 +30,8 @@ const S_IFREG: u32 = 0o100_000;
 fn sftp_err(what: &str, path: &str, e: SftpError) -> AppError {
     match &e {
         SftpError::Status(s) => match s.status_code {
-            StatusCode::NoSuchFile => {
-                AppError::new(ErrorCode::InvalidInput, format!("{path} doesn't exist"))
-            }
-            StatusCode::PermissionDenied => AppError::new(
-                ErrorCode::InvalidInput,
-                format!("Permission denied: {path}"),
-            ),
+            StatusCode::NoSuchFile => AppError::invalid(format!("{path} doesn't exist")),
+            StatusCode::PermissionDenied => AppError::invalid(format!("Permission denied: {path}")),
             _ => AppError::new(ErrorCode::Internal, format!("Couldn't {what} {path}"))
                 .with_detail(e.to_string()),
         },
@@ -121,10 +116,9 @@ pub struct Sftp {
 /// Open SFTP to the last hop of `params`.
 pub async fn connect(params: ConnectParams) -> Result<Sftp, AppError> {
     let sub = hopr_ssh::subsystem(params, "sftp").await?;
-    let session = SftpSession::new(sub.stream).await.map_err(|e| {
-        AppError::new(ErrorCode::Internal, "The server's SFTP didn't start")
-            .with_detail(e.to_string())
-    })?;
+    let session = SftpSession::new(sub.stream)
+        .await
+        .map_err(|e| AppError::internal("The server's SFTP didn't start", e))?;
     session.set_timeout(30);
     Ok(Sftp {
         session,
@@ -502,7 +496,7 @@ pub fn part_path(local: &Path) -> PathBuf {
 
 /// The error a cancelled transfer ends with.
 pub fn cancelled() -> AppError {
-    AppError::new(ErrorCode::InvalidInput, "Cancelled")
+    AppError::invalid("Cancelled")
 }
 
 #[cfg(test)]

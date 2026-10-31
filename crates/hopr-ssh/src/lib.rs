@@ -30,7 +30,7 @@ use std::time::Duration;
 
 use hopr_core::model::KnownHost;
 use hopr_core::session::{COMMAND_CAPACITY, FlowControl, SessionCommand, SessionHandle};
-use hopr_core::{AppError, CloseReason, ErrorCode, SessionId, SessionState};
+use hopr_core::{AppError, CloseReason, SessionId, SessionState};
 use russh::keys::PrivateKey;
 use russh::{ChannelMsg, Disconnect};
 use secrecy::SecretString;
@@ -214,7 +214,7 @@ async fn run(
 ) -> SessionState {
     if params.hops.is_empty() {
         return SessionState::Failed {
-            error: AppError::new(ErrorCode::InvalidInput, "Nothing to connect to"),
+            error: AppError::invalid("Nothing to connect to"),
         };
     }
     let reconnect = params.reconnect.clone();

@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use hopr_core::AppError;
 use hopr_core::model::{AuthKind, Environment, HostInput, Protocol, SecretChange};
-use hopr_core::{AppError, ErrorCode};
 use hopr_import::foreign::{self, ForeignHost, ForeignImport, ForeignSource};
 use hopr_store::NewKey;
 use tauri::State;
@@ -14,21 +14,20 @@ use tauri::State;
 use crate::library::ImportSummary;
 use crate::state::AppState;
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn read_file(path: &Path) -> Result<String, AppError> {
     let meta = std::fs::metadata(path).map_err(|e| {
-        invalid(&format!("Couldn't open {}", path.display())).with_detail(e.to_string())
+        AppError::invalid(format!("Couldn't open {}", path.display())).with_detail(e.to_string())
     })?;
     if meta.len() > 32 * 1024 * 1024 {
-        return Err(invalid("That file is too large to be a session export"));
+        return Err(AppError::invalid(
+            "That file is too large to be a session export",
+        ));
     }
     std::fs::read(path)
         .map(|b| foreign::decode_text(&b))
         .map_err(|e| {
-            invalid(&format!("Couldn't read {}", path.display())).with_detail(e.to_string())
+            AppError::invalid(format!("Couldn't read {}", path.display()))
+                .with_detail(e.to_string())
         })
 }
 
@@ -38,7 +37,7 @@ fn putty_registry() -> Result<foreign::PuttySessions, AppError> {
     use winreg::enums::{HKEY_CURRENT_USER, RegType};
     let root = RegKey::predef(HKEY_CURRENT_USER)
         .open_subkey("Software\\SimonTatham\\PuTTY\\Sessions")
-        .map_err(|_| invalid("PuTTY has no saved sessions on this computer"))?;
+        .map_err(|_| AppError::invalid("PuTTY has no saved sessions on this computer"))?;
     let mut out = Vec::new();
     for name in root.enum_keys().flatten() {
         let Ok(key) = root.open_subkey(&name) else {
@@ -76,7 +75,7 @@ fn putty_registry() -> Result<foreign::PuttySessions, AppError> {
 
 #[cfg(not(windows))]
 fn putty_registry() -> Result<foreign::PuttySessions, AppError> {
-    Err(invalid(
+    Err(AppError::invalid(
         "Choose a PuTTY .reg export (sessions live in the Windows registry)",
     ))
 }
@@ -104,7 +103,7 @@ fn parse(source: ForeignSource, path: Option<&Path>) -> Result<ForeignImport, Ap
             Ok(out)
         }
         (ForeignSource::Csv, Some(p)) => Ok(foreign::parse_csv(&read_file(p)?)),
-        (_, None) => Err(invalid("Choose the file to import")),
+        (_, None) => Err(AppError::invalid("Choose the file to import")),
     }
 }
 
@@ -114,9 +113,7 @@ async fn parse_async(
 ) -> Result<ForeignImport, AppError> {
     tokio::task::spawn_blocking(move || parse(source, path.as_deref().map(Path::new)))
         .await
-        .map_err(|e| {
-            AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
-        })?
+        .map_err(|e| AppError::internal("Background task failed", e))?
 }
 
 /// What an export (or PuTTY's registry, with no `path`) holds.

@@ -5,7 +5,7 @@
 use std::hash::{BuildHasher, RandomState};
 use std::time::Duration;
 
-use hopr_core::{AppError, ErrorCode};
+use hopr_core::AppError;
 
 /// Settings key: seconds before a copied secret is cleared (0 = never).
 pub const CLEAR_KEY: &str = "security.clipboard_clear_secs";
@@ -13,7 +13,7 @@ pub const CLEAR_KEY: &str = "security.clipboard_clear_secs";
 pub const CLEAR_DEFAULT: u32 = 30;
 
 fn clip_err(e: arboard::Error) -> AppError {
-    AppError::new(ErrorCode::Internal, "Couldn't use the clipboard").with_detail(e.to_string())
+    AppError::internal("Couldn't use the clipboard", e)
 }
 
 fn set_secret(clip: &mut arboard::Clipboard, text: &str) -> Result<(), arboard::Error> {
@@ -44,9 +44,7 @@ pub async fn copy_secret(text: String, clear_after_secs: u32) -> Result<(), AppE
         set_secret(&mut clip, &text).map_err(clip_err)
     })
     .await
-    .map_err(|e| {
-        AppError::new(ErrorCode::Internal, "Background task failed").with_detail(e.to_string())
-    })??;
+    .map_err(|e| AppError::internal("Background task failed", e))??;
     if clear_after_secs > 0 {
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(Duration::from_secs(u64::from(clear_after_secs))).await;

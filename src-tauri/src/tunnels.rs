@@ -21,10 +21,6 @@ use tokio::sync::watch;
 use crate::sessions;
 use crate::state::AppState;
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn poisoned() -> AppError {
     AppError::new(ErrorCode::Internal, "Tunnel registry poisoned")
 }
@@ -236,7 +232,7 @@ fn bind_error(addr: &str, port: u16, e: &std::io::Error) -> AppError {
     } else {
         format!("Couldn't listen on {addr}:{port}")
     };
-    AppError::new(ErrorCode::InvalidInput, message).with_detail(e.to_string())
+    AppError::invalid(message).with_detail(e.to_string())
 }
 
 /// Connect and start forwarding. Runs with the tunnel already marked "starting".
@@ -247,7 +243,7 @@ async fn run(app: &AppHandle, t: &Tunnel) -> Result<(), AppError> {
         let m = mgr.running.lock().map_err(|_| poisoned())?;
         let r = m
             .get(&t.id)
-            .ok_or_else(|| invalid("The tunnel was stopped"))?;
+            .ok_or_else(|| AppError::invalid("The tunnel was stopped"))?;
         (r.stats.clone(), r.stop.subscribe())
     };
     // Listen locally first, so a busy port fails before connecting.
@@ -432,7 +428,7 @@ pub async fn tunnel_save(
     let input = input.normalized()?;
     let host = state.store.get_host(&input.host_id).await?;
     if host.protocol != Protocol::Ssh {
-        return Err(invalid("Tunnels need an SSH host"));
+        return Err(AppError::invalid("Tunnels need an SSH host"));
     }
     Ok(state.store.save_tunnel(id.as_deref(), &input).await?)
 }
@@ -504,5 +500,5 @@ pub async fn port_pick(addr: String) -> Result<u16, AppError> {
         .map_err(|e| bind_error(&addr, 0, &e))?;
     l.local_addr()
         .map(|a| a.port())
-        .map_err(|e| AppError::new(ErrorCode::Internal, "No free port").with_detail(e.to_string()))
+        .map_err(|e| AppError::internal("No free port", e))
 }

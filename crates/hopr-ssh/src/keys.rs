@@ -26,7 +26,7 @@ pub struct ParsedKey {
 }
 
 fn internal(e: impl std::fmt::Display) -> AppError {
-    AppError::new(ErrorCode::Internal, "Key operation failed").with_detail(e.to_string())
+    AppError::internal("Key operation failed", e)
 }
 
 fn describe(key: &PrivateKey) -> Result<ParsedKey, AppError> {
@@ -182,16 +182,14 @@ pub fn import(text: &str, passphrase: Option<&str>) -> Result<ParsedKey, AppErro
             ErrorCode::PassphraseRequired,
             "This key is protected by a passphrase",
         )),
-        Err(e) if passphrase.is_some() => Err(AppError::new(
-            ErrorCode::InvalidInput,
-            "Wrong passphrase, or the key is damaged",
-        )
-        .with_detail(e.to_string())),
-        Err(e) => Err(AppError::new(
-            ErrorCode::InvalidInput,
-            "That doesn't look like a private key",
-        )
-        .with_detail(e.to_string())),
+        Err(e) if passphrase.is_some() => {
+            Err(AppError::invalid("Wrong passphrase, or the key is damaged")
+                .with_detail(e.to_string()))
+        }
+        Err(e) => {
+            Err(AppError::invalid("That doesn't look like a private key")
+                .with_detail(e.to_string()))
+        }
     }
 }
 
@@ -199,10 +197,7 @@ pub fn import(text: &str, passphrase: Option<&str>) -> Result<ParsedKey, AppErro
 pub fn load(private_openssh: &SecretString) -> Result<Arc<PrivateKey>, AppError> {
     decode_secret_key(private_openssh.expose_secret(), None)
         .map(Arc::new)
-        .map_err(|e| {
-            AppError::new(ErrorCode::Internal, "A stored key could not be read")
-                .with_detail(e.to_string())
-        })
+        .map_err(|e| AppError::internal("A stored key could not be read", e))
 }
 
 /// What deploying a public key changed.
@@ -224,7 +219,7 @@ const PRESENT: &str = "HOPR_DEPLOY_PRESENT";
 /// POSIX script that authorizes `public_key` on the server (C17): creates `~/.ssh` (700)
 /// and `authorized_keys` (600), and appends the key only if it isn't there yet.
 pub fn deploy_script(public_key: &str) -> Result<String, AppError> {
-    let bad = || AppError::new(ErrorCode::InvalidInput, "That isn't a valid public key");
+    let bad = || AppError::invalid("That isn't a valid public key");
     russh::keys::PublicKey::from_openssh(public_key.trim()).map_err(|_| bad())?;
     let mut parts = public_key.split_whitespace();
     let (Some(kind), Some(blob)) = (parts.next(), parts.next()) else {
@@ -300,23 +295,18 @@ pub fn parse_certificate(
     public_key: &str,
 ) -> Result<(Certificate, CertificateInfo), AppError> {
     let bad = |detail: String| {
-        AppError::new(
-            ErrorCode::InvalidInput,
-            "That isn't an OpenSSH certificate (…-cert-v01@openssh.com)",
-        )
-        .with_detail(detail)
+        AppError::invalid("That isn't an OpenSSH certificate (…-cert-v01@openssh.com)")
+            .with_detail(detail)
     };
     let cert = Certificate::from_openssh(text.trim()).map_err(|e| bad(e.to_string()))?;
     let key = russh::keys::PublicKey::from_openssh(public_key.trim()).map_err(internal)?;
     if cert.public_key() != key.key_data() {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
+        return Err(AppError::invalid(
             "This certificate was issued for a different key",
         ));
     }
     if cert.cert_type() != CertType::User {
-        return Err(AppError::new(
-            ErrorCode::InvalidInput,
+        return Err(AppError::invalid(
             "This is a host certificate; log-ins need a user certificate",
         ));
     }

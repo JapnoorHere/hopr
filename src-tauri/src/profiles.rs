@@ -84,10 +84,6 @@ fn now() -> u64 {
         .unwrap_or(0)
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn io(e: std::io::Error) -> AppError {
     AppError::new(ErrorCode::Storage, format!("Profiles: {e}"))
 }
@@ -144,17 +140,17 @@ impl Registry {
     pub fn check_name(&self, name: &str, except: Option<&str>) -> Result<String, AppError> {
         let name = name.trim();
         if name.is_empty() {
-            return Err(invalid("Give the profile a name"));
+            return Err(AppError::invalid("Give the profile a name"));
         }
         if name.chars().count() > NAME_MAX {
-            return Err(invalid("Keep the name to 40 characters or fewer"));
+            return Err(AppError::invalid("Keep the name to 40 characters or fewer"));
         }
         let taken = self
             .profiles
             .iter()
             .any(|p| Some(p.id.as_str()) != except && p.name.to_lowercase() == name.to_lowercase());
         if taken {
-            return Err(invalid("Another profile already has that name"));
+            return Err(AppError::invalid("Another profile already has that name"));
         }
         Ok(name.to_owned())
     }
@@ -162,7 +158,7 @@ impl Registry {
     pub fn create(&mut self, name: &str, color: &str) -> Result<Profile, AppError> {
         let name = self.check_name(name, None)?;
         if !valid_color(color) {
-            return Err(invalid("Pick a colour"));
+            return Err(AppError::invalid("Pick a colour"));
         }
         let p = Profile {
             id: uuid::Uuid::new_v4().hyphenated().to_string(),
@@ -183,13 +179,13 @@ impl Registry {
     ) -> Result<Profile, AppError> {
         let name = name.map(|n| self.check_name(n, Some(id))).transpose()?;
         if color.is_some_and(|c| !valid_color(c)) {
-            return Err(invalid("Pick a colour"));
+            return Err(AppError::invalid("Pick a colour"));
         }
         let p = self
             .profiles
             .iter_mut()
             .find(|p| p.id == id)
-            .ok_or_else(|| invalid("That profile no longer exists"))?;
+            .ok_or_else(|| AppError::invalid("That profile no longer exists"))?;
         if let Some(n) = name {
             p.name = n;
         }
@@ -202,17 +198,17 @@ impl Registry {
     /// Remove a profile from the list. The open one and the only one can't go.
     pub fn remove(&mut self, id: &str, current: &str) -> Result<(), AppError> {
         if id == current {
-            return Err(invalid(
+            return Err(AppError::invalid(
                 "Switch to another profile before deleting this one",
             ));
         }
         if self.profiles.len() <= 1 {
-            return Err(invalid("Hopr needs at least one profile"));
+            return Err(AppError::invalid("Hopr needs at least one profile"));
         }
         let before = self.profiles.len();
         self.profiles.retain(|p| p.id != id);
         if self.profiles.len() == before {
-            return Err(invalid("That profile no longer exists"));
+            return Err(AppError::invalid("That profile no longer exists"));
         }
         if self.last == id {
             self.last = current.to_owned();
@@ -351,7 +347,7 @@ pub fn profile_set_look(state: S<'_>, look: ProfileLook) -> Result<(), AppError>
         .iter()
         .all(|c| valid_color(c))
     {
-        return Err(invalid("Colours must be #rrggbb"));
+        return Err(AppError::invalid("Colours must be #rrggbb"));
     }
     let current = state.current.clone();
     state.edit(|r| {
@@ -388,7 +384,7 @@ pub fn profile_delete(state: S<'_>, id: String) -> Result<(), AppError> {
 pub fn profile_switch(app: tauri::AppHandle, state: S<'_>, id: String) -> Result<(), AppError> {
     state.edit(|r| {
         if r.get(&id).is_none() {
-            return Err(invalid("That profile no longer exists"));
+            return Err(AppError::invalid("That profile no longer exists"));
         }
         r.last = id.clone();
         r.skip_ask_once = true;

@@ -6,8 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use hopr_core::AppError;
 use hopr_core::hotkey::to_accelerator;
-use hopr_core::{AppError, ErrorCode};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -104,28 +104,20 @@ pub struct DesktopPrefs {
     pub quick_hotkey: String,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 fn internal(e: impl std::fmt::Display) -> AppError {
-    AppError::new(ErrorCode::Internal, "Window operation failed").with_detail(e.to_string())
+    AppError::internal("Window operation failed", e)
 }
 
 fn register_hotkey(app: &AppHandle, chord: &str) -> Result<(), AppError> {
     if chord.is_empty() {
         return Ok(());
     }
-    let accel =
-        to_accelerator(chord).ok_or_else(|| invalid("Use a modifier plus a key, like Ctrl+`"))?;
-    let shortcut =
-        Shortcut::from_str(&accel).map_err(|_| invalid("That key can't be a global hotkey"))?;
+    let accel = to_accelerator(chord)
+        .ok_or_else(|| AppError::invalid("Use a modifier plus a key, like Ctrl+`"))?;
+    let shortcut = Shortcut::from_str(&accel)
+        .map_err(|_| AppError::invalid("That key can't be a global hotkey"))?;
     app.global_shortcut().register(shortcut).map_err(|e| {
-        AppError::new(
-            ErrorCode::InvalidInput,
-            "Another app already uses that hotkey",
-        )
-        .with_detail(e.to_string())
+        AppError::invalid("Another app already uses that hotkey").with_detail(e.to_string())
     })
 }
 
@@ -410,7 +402,7 @@ pub async fn window_tear_off(
     handoff: String,
 ) -> Result<String, AppError> {
     if handoff.len() > 64 * 1024 * 1024 {
-        return Err(invalid("Too much to move to a new window"));
+        return Err(AppError::invalid("Too much to move to a new window"));
     }
     let id = uuid::Uuid::new_v4().simple().to_string();
     let label = format!("tab-{}", &id[..12]);

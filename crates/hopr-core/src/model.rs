@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::{AppError, ErrorCode};
+use crate::AppError;
 
 /// How a saved host authenticates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -194,13 +194,15 @@ impl SerialConfig {
     /// Check the values a serial port accepts.
     pub fn validate(&self) -> Result<(), AppError> {
         if !(50..=4_000_000).contains(&self.baud) {
-            return Err(invalid("Baud rate must be between 50 and 4,000,000"));
+            return Err(AppError::invalid(
+                "Baud rate must be between 50 and 4,000,000",
+            ));
         }
         if !(5..=8).contains(&self.data_bits) {
-            return Err(invalid("Data bits must be 5, 6, 7 or 8"));
+            return Err(AppError::invalid("Data bits must be 5, 6, 7 or 8"));
         }
         if !(1..=2).contains(&self.stop_bits) {
-            return Err(invalid("Stop bits must be 1 or 2"));
+            return Err(AppError::invalid("Stop bits must be 1 or 2"));
         }
         Ok(())
     }
@@ -340,10 +342,6 @@ pub struct HostInput {
     pub totp_seed: SecretChange,
 }
 
-fn invalid(msg: &str) -> AppError {
-    AppError::new(ErrorCode::InvalidInput, msg)
-}
-
 impl HostInput {
     /// Validate and normalize (trim, default label, dedupe tags).
     pub fn normalized(mut self) -> Result<Self, AppError> {
@@ -357,7 +355,7 @@ impl HostInput {
                 .chars()
                 .any(|c| c.is_whitespace() || c.is_control())
         {
-            return Err(invalid(if self.protocol == Protocol::Serial {
+            return Err(AppError::invalid(if self.protocol == Protocol::Serial {
                 "Enter the serial port, e.g. COM3 or /dev/ttyUSB0"
             } else {
                 "Enter a valid hostname or IP address"
@@ -369,7 +367,7 @@ impl HostInput {
             || self.username.len() > 64
             || self.username.chars().any(char::is_control)
         {
-            return Err(invalid("Enter a valid username"));
+            return Err(AppError::invalid("Enter a valid username"));
         }
         match self.protocol {
             Protocol::Serial => {
@@ -397,29 +395,29 @@ impl HostInput {
             .as_ref()
             .is_some_and(|c| c.len() > 1000 || c.contains(['\n', '\r', '\0']))
         {
-            return Err(invalid(
+            return Err(AppError::invalid(
                 "ProxyCommand must be one line of up to 1000 characters",
             ));
         }
         if self.proxy_command.is_some() && (self.proxy.is_some() || self.jump_host_id.is_some()) {
-            return Err(invalid(
+            return Err(AppError::invalid(
                 "Use either a ProxyCommand or a jump host / proxy, not both",
             ));
         }
         if self.port == 0 {
-            return Err(invalid("Port must be between 1 and 65535"));
+            return Err(AppError::invalid("Port must be between 1 and 65535"));
         }
         if self.label.is_empty() {
             self.label = self.hostname.clone();
         }
         if self.label.len() > 120 {
-            return Err(invalid("Label is too long"));
+            return Err(AppError::invalid("Label is too long"));
         }
         if self.protocol == Protocol::Ssh && self.auth == AuthKind::Key && self.key_id.is_none() {
-            return Err(invalid("Choose a key for key authentication"));
+            return Err(AppError::invalid("Choose a key for key authentication"));
         }
         if self.notes.len() > 20_000 {
-            return Err(invalid("Notes are too long"));
+            return Err(AppError::invalid("Notes are too long"));
         }
         if let Some(p) = self.proxy.as_mut() {
             p.host = p.host.trim().to_owned();
@@ -427,10 +425,12 @@ impl HostInput {
                 || p.host.len() > 253
                 || p.host.chars().any(|c| c.is_whitespace() || c.is_control())
             {
-                return Err(invalid("Enter the proxy's hostname or IP address"));
+                return Err(AppError::invalid(
+                    "Enter the proxy's hostname or IP address",
+                ));
             }
             if p.port == 0 {
-                return Err(invalid("Proxy port must be between 1 and 65535"));
+                return Err(AppError::invalid("Proxy port must be between 1 and 65535"));
             }
             p.username = p
                 .username
@@ -438,7 +438,7 @@ impl HostInput {
                 .map(|u| u.trim().to_owned())
                 .filter(|u| !u.is_empty());
             if p.username.as_ref().is_some_and(|u| u.len() > 255) {
-                return Err(invalid("Proxy username is too long"));
+                return Err(AppError::invalid("Proxy username is too long"));
             }
         }
         self.tags = normalize_tags(&self.tags);
@@ -621,13 +621,15 @@ impl SnippetInput {
             .collect::<Vec<_>>()
             .join("/");
         if self.name.is_empty() || self.name.len() > 120 {
-            return Err(invalid("Give the snippet a name (up to 120 characters)"));
+            return Err(AppError::invalid(
+                "Give the snippet a name (up to 120 characters)",
+            ));
         }
         if self.body.trim().is_empty() {
-            return Err(invalid("The snippet is empty"));
+            return Err(AppError::invalid("The snippet is empty"));
         }
         if self.body.len() > 64 * 1024 || self.description.len() > 2000 || self.folder.len() > 200 {
-            return Err(invalid("The snippet is too long"));
+            return Err(AppError::invalid("The snippet is too long"));
         }
         self.tags = normalize_tags(&self.tags);
         Ok(self)
@@ -720,7 +722,7 @@ impl TunnelInput {
         self.bind_addr = self.bind_addr.trim().to_owned();
         self.dest_host = self.dest_host.trim().to_owned();
         if self.label.len() > 80 {
-            return Err(invalid("Tunnel name is too long"));
+            return Err(AppError::invalid("Tunnel name is too long"));
         }
         if self.bind_addr.is_empty() {
             self.bind_addr = "127.0.0.1".into();
@@ -728,7 +730,7 @@ impl TunnelInput {
         let bad_host =
             |h: &str| h.len() > 253 || h.chars().any(|c| c.is_whitespace() || c.is_control());
         if bad_host(&self.bind_addr) {
-            return Err(invalid("Enter a valid address to listen on"));
+            return Err(AppError::invalid("Enter a valid address to listen on"));
         }
         match self.kind {
             TunnelKind::Dynamic => {
@@ -737,10 +739,12 @@ impl TunnelInput {
             }
             TunnelKind::Local | TunnelKind::Remote => {
                 if self.dest_host.is_empty() || bad_host(&self.dest_host) {
-                    return Err(invalid("Enter the destination host"));
+                    return Err(AppError::invalid("Enter the destination host"));
                 }
                 if self.dest_port == 0 {
-                    return Err(invalid("Destination port must be between 1 and 65535"));
+                    return Err(AppError::invalid(
+                        "Destination port must be between 1 and 65535",
+                    ));
                 }
             }
         }
