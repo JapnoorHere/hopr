@@ -2,6 +2,7 @@
 import { X } from "phosphor-svelte";
 import type { Snippet } from "svelte";
 import { blurFade, sink, springIn } from "$lib/motion";
+import { readText, removeKey, writeText } from "$lib/storage";
 import IconButton from "./IconButton.svelte";
 
 interface Props {
@@ -18,13 +19,8 @@ let { title, onclose, width = "340px", children }: Props = $props();
 // svelte-ignore state_referenced_locally
 const KEY = `hopr.drawer.width.${title}`;
 const MIN = 300;
-let stored = $state<number | null>(null);
-try {
-  const v = Number(localStorage.getItem(KEY));
-  if (v >= MIN) stored = v;
-} catch {
-  // No storage: the default width is used.
-}
+const saved = Number(readText(KEY));
+let stored = $state<number | null>(saved >= MIN ? saved : null);
 const maxWidth = () => Math.max(MIN, Math.min(820, window.innerWidth * 0.7));
 let resizing = $state(false);
 
@@ -43,11 +39,7 @@ function startResize(e: PointerEvent) {
     resizing = false;
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", up);
-    try {
-      if (stored) localStorage.setItem(KEY, String(stored));
-    } catch {
-      // Not remembered; it still applies now.
-    }
+    if (stored) writeText(KEY, String(stored));
   };
   handle.addEventListener("pointermove", move);
   handle.addEventListener("pointerup", up);
@@ -88,11 +80,7 @@ function leave(node: Element, o: Parameters<typeof sink>[1]) {
 
 function resetWidth() {
   stored = null;
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // Nothing to forget.
-  }
+  removeKey(KEY);
 }
 </script>
 

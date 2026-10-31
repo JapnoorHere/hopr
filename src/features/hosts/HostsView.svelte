@@ -19,7 +19,6 @@ import { shell } from "$features/shell/shell.state.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import { parseTarget } from "$features/terminal/target";
 import { workspaces } from "$features/workspace/workspaces.svelte";
-import { safeStorage, scoped } from "$lib/design/theme";
 import { saveText } from "$lib/download";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import {
@@ -32,6 +31,7 @@ import {
 } from "$lib/ipc";
 import { blurFade, expand, flash, pop, rise, sink, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
+import { readText, scoped, writeText } from "$lib/storage";
 import Count from "$lib/ui/Count.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
@@ -53,11 +53,11 @@ let bulkTag = $state("");
 // List or grid, remembered on this device.
 type HostView = "list" | "grid";
 const VIEW_KEY = "hopr.hosts.view";
-let view = $state<HostView>(safeStorage()?.getItem(scoped(VIEW_KEY)) === "grid" ? "grid" : "list");
+let view = $state<HostView>(readText(scoped(VIEW_KEY)) === "grid" ? "grid" : "list");
 function setView(v: HostView) {
   view = v;
   try {
-    safeStorage()?.setItem(scoped(VIEW_KEY), v);
+    writeText(scoped(VIEW_KEY), v);
   } catch {
     // Not remembered; it still applies now.
   }

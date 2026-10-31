@@ -4,8 +4,9 @@
  * Ctrl+Shift (or Ctrl+Tab / Ctrl+digit / Ctrl+Alt+arrows) so the shell keeps plain Ctrl
  * combos like Ctrl+W, Ctrl+K and Ctrl+L.
  */
-import { safeStorage } from "./design/theme";
+
 import { isMac } from "./platform";
+import { readJson, safeStorage, writeJson } from "./storage";
 
 export interface Command {
   id: string;
@@ -71,13 +72,7 @@ export class Registry {
 
   constructor(storage: Storage | null = null) {
     this.#storage = storage;
-    let saved: unknown = null;
-    try {
-      saved = JSON.parse(storage?.getItem(BINDINGS_KEY) ?? "null");
-    } catch {
-      saved = null;
-    }
-    this.#overrides = parseOverrides(saved);
+    this.#overrides = readJson(BINDINGS_KEY, parseOverrides, {}, storage);
   }
 
   /** Effective keys: the user's binding if set, else the default. */
@@ -106,11 +101,7 @@ export class Registry {
   }
 
   #save() {
-    try {
-      this.#storage?.setItem(BINDINGS_KEY, JSON.stringify(this.#overrides));
-    } catch {
-      // Storage unavailable: bindings apply for this run only.
-    }
+    writeJson(BINDINGS_KEY, this.#overrides, this.#storage);
   }
 
   register(cmds: Command[]): () => void {

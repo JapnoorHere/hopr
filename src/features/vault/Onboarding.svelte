@@ -19,11 +19,11 @@ import { library } from "$features/hosts/library.svelte";
 import ProfileAvatar from "$features/profiles/ProfileAvatar.svelte";
 import { profiles } from "$features/profiles/profiles.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { safeStorage } from "$lib/design/theme";
 import { builtIn, PROFILE_COLORS, type ThemeId, themeStyle } from "$lib/design/themes";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import { commands, inTauri, type Profile } from "$lib/ipc";
 import { blurFade } from "$lib/motion";
+import { readText, writeText } from "$lib/storage";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { focusFirstInvalid } from "$lib/ui/form";
 import Kbd from "$lib/ui/Kbd.svelte";
@@ -35,7 +35,7 @@ type Step = "welcome" | "look" | "profile" | "secure" | "recovery" | "hosts" | "
 
 /** Device-wide (not per profile): the welcome and the tips show only the first time. */
 const SEEN_KEY = "hopr.onboarded";
-const firstOnDevice = safeStorage()?.getItem(SEEN_KEY) !== "1";
+const firstOnDevice = readText(SEEN_KEY) !== "1";
 const needsName = !profiles.active?.name;
 // The vault already exists (Hopr reloaded while the recovery key was up): carry on from hosts.
 const resumed = !!vault.status?.exists;
@@ -192,7 +192,7 @@ async function importAll() {
 // ── Done ──────────────────────────────────────────────────────────────────────────
 function finish() {
   try {
-    safeStorage()?.setItem(SEEN_KEY, "1");
+    writeText(SEEN_KEY, "1");
   } catch {
     // Not remembered: the welcome shows again next time, which is harmless.
   }

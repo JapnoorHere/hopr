@@ -3,9 +3,9 @@
  * Switching restarts Hopr into the chosen profile; the picker shows at start-up.
  */
 import { wrap } from "$features/vault/vault.svelte";
-import { setStorageScope } from "$lib/design/theme";
 import type { ThemeSpec } from "$lib/design/themes";
 import { commands, inTauri, type Profile } from "$lib/ipc";
+import { setStorageScope } from "$lib/storage";
 
 class ProfilesStore {
   list = $state<Profile[]>([]);
