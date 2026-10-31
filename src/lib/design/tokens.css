@@ -130,7 +130,9 @@
 :root[data-motion="off"] *,
 :root[data-motion="off"] *::before,
 :root[data-motion="off"] *::after {
+  /* biome-ignore-start lint/complexity/noImportantStyles: Motion off must beat every component's own timing */
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
+  /* biome-ignore-end lint/complexity/noImportantStyles: end */
 }

@@ -104,23 +104,15 @@ describe("terminal background", () => {
 
   it("lifts a dark background and deepens a light one", () => {
     const dark = themeSpec("midnight", null);
-    expect(hexToOklch(terminalBackground(dark, { lift: 100, opacity: 100 }))[0]).toBeGreaterThan(
-      0.12,
-    );
+    expect(hexToOklch(terminalBackground(dark, 100))[0]).toBeGreaterThan(0.12);
     const light = themeSpec("paper", null);
-    expect(hexToOklch(terminalBackground(light, { lift: 100, opacity: 100 }))[0]).toBeLessThan(
-      hexToOklch(light.bg)[0],
-    );
-  });
-
-  it("adds alpha when see-through", () => {
-    expect(terminalBackground(themeSpec("nord", null), { lift: 0, opacity: 50 })).toBe("#2e344080");
+    expect(hexToOklch(terminalBackground(light, 100))[0]).toBeLessThan(hexToOklch(light.bg)[0]);
   });
 });
 
 /** "oklch(L C H)" or "oklch(L C H / a)" as #rrggbb (alpha ignored). */
 function hexOf(token: string): string {
-  const [L, C, H] = token.slice(6, -1).split("/")[0]!.trim().split(/\s+/).map(Number) as [
+  const [L, C, H] = (token.slice(6, -1).split("/")[0] ?? "").trim().split(/\s+/).map(Number) as [
     number,
     number,
     number,

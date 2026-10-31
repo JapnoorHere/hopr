@@ -629,12 +629,12 @@ export function themeTokens(spec: ThemeSpec): Tokens {
   // Text is checked against the panel it usually sits on (cards, menus), not just the page.
   const panel = oklchToHex(surfaceL[1] as number, C, H);
   const page = spec.bg;
-  const fit = (l: number, c: number, h: number, min: number, against = panel) =>
+  const legible = (l: number, c: number, h: number, min: number, against = panel) =>
     lch(readable(l, c, h, against, min, dark), c, h);
   const tL = readable(tL0, tC, tH, panel, MIN.text, dark);
   const status = (hex: string) => {
     const [l, c, h] = hexToOklch(hex);
-    return fit(l, c, h, MIN.status);
+    return legible(l, c, h, MIN.status);
   };
   // The accent shows as text and as a fill; it must stand out from the page and carry text.
   let aL = readable(aL0, aC, aH, page, MIN.accent, dark);
@@ -667,8 +667,8 @@ export function themeTokens(spec: ThemeSpec): Tokens {
     border: dark ? "oklch(1 0 0 / 0.1)" : lch(0.2, 0.02, H, 0.13),
     "border-strong": dark ? "oklch(1 0 0 / 0.18)" : lch(0.2, 0.02, H, 0.22),
     text: lch(tL, tC, tH),
-    "text-muted": fit(L + (tL - L) * 0.75, tC, tH, MIN.muted),
-    "text-faint": fit(L + (tL - L) * 0.55, tC, tH, MIN.faint),
+    "text-muted": legible(L + (tL - L) * 0.75, tC, tH, MIN.muted),
+    "text-faint": legible(L + (tL - L) * 0.55, tC, tH, MIN.faint),
     accent: lch(aL, aC, aH),
     "accent-fg": fg,
     success: status(spec.ansi.green),
@@ -685,37 +685,26 @@ export function themeStyle(spec: ThemeSpec): string {
   return TOKENS.map((k) => `--${k}: ${t[k]}`).join("; ");
 }
 
-/** How the terminal's background differs from the theme's (Settings > Terminal > Background). */
-export interface TerminalBackground {
-  /** 0..100: lighter on a dark theme, a touch deeper on a light one. */
-  lift: number;
-  /** 30..100 */
-  opacity: number;
-}
-
-/** The terminal's background: the theme's, lifted, as #rrggbb or #rrggbbaa when see-through. */
-export function terminalBackground(
-  spec: ThemeSpec,
-  b: TerminalBackground = { lift: 0, opacity: 100 },
-): string {
+/**
+ * The terminal's background as #rrggbb: the theme's, lifted by Settings > Terminal >
+ * Background brightness (0..100: lighter on a dark theme, a touch deeper on a light one).
+ */
+export function terminalBackground(spec: ThemeSpec, lift = 0): string {
+  if (!lift) return spec.bg;
   const [L, C, H] = hexToOklch(spec.bg);
   // Blend the lightness toward a soft charcoal (dark themes) or a deeper paper (light ones).
   const target = isDark(spec) ? Math.max(L, 0.4) : Math.min(L, 0.82);
-  const hex = b.lift ? oklchToHex(L + (target - L) * (b.lift / 100), C, H) : spec.bg;
-  if (b.opacity >= 100) return hex;
-  return `${hex}${Math.round((b.opacity / 100) * 255)
-    .toString(16)
-    .padStart(2, "0")}`;
+  return oklchToHex(L + (target - L) * (lift / 100), C, H);
 }
 
 /** The terminal's colours for a theme. */
-export function terminalColors(spec: ThemeSpec, b?: TerminalBackground): TerminalColors {
+export function terminalColors(spec: ThemeSpec, lift = 0): TerminalColors {
   const [L] = hexToOklch(spec.bg);
   const [tL0, tC, tH] = hexToOklch(spec.text);
   // Terminal text gets the same floor as the app's text, against the terminal background.
   const tL = readable(tL0, tC, tH, spec.bg, MIN.text, isDark(spec));
   return {
-    background: terminalBackground(spec, b),
+    background: terminalBackground(spec, lift),
     foreground: tL === tL0 ? spec.text : oklchToHex(tL, tC, tH),
     cursor: spec.accent,
     faint: oklchToHex(

@@ -98,7 +98,7 @@ export function parseWorkspace(json: string): SavedWorkspace | null {
     return null;
   }
   const o = data as Partial<SavedWorkspace> | null;
-  if (!o || o.version !== 1 || !Array.isArray(o.tabs)) return null;
+  if (o?.version !== 1 || !Array.isArray(o.tabs)) return null;
   const tabs = o.tabs.filter(
     (t): t is SavedTab =>
       !!t &&

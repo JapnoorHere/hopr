@@ -58,7 +58,7 @@ function options(p: TerminalPrefs): ITerminalOptions {
 
 /** xterm theme: the app theme's colours, with the terminal background lifted if asked. */
 function xtermTheme(p: TerminalPrefs) {
-  return terminalTheme(terminalColors(appearance.spec, { lift: p.bgLift, opacity: 100 }));
+  return terminalTheme(terminalColors(appearance.spec, p.bgLift));
 }
 
 /** Capture-phase paste guard: runs before xterm's own textarea handler. */

@@ -5,7 +5,7 @@ import { appearance } from "$lib/design/appearance.svelte";
 import { terminalColors } from "$lib/design/themes";
 
 const p = $derived(prefs.current);
-const pv = $derived(terminalColors(appearance.spec, { lift: p.bgLift, opacity: 100 }));
+const pv = $derived(terminalColors(appearance.spec, p.bgLift));
 
 function num(e: Event): number {
   return Number((e.currentTarget as HTMLInputElement).value);
