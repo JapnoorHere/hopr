@@ -13,10 +13,11 @@ import {
   type SecretChange,
   type SerialFlow,
 } from "$lib/ipc";
-import { blurFade, expand, slidingPill } from "$lib/motion";
+import { blurFade, expand } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors, parsePort } from "$lib/ui/form";
+import Segmented, { type SegmentOption } from "$lib/ui/Segmented.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import { jumpCandidates } from "./chain";
 import { library } from "./library.svelte";
@@ -149,13 +150,13 @@ function fieldOf(message: string): Field | null {
   return null;
 }
 
-const ENVS: { id: Environment; label: string }[] = [
+const ENVS: SegmentOption<Environment>[] = [
   { id: "none", label: "None" },
   { id: "dev", label: "Dev" },
   { id: "staging", label: "Staging" },
-  { id: "prod", label: "Prod" },
+  { id: "prod", label: "Prod", danger: true },
 ];
-const PROTOCOLS: { id: Protocol; label: string }[] = [
+const PROTOCOLS: SegmentOption<Protocol>[] = [
   { id: "ssh", label: "SSH" },
   { id: "telnet", label: "Telnet" },
   { id: "serial", label: "Serial" },
@@ -174,7 +175,7 @@ function pickProtocol(next: Protocol) {
   }
 }
 
-const AUTHS: { id: AuthKind; label: string }[] = [
+const AUTHS: SegmentOption<AuthKind>[] = [
   { id: "password", label: "Password" },
   { id: "key", label: "Key" },
   { id: "agent", label: "Agent" },
@@ -274,18 +275,7 @@ function onsubmit(e: SubmitEvent) {
 
 <Drawer title={existing ? `Edit ${existing.label}` : "New host"} onclose={() => (library.editing = null)}>
   <form class="flex flex-col gap-4 pt-2" {onsubmit} autocomplete="off" novalidate bind:this={form}>
-    <div class="seg-row" role="radiogroup" aria-label="Protocol" use:slidingPill>
-      {#each PROTOCOLS as pr (pr.id)}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={protocol === pr.id}
-          class="seg"
-          class:on={protocol === pr.id}
-          onclick={() => pickProtocol(pr.id)}>{pr.label}</button
-        >
-      {/each}
-    </div>
+    <Segmented label="Protocol" options={PROTOCOLS} value={protocol} onchange={pickProtocol} />
     {#if protocol === "serial"}
       <label class="field">
         <span class="label-caps text-faint">Serial port</span>
@@ -406,21 +396,15 @@ function onsubmit(e: SubmitEvent) {
     {#if protocol === "ssh"}
     <div class="field">
       <span class="label-caps text-faint">Authentication</span>
-      <div class="seg-row" role="radiogroup" aria-label="Authentication" use:slidingPill>
-        {#each AUTHS as a (a.id)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={auth === a.id}
-            class="seg"
-            class:on={auth === a.id}
-            onclick={() => {
-              auth = a.id;
-              errors.key = undefined;
-            }}>{a.label}</button
-          >
-        {/each}
-      </div>
+      <Segmented
+        label="Authentication"
+        options={AUTHS}
+        value={auth}
+        onchange={(a) => {
+          auth = a;
+          errors.key = undefined;
+        }}
+      />
     </div>
 
     {#if auth === "password"}
@@ -574,19 +558,7 @@ function onsubmit(e: SubmitEvent) {
 
     <div class="field">
       <span class="label-caps text-faint">Environment</span>
-      <div class="seg-row" role="radiogroup" aria-label="Environment" use:slidingPill>
-        {#each ENVS as env (env.id)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={environment === env.id}
-            class="seg"
-            class:on={environment === env.id}
-            data-env={env.id}
-            onclick={() => (environment = env.id)}>{env.label}</button
-          >
-        {/each}
-      </div>
+      <Segmented label="Environment" options={ENVS} value={environment} onchange={(e) => (environment = e)} />
     </div>
 
     <div class="field">
@@ -650,27 +622,6 @@ function onsubmit(e: SubmitEvent) {
     background: color-mix(in oklab, var(--warning) 14%, transparent);
     border-left: 2px solid var(--warning);
     border-radius: var(--radius-sm);
-  }
-  .seg-row {
-    display: flex;
-    padding: 2px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .seg {
-    flex: 1;
-    padding: 4px 0;
-    font-size: 12px;
-    color: var(--text-muted);
-    border-radius: var(--radius-sm);
-  }
-  .seg.on {
-    color: var(--text);
-    background: var(--surface-3);
-  }
-  .seg.on[data-env="prod"] {
-    color: var(--danger);
   }
   .no-keys {
     display: flex;

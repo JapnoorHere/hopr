@@ -3,10 +3,11 @@ import { PencilSimple, Plus, Trash } from "phosphor-svelte";
 import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { commands, type Tunnel, type TunnelKind } from "$lib/ipc";
-import { blurFade, slidingPill, stagger } from "$lib/motion";
+import { blurFade, stagger } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors, parsePort } from "$lib/ui/form";
+import Segmented from "$lib/ui/Segmented.svelte";
 import { describe, exposed, rate, sparkline } from "./format";
 import { tunnels } from "./tunnels.svelte";
 
@@ -143,18 +144,7 @@ const hostName = $derived(library.host(hostId)?.label ?? "host");
 
     {#if tunnels.editing !== null}
       <form class="panel flex flex-col gap-2" onsubmit={save} aria-label="Tunnel editor" novalidate bind:this={editor}>
-        <div class="seg-row" role="radiogroup" aria-label="Tunnel kind" use:slidingPill>
-          {#each KINDS as k (k.id)}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={kind === k.id}
-              class="seg"
-              class:on={kind === k.id}
-              onclick={() => (kind = k.id)}>{k.label}</button
-            >
-          {/each}
-        </div>
+        <Segmented label="Tunnel kind" options={KINDS} value={kind} onchange={(k) => (kind = k)} />
         <p class="text-xs text-muted">{KINDS.find((k) => k.id === kind)?.hint}</p>
         <!-- Live diagram of where traffic goes. -->
         <p class="diagram" aria-label="Route">
@@ -402,24 +392,6 @@ const hostName = $derived(library.host(hostId)?.label ?? "host");
     color: var(--text);
     background: var(--surface-2);
     border-radius: 3px;
-  }
-  .seg-row {
-    display: flex;
-    padding: 2px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .seg {
-    flex: 1;
-    padding: 4px 0;
-    font-size: 12px;
-    color: var(--text-muted);
-    border-radius: var(--radius-sm);
-  }
-  .seg.on {
-    color: var(--text);
-    background: var(--surface-3);
   }
   .link {
     color: var(--accent);

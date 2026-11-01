@@ -35,6 +35,7 @@ import { readText, scoped, writeText } from "$lib/storage";
 import Count from "$lib/ui/Count.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
+import Segmented from "$lib/ui/Segmented.svelte";
 import { sshCommand } from "./chain";
 import { highlight, sectionHosts } from "./filter";
 import { library, PING_INTERVAL_MS } from "./library.svelte";
@@ -52,6 +53,10 @@ let bulkTag = $state("");
 
 // List or grid, remembered on this device.
 type HostView = "list" | "grid";
+const VIEWS = [
+  { id: "list", label: "List", icon: ListBullets },
+  { id: "grid", label: "Grid", icon: SquaresFour },
+] as const;
 const VIEW_KEY = "hopr.hosts.view";
 let view = $state<HostView>(readText(scoped(VIEW_KEY)) === "grid" ? "grid" : "list");
 function setView(v: HostView) {
@@ -430,14 +435,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
     >
       <div class="viewbar">
         <span class="text-xs text-faint">{library.hosts.length} host{library.hosts.length === 1 ? "" : "s"}</span>
-        <div class="seg" role="radiogroup" aria-label="Layout">
-          <button type="button" role="radio" aria-checked={view === "list"} class:on={view === "list"} title="List" onclick={() => setView("list")}>
-            <ListBullets size={14} /> List
-          </button>
-          <button type="button" role="radio" aria-checked={view === "grid"} class:on={view === "grid"} title="Grid" onclick={() => setView("grid")}>
-            <SquaresFour size={14} /> Grid
-          </button>
-        </div>
+        <Segmented label="Layout" compact options={VIEWS} value={view} onchange={setView} />
       </div>
       {#each sections as section (section.id)}
         <section class="mb-5">
@@ -604,33 +602,6 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
     justify-content: space-between;
     margin-bottom: 12px;
     padding: 0 4px;
-  }
-  .seg {
-    display: flex;
-    padding: 2px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-  }
-  .seg button {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    height: 24px;
-    padding: 0 9px;
-    font-size: 12px;
-    color: var(--text-faint);
-    border-radius: calc(var(--radius-sm) - 2px);
-    transition:
-      color var(--dur-fast) var(--ease-out),
-      background var(--dur-fast) var(--ease-out);
-  }
-  .seg button:hover {
-    color: var(--text);
-  }
-  .seg button.on {
-    color: var(--text);
-    background: var(--surface-3);
   }
   .count {
     margin-left: 4px;

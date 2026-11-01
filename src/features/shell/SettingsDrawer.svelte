@@ -37,9 +37,13 @@ import { DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { sink, slidingPill, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
+import Segmented from "$lib/ui/Segmented.svelte";
 import { shell } from "./shell.state.svelte";
 
-const densities = Object.keys(DENSITIES) as Density[];
+const densityOptions = $derived(
+  (Object.keys(DENSITIES) as Density[]).map((d) => ({ id: d, label: t(`density.${d}`) })),
+);
+const motionOptions = $derived(MOTIONS.map((m) => ({ id: m, label: t(`motion.${m}`) })));
 
 /** Sections, in order. `keywords` lets search find a section by words it doesn't show. */
 const SECTIONS = [
@@ -346,32 +350,24 @@ $effect(() => {
         <ThemePicker />
         <div class="group">
           <h3 class="label-caps mb-2 text-faint">{t("settings.density")}</h3>
-          <div class="seg-row" role="radiogroup" aria-label="Density" use:slidingPill>
-            {#each densities as d (d)}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={appearance.current.density === d}
-                class="seg"
-                class:on={appearance.current.density === d}
-                onclick={() => appearance.update({ density: d })}>{t(`density.${d}`)}</button
-              >
-            {/each}
+          <div class="max-w-[420px]">
+            <Segmented
+              label="Density"
+              options={densityOptions}
+              value={appearance.current.density}
+              onchange={(density) => appearance.update({ density })}
+            />
           </div>
         </div>
         <div class="group">
           <h3 class="label-caps mb-2 text-faint">{t("settings.motion")}</h3>
-          <div class="seg-row" role="radiogroup" aria-label="Motion" use:slidingPill>
-            {#each MOTIONS as m (m)}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={appearance.current.motion === m}
-                class="seg"
-                class:on={appearance.current.motion === m}
-                onclick={() => appearance.update({ motion: m })}>{t(`motion.${m}`)}</button
-              >
-            {/each}
+          <div class="max-w-[420px]">
+            <Segmented
+              label="Motion"
+              options={motionOptions}
+              value={appearance.current.motion}
+              onchange={(motion) => appearance.update({ motion })}
+            />
           </div>
           <p class="mt-2 text-xs text-muted">{t("settings.motionHint")}</p>
         </div>
@@ -610,25 +606,6 @@ $effect(() => {
   .group :global(> section),
   .group :global(> section:first-child) {
     margin-top: 0;
-  }
-  .seg-row {
-    display: flex;
-    max-width: 420px;
-    padding: 2px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .seg {
-    flex: 1;
-    padding: 5px 0;
-    font-size: 12px;
-    color: var(--text-muted);
-    border-radius: var(--radius-sm);
-  }
-  .seg.on {
-    color: var(--text);
-    background: var(--surface-3);
   }
   @media (max-width: 760px) {
     .page {
