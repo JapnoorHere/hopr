@@ -35,6 +35,7 @@ import { readText, scoped, writeText } from "$lib/storage";
 import Count from "$lib/ui/Count.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
+import Menu from "$lib/ui/Menu.svelte";
 import Segmented from "$lib/ui/Segmented.svelte";
 import { sshCommand } from "./chain";
 import { highlight, sectionHosts } from "./filter";
@@ -135,8 +136,7 @@ function openShell(s: ShellProfile) {
 
 /** Arrow keys move between host rows; Enter connects (rows are buttons). */
 function onListKey(e: KeyboardEvent) {
-  if (e.key === "Escape" && (rowMenu || selected.size)) {
-    rowMenu = null;
+  if (e.key === "Escape" && selected.size) {
     selected.clear();
     e.stopPropagation();
     return;
@@ -284,19 +284,8 @@ function reachTitle(h: Host): string {
   return h.jumpHostId ? "Reached through a jump host" : "Reached through a proxy";
 }
 
-function onWindowPointer(e: PointerEvent) {
-  const t = e.target as Element | null;
-  if (!t?.closest("[data-menu]")) {
-    rowMenu = null;
-    exportMenu = false;
-    shellMenu = false;
-  }
-}
-
 const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as const;
 </script>
-
-<svelte:window onpointerdown={onWindowPointer} />
 
 <div class="relative flex min-h-0 w-full flex-1 flex-col">
   <header class="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
@@ -321,48 +310,30 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
     <button type="button" class="btn-ghost" onclick={() => shell.toggle("import")}>
       <DownloadSimple size={14} /> Import
     </button>
-    <div class="relative" data-menu>
-      <button
-        type="button"
-        class="btn-ghost"
-        aria-haspopup="menu"
-        aria-expanded={exportMenu}
-        disabled={empty}
-        onclick={() => (exportMenu = !exportMenu)}
-      >
-        <Export size={14} /> Export
+    <Menu label="Export" width="240px" open={exportMenu} onopenchange={(o) => (exportMenu = o)}>
+      {#snippet trigger(props)}
+        <button type="button" class="btn-ghost" disabled={empty} {...props}>
+          <Export size={14} /> Export
+        </button>
+      {/snippet}
+      <button type="button" role="menuitem" class="menu-item" onclick={() => exportHosts("ssh_config", [])}>
+        All hosts as SSH config
       </button>
-      {#if exportMenu}
-        <div class="menu" role="menu">
-          <button type="button" role="menuitem" class="menu-item" onclick={() => exportHosts("ssh_config", [])}>
-            All hosts as SSH config
-          </button>
-          <button type="button" role="menuitem" class="menu-item" onclick={() => exportHosts("csv", [])}>
-            All hosts as CSV
-          </button>
-          <p class="px-2.5 py-1 text-xs text-faint">Passwords and keys are never exported.</p>
-        </div>
-      {/if}
-    </div>
-    <div class="relative" data-menu>
-      <button
-        type="button"
-        class="btn-ghost"
-        aria-haspopup="menu"
-        aria-expanded={shellMenu}
-        onclick={() => (shellMenu = !shellMenu)}
-        disabled={shells.length === 0}
-      >
-        <TerminalWindow size={14} /> Local terminal
+      <button type="button" role="menuitem" class="menu-item" onclick={() => exportHosts("csv", [])}>
+        All hosts as CSV
       </button>
-      {#if shellMenu}
-        <div class="menu" role="menu">
-          {#each shells as s (s.id)}
-            <button type="button" role="menuitem" class="menu-item" onclick={() => openShell(s)}>{s.name}</button>
-          {/each}
-        </div>
-      {/if}
-    </div>
+      <p class="menu-note">Passwords and keys are never exported.</p>
+    </Menu>
+    <Menu label="Local terminal" open={shellMenu} onopenchange={(o) => (shellMenu = o)}>
+      {#snippet trigger(props)}
+        <button type="button" class="btn-ghost" disabled={shells.length === 0} {...props}>
+          <TerminalWindow size={14} /> Local terminal
+        </button>
+      {/snippet}
+      {#each shells as s (s.id)}
+        <button type="button" role="menuitem" class="menu-item" onclick={() => openShell(s)}>{s.name}</button>
+      {/each}
+    </Menu>
   </header>
 
   <form class="flex items-center gap-2 px-6 pt-4" onsubmit={quickConnect} novalidate>
@@ -511,44 +482,38 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
               <button type="button" class="icon" aria-label="Edit {h.label}" onclick={() => (library.editing = h.id)}>
                 <PencilSimple size={14} />
               </button>
-              <div class="relative" data-menu>
-                <button
-                  type="button"
-                  class="icon"
-                  class:on={rowMenu === h.id}
-                  aria-label="More actions for {h.label}"
-                  aria-haspopup="menu"
-                  aria-expanded={rowMenu === h.id}
-                  onclick={() => (rowMenu = rowMenu === h.id ? null : h.id)}
-                >
-                  <DotsThree size={16} weight="bold" />
-                </button>
-                {#if rowMenu === h.id}
-                  <div
-                    class="menu"
-                    role="menu"
-                    aria-label="Actions for {h.label}"
-                    in:blurFade={{ y: -4, scale: 0.97, blur: 2, duration: 160 }}
-                    out:sink={{ y: -4, scale: 0.97, duration: 100 }}
+              <Menu
+                label="Actions for {h.label}"
+                open={rowMenu === h.id}
+                onopenchange={(o) => (rowMenu = o ? h.id : null)}
+              >
+                {#snippet trigger(props)}
+                  <button
+                    type="button"
+                    class="icon"
+                    class:on={rowMenu === h.id}
+                    aria-label="More actions for {h.label}"
+                    {...props}
                   >
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("connect", h)}>Connect</button>
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("edit", h)}>Edit</button>
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("duplicate", h)}>Duplicate</button>
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("files", h)}>Browse files</button>
-                    <hr class="sep" />
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ssh", h)}>Copy SSH command</button>
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("hostname", h)}>Copy hostname</button>
-                    {#if h.hasPassword}
-                      <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("password", h)}>Copy password</button>
-                    {/if}
-                    <hr class="sep" />
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("deploy", h)}>Deploy key…</button>
-                    <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ping", h)}>Check reachability</button>
-                    <hr class="sep" />
-                    <button type="button" role="menuitem" class="menu-item danger" onclick={() => runRow("delete", h)}>Delete</button>
-                  </div>
+                    <DotsThree size={16} weight="bold" />
+                  </button>
+                {/snippet}
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("connect", h)}>Connect</button>
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("edit", h)}>Edit</button>
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("duplicate", h)}>Duplicate</button>
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("files", h)}>Browse files</button>
+                <hr class="menu-sep" />
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ssh", h)}>Copy SSH command</button>
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("hostname", h)}>Copy hostname</button>
+                {#if h.hasPassword}
+                  <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("password", h)}>Copy password</button>
                 {/if}
-              </div>
+                <hr class="menu-sep" />
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("deploy", h)}>Deploy key…</button>
+                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ping", h)}>Check reachability</button>
+                <hr class="menu-sep" />
+                <button type="button" role="menuitem" class="menu-item danger" onclick={() => runRow("delete", h)}>Delete</button>
+              </Menu>
               </div>
             </div>
           {/each}
@@ -789,38 +754,6 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   .icon:hover {
     color: var(--text);
     background: var(--surface-3);
-  }
-  .menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 4px);
-    z-index: 30;
-    display: flex;
-    min-width: 200px;
-    flex-direction: column;
-    padding: 4px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .menu-item {
-    padding: 6px 10px;
-    font-size: 13px;
-    text-align: left;
-    color: var(--text);
-    border-radius: var(--radius-sm);
-  }
-  .menu-item:hover,
-  .menu-item:focus-visible {
-    background: var(--surface-4);
-  }
-  .menu-item.danger {
-    color: var(--danger);
-  }
-  .sep {
-    margin: 4px 6px;
-    border: 0;
-    border-top: 1px solid var(--border);
   }
   .bulk {
     display: flex;

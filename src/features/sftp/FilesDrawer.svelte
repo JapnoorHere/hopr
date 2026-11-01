@@ -23,6 +23,7 @@ import { inTauri, type RemoteEntry } from "$lib/ipc";
 import { blurFade, expand, sink } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
+import Menu from "$lib/ui/Menu.svelte";
 import ClashBar from "./ClashBar.svelte";
 import { files } from "./files.svelte";
 import {
@@ -227,18 +228,12 @@ function editPath() {
   editingPath = true;
 }
 
-function onWindowPointer(e: PointerEvent) {
-  if (!(e.target as Element | null)?.closest("[data-menu]")) menu = null;
-}
-
 const BITS = [
   { who: "Owner", r: 0o400, w: 0o200, x: 0o100 },
   { who: "Group", r: 0o040, w: 0o020, x: 0o010 },
   { who: "Others", r: 0o004, w: 0o002, x: 0o001 },
 ];
 </script>
-
-<svelte:window onpointerdown={onWindowPointer} />
 
 <Drawer
   title="Files"
@@ -437,20 +432,17 @@ const BITS = [
             <span class="col-size tabular text-xs text-muted">{entry.kind === "dir" ? "" : formatSize(entry.size)}</span>
             <span class="col-time tabular text-xs text-muted">{when(entry.modified)}</span>
             <span class="col-mode font-mono text-xs text-faint" title={octal(entry.mode)}>{modeString(entry.mode)}</span>
-            <span class="relative w-6" data-menu>
-              <button
-                type="button"
-                class="tool"
-                aria-label="Actions for {entry.name}"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  menu = menu === entry.path ? null : entry.path;
-                }}
+            <span class="w-6">
+              <Menu
+                label="Actions for {entry.name}"
+                open={menu === entry.path}
+                onopenchange={(o) => (menu = o ? entry.path : null)}
               >
-                <DotsThree size={15} weight="bold" />
-              </button>
-              {#if menu === entry.path}
-                <div class="menu" role="menu">
+                {#snippet trigger(props)}
+                  <button type="button" class="tool" aria-label="Actions for {entry.name}" {...props}>
+                    <DotsThree size={15} weight="bold" />
+                  </button>
+                {/snippet}
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("open", entry)}>
                     {entry.kind === "dir" ? "Open" : "Preview"}
                   </button>
@@ -459,15 +451,14 @@ const BITS = [
                   {/if}
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("download", entry)}>Download</button>
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("download-to", entry)}>Download to…</button>
-                  <hr class="sep" />
+                  <hr class="menu-sep" />
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("rename", entry)}>Rename</button>
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("perms", entry)}>Permissions…</button>
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("copy-path", entry)}>Copy path</button>
                   <button type="button" role="menuitem" class="menu-item" onclick={() => runMenu("copy-scp", entry)}>Copy scp command</button>
-                  <hr class="sep" />
+                  <hr class="menu-sep" />
                   <button type="button" role="menuitem" class="menu-item danger" onclick={() => runMenu("delete", entry)}>Delete</button>
-                </div>
-              {/if}
+              </Menu>
             </span>
           </div>
         {:else}
@@ -649,37 +640,6 @@ const BITS = [
     height: 22px;
     margin: 6px 8px;
     border-radius: 4px;
-  }
-  .menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 2px);
-    z-index: 30;
-    display: flex;
-    min-width: 180px;
-    flex-direction: column;
-    padding: 4px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .menu-item {
-    padding: 5px 10px;
-    font-size: 13px;
-    text-align: left;
-    color: var(--text);
-    border-radius: var(--radius-sm);
-  }
-  .menu-item:hover {
-    background: var(--surface-4);
-  }
-  .menu-item.danger {
-    color: var(--danger);
-  }
-  .sep {
-    margin: 4px 6px;
-    border: 0;
-    border-top: 1px solid var(--border);
   }
   .strip {
     display: flex;
