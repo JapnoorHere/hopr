@@ -2,7 +2,6 @@
 import { ArrowRight, HardDrives, Lightning, TerminalWindow } from "phosphor-svelte";
 import { tick } from "svelte";
 import { flip } from "svelte/animate";
-import { fade } from "svelte/transition";
 import { library } from "$features/hosts/library.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import { parseTarget } from "$features/terminal/target";
@@ -11,6 +10,7 @@ import { blurFade, sink, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
 import { shortcuts } from "$lib/shortcuts";
 import Kbd from "$lib/ui/Kbd.svelte";
+import Modal from "$lib/ui/Modal.svelte";
 import { load, record, save, score } from "./frecency";
 import { palette } from "./palette-state.svelte";
 
@@ -143,10 +143,6 @@ function onkeydown(e: KeyboardEvent) {
   } else if (e.key === "Enter") {
     e.preventDefault();
     choose(results[index]);
-  } else if (e.key === "Escape") {
-    e.preventDefault();
-    e.stopPropagation();
-    palette.close();
   } else {
     return;
   }
@@ -154,15 +150,9 @@ function onkeydown(e: KeyboardEvent) {
 }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="scrim" transition:fade={{ duration: motion(100) }} onclick={() => palette.close()}>
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+<Modal label="Command palette" onclose={() => palette.close()} place="top" layer={40}>
   <div
     class="box"
-    role="dialog"
-    aria-label="Command palette"
-    tabindex="-1"
-    onclick={(e) => e.stopPropagation()}
     in:blurFade={{ y: -10, scale: 0.98, blur: 4, duration: 200 }}
     out:sink={{ y: -6, scale: 0.98, duration: 120 }}
   >
@@ -210,18 +200,9 @@ function onkeydown(e: KeyboardEvent) {
       <span>↑↓ to move</span><span>Enter to run</span><span>Esc to close</span>
     </footer>
   </div>
-</div>
+</Modal>
 
 <style>
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: flex;
-    justify-content: center;
-    padding-top: 12vh;
-    background: color-mix(in oklab, var(--bg) 40%, transparent);
-  }
   .box {
     width: min(640px, calc(100vw - 32px));
     height: fit-content;

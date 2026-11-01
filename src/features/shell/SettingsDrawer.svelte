@@ -20,7 +20,6 @@ import {
   X,
 } from "phosphor-svelte";
 import { onDestroy, tick } from "svelte";
-import { fade } from "svelte/transition";
 import ProfilesSettings from "$features/profiles/ProfilesSettings.svelte";
 import BackupSettings from "$features/settings/BackupSettings.svelte";
 import DesktopSettings from "$features/settings/DesktopSettings.svelte";
@@ -37,6 +36,7 @@ import { DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { sink, slidingPill, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
+import Modal from "$lib/ui/Modal.svelte";
 import Segmented from "$lib/ui/Segmented.svelte";
 import { shell } from "./shell.state.svelte";
 
@@ -244,14 +244,17 @@ function spy() {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    if (query) query = "";
-    else shell.close();
-  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
     e.preventDefault();
     searchBox?.focus();
   }
+}
+
+/** Esc clears a search before it closes Settings. */
+function clearSearch(): boolean {
+  if (!query) return false;
+  query = "";
+  return true;
 }
 
 $effect(() => {
@@ -268,18 +271,10 @@ $effect(() => {
 });
 </script>
 
-<svelte:window onkeydowncapture={(e) => e.key === "Escape" && onKey(e)} />
-
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="scrim" transition:fade={{ duration: motion(160) }} onclick={() => shell.close()}>
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+<Modal label={t("settings.title")} onclose={() => shell.close()} onescape={clearSearch} layer={45}>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="page"
-    role="dialog"
-    aria-modal="true"
-    aria-label={t("settings.title")}
-    tabindex="-1"
-    onclick={(e) => e.stopPropagation()}
     onkeydown={onKey}
     in:springIn={{ y: 14, scale: 0.97 }}
     out:sink={{ y: 8, scale: 0.98, duration: 140 }}
@@ -443,19 +438,9 @@ $effect(() => {
     </div>
     </div>
   </div>
-</div>
+</Modal>
 
 <style>
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 45;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background: color-mix(in oklab, var(--bg) 55%, transparent);
-    backdrop-filter: blur(3px);
-  }
   .page {
     display: grid;
     grid-template-columns: 230px minmax(0, 1fr);

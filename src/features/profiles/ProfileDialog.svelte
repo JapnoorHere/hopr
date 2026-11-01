@@ -4,12 +4,11 @@
  * offers delete, guarded by typing the profile's name.
  */
 import { Check, Trash, X } from "phosphor-svelte";
-import { fade } from "svelte/transition";
 import { PROFILE_COLORS } from "$lib/design/themes";
 import type { Profile } from "$lib/ipc";
 import { sink, springIn } from "$lib/motion";
-import { motion } from "$lib/platform";
 import FieldError from "$lib/ui/FieldError.svelte";
+import Modal from "$lib/ui/Modal.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
 import { profileName, profiles } from "./profiles.svelte";
@@ -79,32 +78,11 @@ async function remove() {
   toast.success(`Deleted “${profileName(profile)}”`);
   onclose();
 }
-
-function onkey(e: KeyboardEvent) {
-  if (e.key === "Escape") {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    onclose();
-  }
-}
 </script>
 
-<svelte:window onkeydowncapture={onkey} />
-
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-<div
-  class="scrim"
-  role="dialog"
-  aria-modal="true"
-  aria-label={profile ? "Edit profile" : "New profile"}
-  tabindex="-1"
-  transition:fade={{ duration: motion(140) }}
-  onclick={onclose}
->
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+<Modal label={profile ? "Edit profile" : "New profile"} {onclose} layer={90}>
   <form
     class="dialog"
-    onclick={(e) => e.stopPropagation()}
     onsubmit={(e) => {
       e.preventDefault();
       void submit(!profile);
@@ -201,19 +179,9 @@ function onkey(e: KeyboardEvent) {
       {/if}
     </footer>
   </form>
-</div>
+</Modal>
 
 <style>
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background: color-mix(in oklab, var(--bg) 55%, transparent);
-    backdrop-filter: blur(6px);
-  }
   .dialog {
     width: min(420px, 100%);
     padding: 20px;
