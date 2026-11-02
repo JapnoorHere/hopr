@@ -347,9 +347,10 @@ async fn host_hop(
         AuthKind::Password => password_credentials(creds.password, creds.totp_seed),
         AuthKind::Key | AuthKind::Agent => {
             let mut c = if h.auth == AuthKind::Key {
-                let key_id = h.key_id.clone().ok_or_else(|| {
-                    AppError::invalid(format!("{} has no key selected", h.label))
-                })?;
+                let key_id = h
+                    .key_id
+                    .clone()
+                    .ok_or_else(|| AppError::invalid(format!("{} has no key selected", h.label)))?;
                 let private = state.store.key_private(vault, &key_id).await?;
                 let key = hopr_ssh::keys::load(&private)?;
                 let mut c = Vec::with_capacity(2);
