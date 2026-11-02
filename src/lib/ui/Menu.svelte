@@ -95,7 +95,9 @@ function onkeydown(e: KeyboardEvent) {
             ? list.at(-1)
             : undefined;
   if (!next) return;
+  // Handled here: a list around the menu (the hosts) must not move its own focus too.
   e.preventDefault();
+  e.stopPropagation();
   next.focus();
 }
 
