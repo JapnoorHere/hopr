@@ -1,6 +1,5 @@
 <script lang="ts">
 import {
-  ArrowRight,
   DotsThree,
   DownloadSimple,
   Export,
@@ -14,43 +13,33 @@ import {
 } from "phosphor-svelte";
 import { flip } from "svelte/animate";
 import { SvelteSet } from "svelte/reactivity";
-import { files } from "$features/sftp/files.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { sessions } from "$features/terminal/session.svelte";
-import { parseTarget } from "$features/terminal/target";
 import { workspaces } from "$features/workspace/workspaces.svelte";
 import { saveText } from "$lib/download";
 import HoprMark from "$lib/icons/HoprMark.svelte";
-import {
-  commands,
-  type Environment,
-  type ExportFormat,
-  type Host,
-  inTauri,
-  type ShellProfile,
-} from "$lib/ipc";
-import { blurFade, expand, flash, pop, rise, sink, stagger } from "$lib/motion";
+import { commands, type ExportFormat, type Host, inTauri, type ShellProfile } from "$lib/ipc";
+import { blurFade, expand, flash, pop, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
 import { readText, scoped, writeText } from "$lib/storage";
 import Count from "$lib/ui/Count.svelte";
-import FieldError from "$lib/ui/FieldError.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
 import Menu from "$lib/ui/Menu.svelte";
 import Segmented from "$lib/ui/Segmented.svelte";
-import { sshCommand } from "./chain";
+import BulkBar from "./BulkBar.svelte";
+import { hostAddress, reachTitle } from "./describe";
 import { highlight, sectionHosts } from "./filter";
+import HostActionsMenu from "./HostActionsMenu.svelte";
 import { library, PING_INTERVAL_MS } from "./library.svelte";
+import QuickConnect from "./QuickConnect.svelte";
 
 let query = $state("");
-let quick = $state(quickFromDraft());
-let quickError = $state<string | null>(null);
 let shells = $state<ShellProfile[]>([]);
 let shellMenu = $state(false);
 let exportMenu = $state(false);
 let rowMenu = $state<string | null>(null);
 let list: HTMLDivElement | undefined = $state();
 const selected = new SvelteSet<string>();
-let bulkTag = $state("");
 
 // List or grid, remembered on this device.
 type HostView = "list" | "grid";
@@ -62,24 +51,12 @@ const VIEW_KEY = "hopr.hosts.view";
 let view = $state<HostView>(readText(scoped(VIEW_KEY)) === "grid" ? "grid" : "list");
 function setView(v: HostView) {
   view = v;
-  try {
-    writeText(scoped(VIEW_KEY), v);
-  } catch {
-    // Not remembered; it still applies now.
-  }
+  writeText(scoped(VIEW_KEY), v);
 }
 
 const sections = $derived(sectionHosts(library.hosts, library.groups, query));
 const visibleIds = $derived([...new Set(sections.flatMap((s) => s.hosts.map((h) => h.id)))]);
 const empty = $derived(library.loaded && library.hosts.length === 0);
-
-function quickFromDraft(): string {
-  const d = sessions.draft;
-  if (!d?.host) return "";
-  const user = d.username ? `${d.username}@` : "";
-  const port = d.port && d.port !== 22 ? `:${d.port}` : "";
-  return `${user}${d.host}${port}`;
-}
 
 $effect(() => {
   void library.refresh();
@@ -107,26 +84,6 @@ function connect(h: Host) {
   // The row glows as it turns into a connection.
   flash(list?.querySelector(`[data-host-id="${h.id}"]`));
   library.connect(h);
-}
-
-function quickConnect(e: SubmitEvent) {
-  e.preventDefault();
-  quickError = null;
-  if (!quick.trim()) {
-    quickError = "Type a host to connect to, like deploy@10.0.3.4";
-    return;
-  }
-  const t = parseTarget(quick);
-  if (!t) {
-    quickError = "Use host, user@host or user@host:port";
-    return;
-  }
-  if (!t.username) {
-    quickError = `Add a user, like deploy@${t.host}`;
-    return;
-  }
-  sessions.open({ kind: "quick", host: t.host, port: t.port ?? 22, username: t.username });
-  quick = "";
 }
 
 function openShell(s: ShellProfile) {
@@ -175,95 +132,6 @@ function onRowClick(e: MouseEvent, h: Host) {
   connect(h);
 }
 
-async function copy(text: string, what: string) {
-  await navigator.clipboard.writeText(text);
-  library.flash(`${what} copied`);
-}
-
-async function runRow(action: string, h: Host) {
-  rowMenu = null;
-  switch (action) {
-    case "connect":
-      return connect(h);
-    case "edit":
-      library.editing = h.id;
-      return;
-    case "duplicate": {
-      const r = await library.duplicate(h);
-      if (r.ok) library.flash(`Created “${r.data.label}”`);
-      else library.flash(r.error.message, "error");
-      return;
-    }
-    case "ssh":
-      return copy(sshCommand(h, library.hosts), "SSH command");
-    case "hostname":
-      return copy(h.hostname, "Hostname");
-    case "password":
-      await library.copyPassword(h);
-      return;
-    case "files":
-      shell.drawer = "files";
-      await files.open(h.id);
-      return;
-    case "deploy":
-      library.deploying = { hostId: h.id, keyId: null };
-      return;
-    case "ping":
-      await library.ping([h.id]);
-      return;
-    case "delete":
-      await library.remove([h.id]);
-      return;
-  }
-}
-
-async function bulk(edit: Partial<Parameters<typeof library.bulkEdit>[0]>) {
-  const res = await library.bulkEdit({
-    ids: [...selected],
-    moveGroup: false,
-    groupId: null,
-    addTags: [],
-    removeTags: [],
-    environment: null,
-    favorite: null,
-    ...edit,
-  });
-  if (!res.ok) library.flash(res.error.message, "error");
-  else library.flash(`Updated ${res.data} host${res.data === 1 ? "" : "s"}`);
-}
-
-function bulkGroup(e: Event) {
-  const el = e.currentTarget as HTMLSelectElement;
-  const v = el.value;
-  el.value = "";
-  if (v === "") return;
-  void bulk({ moveGroup: true, groupId: v === "__none" ? null : v });
-}
-
-function bulkEnv(e: Event) {
-  const el = e.currentTarget as HTMLSelectElement;
-  const v = el.value as Environment | "";
-  el.value = "";
-  if (v) void bulk({ environment: v });
-}
-
-function addTag(e: SubmitEvent) {
-  e.preventDefault();
-  const tags = bulkTag
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-  if (!tags.length) return;
-  bulkTag = "";
-  void bulk({ addTags: tags });
-}
-
-async function bulkDelete() {
-  const ids = [...selected];
-  selected.clear();
-  await library.remove(ids);
-}
-
 async function exportHosts(format: ExportFormat, ids: string[]) {
   exportMenu = false;
   const res = await library.exportHosts(format, ids);
@@ -274,14 +142,6 @@ async function exportHosts(format: ExportFormat, ids: string[]) {
   if (format === "ssh_config") saveText("hopr_ssh_config", res.data);
   else saveText("hopr-hosts.csv", res.data, "text/csv");
   library.flash(`Exported ${ids.length || library.hosts.length} hosts`);
-}
-
-function reachTitle(h: Host): string {
-  const r = library.reach[h.id];
-  if (!r) return "Not checked yet";
-  if (r.status === "reachable") return `Reachable · ${r.ms} ms`;
-  if (r.status === "unreachable") return "Not reachable";
-  return h.jumpHostId ? "Reached through a jump host" : "Reached through a proxy";
 }
 
 const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as const;
@@ -336,24 +196,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
     </Menu>
   </header>
 
-  <form class="flex items-center gap-2 px-6 pt-4" onsubmit={quickConnect} novalidate>
-    <input
-      class="input font-mono"
-      bind:value={quick}
-      placeholder="Quick connect: user@host:port"
-      spellcheck="false"
-      aria-label="Quick connect"
-      aria-invalid={!!quickError}
-      oninput={() => (quickError = null)}
-      onblur={() => {
-        if (!quick.trim()) quickError = null;
-      }}
-    />
-    <button type="submit" class="go btn-primary shrink-0">
-      Connect <ArrowRight size={14} />
-    </button>
-  </form>
-  {#if quickError}<div class="px-6 pt-1.5"><FieldError message={quickError} /></div>{/if}
+  <QuickConnect />
   {#if workspaces.offer}
     <div class="offer" role="status" aria-label="Restore last session">
       <span class="flex-1 text-sm text-fg">
@@ -440,8 +283,8 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                   class="dot"
                   class:ring-once={library.reach[h.id]?.status === "reachable"}
                   data-reach={library.reach[h.id]?.status ?? "unknown"}
-                  title={reachTitle(h)}
-                  aria-label={reachTitle(h)}
+                  title={reachTitle(h, library.reach[h.id])}
+                  aria-label={reachTitle(h, library.reach[h.id])}
                   role="img"
                 ></span>
                 <span class="who min-w-0 flex-1">
@@ -449,7 +292,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                     {#each highlight(h.label, query) as part, pi (pi)}{#if part.hit}<mark class="hit">{part.text}</mark>{:else}{part.text}{/if}{/each}
                   </span>
                   <span class="tabular block truncate text-xs text-faint">
-                    {#if h.protocol === "serial"}serial · {h.hostname} · {h.serial?.baud ?? 9600} baud{:else if h.protocol === "telnet"}telnet · {h.username ? `${h.username}@` : ""}{h.hostname}:{h.port}{:else}{h.username}@{h.hostname}{h.port === 22 ? "" : `:${h.port}`}{/if}{h.proxyCommand ? " · via ProxyCommand" : ""}{h.jumpHostId ? ` · via ${library.host(h.jumpHostId)?.label ?? "jump host"}` : ""}{h.proxy && !h.jumpHostId ? ` · via ${h.proxy.protocol} proxy` : ""}
+                    {hostAddress(h, h.jumpHostId ? library.host(h.jumpHostId)?.label : undefined)}
                   </span>
                 </span>
                 {#if library.reach[h.id]?.status === "reachable"}
@@ -482,10 +325,11 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
               <button type="button" class="icon" aria-label="Edit {h.label}" onclick={() => (library.editing = h.id)}>
                 <PencilSimple size={14} />
               </button>
-              <Menu
-                label="Actions for {h.label}"
+              <HostActionsMenu
+                host={h}
                 open={rowMenu === h.id}
                 onopenchange={(o) => (rowMenu = o ? h.id : null)}
+                onconnect={connect}
               >
                 {#snippet trigger(props)}
                   <button
@@ -498,22 +342,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
                     <DotsThree size={16} weight="bold" />
                   </button>
                 {/snippet}
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("connect", h)}>Connect</button>
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("edit", h)}>Edit</button>
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("duplicate", h)}>Duplicate</button>
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("files", h)}>Browse files</button>
-                <hr class="menu-sep" />
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ssh", h)}>Copy SSH command</button>
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("hostname", h)}>Copy hostname</button>
-                {#if h.hasPassword}
-                  <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("password", h)}>Copy password</button>
-                {/if}
-                <hr class="menu-sep" />
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("deploy", h)}>Deploy key…</button>
-                <button type="button" role="menuitem" class="menu-item" onclick={() => runRow("ping", h)}>Check reachability</button>
-                <hr class="menu-sep" />
-                <button type="button" role="menuitem" class="menu-item danger" onclick={() => runRow("delete", h)}>Delete</button>
-              </Menu>
+              </HostActionsMenu>
               </div>
             </div>
           {/each}
@@ -529,30 +358,7 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   {/if}
 
   {#if selected.size}
-    <div class="bulk" role="toolbar" aria-label="Selected hosts" in:rise={{ y: 12 }} out:sink={{ y: 12 }}>
-      <span class="text-sm text-fg">{selected.size} selected</span>
-      <select class="input bulk-input" onchange={bulkGroup} aria-label="Move to group">
-        <option value="">Move to…</option>
-        <option value="__none">No group</option>
-        {#each library.groups as g (g.id)}
-          <option value={g.id}>{g.name}</option>
-        {/each}
-      </select>
-      <form class="flex" onsubmit={addTag}>
-        <input class="input bulk-input" bind:value={bulkTag} placeholder="Add tag" aria-label="Add tag" spellcheck="false" />
-      </form>
-      <select class="input bulk-input" onchange={bulkEnv} aria-label="Set environment">
-        <option value="">Environment…</option>
-        <option value="none">None</option>
-        <option value="dev">Dev</option>
-        <option value="staging">Staging</option>
-        <option value="prod">Prod</option>
-      </select>
-      <button type="button" class="btn-ghost" onclick={() => bulk({ favorite: true })}>Pin</button>
-      <button type="button" class="btn-ghost" onclick={() => exportHosts("ssh_config", [...selected])}>Export</button>
-      <button type="button" class="btn-danger" onclick={bulkDelete}>Delete</button>
-      <button type="button" class="btn-ghost" onclick={() => selected.clear()}>Clear</button>
-    </div>
+    <BulkBar {selected} onexport={(ids) => exportHosts("ssh_config", ids)} />
   {/if}
 
 </div>
@@ -674,13 +480,6 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   .selecting .pick {
     opacity: 1;
   }
-  /* The arrow leans toward where you're going. */
-  .go :global(svg) {
-    transition: translate var(--dur) var(--ease-spring);
-  }
-  .go:hover :global(svg) {
-    translate: 3px 0;
-  }
   /* Letters that match the search light up, fading in as you type. */
   .hit {
     color: var(--accent);
@@ -754,21 +553,6 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
   .icon:hover {
     color: var(--text);
     background: var(--surface-3);
-  }
-  .bulk {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: var(--surface-2);
-    border-top: 1px solid var(--border);
-  }
-  .bulk-input {
-    width: auto;
-    min-width: 120px;
-    padding-top: 4px;
-    padding-bottom: 4px;
   }
   .offer {
     display: flex;
