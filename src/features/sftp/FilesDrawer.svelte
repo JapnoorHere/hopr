@@ -25,16 +25,18 @@ import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Menu from "$lib/ui/Menu.svelte";
 import ClashBar from "./ClashBar.svelte";
+import FilePreview from "./FilePreview.svelte";
 import { files } from "./files.svelte";
 import {
   crumbs,
   formatSize,
+  formatTime,
   modeString,
   octal,
-  parseOctal,
   type SortKey,
   shellQuote,
 } from "./format";
+import PermissionsCard from "./PermissionsCard.svelte";
 
 type Naming = { kind: "folder" | "file" | "rename"; entry?: RemoteEntry; value: string };
 
@@ -43,9 +45,7 @@ let typedPath = $state("");
 let menu = $state<string | null>(null);
 let naming = $state<Naming | null>(null);
 let confirmDelete = $state<string[] | null>(null);
-let perms = $state<{ entry: RemoteEntry; mode: number; text: string; recursive: boolean } | null>(
-  null,
-);
+let perms = $state<RemoteEntry | null>(null);
 let dropping = $state(false);
 // Going into a folder slides the listing in from the right; going up, from the left.
 let slide = $state(12);
@@ -144,27 +144,6 @@ async function downloadTo(paths: string[]) {
   if (typeof dir === "string") await files.download(paths, dir);
 }
 
-function toggleBit(bit: number) {
-  if (!perms) return;
-  perms.mode ^= bit;
-  perms.text = octal(perms.mode);
-}
-
-function typedOctal(e: Event) {
-  if (!perms) return;
-  perms.text = (e.currentTarget as HTMLInputElement).value;
-  const m = parseOctal(perms.text);
-  if (m !== null) perms.mode = m;
-}
-
-async function savePerms(e: SubmitEvent) {
-  e.preventDefault();
-  const p = perms;
-  if (!p) return;
-  perms = null;
-  await files.chmod(p.entry.path, p.mode, p.recursive);
-}
-
 async function runMenu(action: string, entry: RemoteEntry) {
   menu = null;
   switch (action) {
@@ -180,7 +159,7 @@ async function runMenu(action: string, entry: RemoteEntry) {
       naming = { kind: "rename", entry, value: entry.name };
       return;
     case "perms":
-      perms = { entry, mode: entry.mode, text: octal(entry.mode), recursive: false };
+      perms = entry;
       return;
     case "copy-path":
       await navigator.clipboard.writeText(entry.path);
@@ -212,27 +191,10 @@ function arrow(key: SortKey): string {
   return files.sortKey === key ? (files.sortAsc ? " ↑" : " ↓") : "";
 }
 
-function when(sec: number | null): string {
-  if (!sec) return "";
-  return new Date(sec * 1000).toLocaleString(undefined, {
-    year: "2-digit",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function editPath() {
   typedPath = files.cwd;
   editingPath = true;
 }
-
-const BITS = [
-  { who: "Owner", r: 0o400, w: 0o200, x: 0o100 },
-  { who: "Group", r: 0o040, w: 0o020, x: 0o010 },
-  { who: "Others", r: 0o004, w: 0o002, x: 0o001 },
-];
 </script>
 
 <Drawer
@@ -430,7 +392,7 @@ const BITS = [
               <span class="truncate text-sm text-fg">{entry.name}</span>
             </span>
             <span class="col-size tabular text-xs text-muted">{entry.kind === "dir" ? "" : formatSize(entry.size)}</span>
-            <span class="col-time tabular text-xs text-muted">{when(entry.modified)}</span>
+            <span class="col-time tabular text-xs text-muted">{formatTime(entry.modified)}</span>
             <span class="col-mode font-mono text-xs text-faint" title={octal(entry.mode)}>{modeString(entry.mode)}</span>
             <span class="w-6">
               <Menu
@@ -486,62 +448,10 @@ const BITS = [
   </div>
 
   {#if perms}
-    <form class="overlay" onsubmit={savePerms} aria-label="Permissions">
-      <h3 class="text-sm font-medium text-fg">Permissions · {perms.entry.name}</h3>
-      <table class="perm-grid">
-        <thead><tr><th></th><th>Read</th><th>Write</th><th>Execute</th></tr></thead>
-        <tbody>
-          {#each BITS as b (b.who)}
-            <tr>
-              <th>{b.who}</th>
-              {#each [b.r, b.w, b.x] as bit, i (i)}
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={(perms.mode & bit) !== 0}
-                    onchange={() => toggleBit(bit)}
-                    aria-label="{b.who} {['read', 'write', 'execute'][i]}"
-                  />
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <label class="field">
-        <span class="text-xs text-muted">Octal</span>
-        <input class="input font-mono" value={perms.text} oninput={typedOctal} aria-label="Octal permissions" />
-      </label>
-      {#if perms.entry.kind === "dir"}
-        <label class="check text-sm"><input type="checkbox" bind:checked={perms.recursive} /> Apply to everything inside</label>
-      {/if}
-      <div class="flex justify-end gap-2">
-        <button type="button" class="btn-ghost" onclick={() => (perms = null)}>Cancel</button>
-        <button type="submit" class="btn-primary" disabled={parseOctal(perms.text) === null}>
-          Apply {octal(perms.mode)}
-        </button>
-      </div>
-    </form>
+    <PermissionsCard entry={perms} onclose={() => (perms = null)} />
   {/if}
 
-  {#if files.preview}
-    <div class="overlay preview" role="dialog" aria-label="Preview">
-      <div class="flex items-center gap-2">
-        <h3 class="min-w-0 flex-1 truncate text-sm font-medium text-fg">{files.preview.entry.name}</h3>
-        <button type="button" class="btn-ghost" onclick={() => files.preview && files.edit(files.preview.entry)}>Edit locally</button>
-        <button type="button" class="btn-ghost" onclick={() => files.preview && files.download([files.preview.entry.path])}>Download</button>
-        <button type="button" class="btn-ghost" onclick={() => (files.preview = null)}>Close</button>
-      </div>
-      {#if files.preview.data.kind === "text"}
-        <pre class="code">{files.preview.data.text}</pre>
-        {#if files.preview.data.truncated}<p class="text-xs text-faint">Showing the first 256 KB.</p>{/if}
-      {:else if files.preview.data.kind === "image"}
-        <img class="max-h-full max-w-full self-center" src={files.preview.data.dataUrl} alt={files.preview.entry.name} />
-      {:else}
-        <p class="text-sm text-muted">No preview for this file. Download it or edit it locally.</p>
-      {/if}
-    </div>
-  {/if}
+  <FilePreview />
 </Drawer>
 
 <style>
@@ -670,44 +580,5 @@ const BITS = [
   }
   :global(:root[data-motion="reduced"]) .drop {
     animation: none;
-  }
-  .overlay {
-    position: absolute;
-    inset: auto 12px 12px;
-    z-index: 25;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-  }
-  .overlay.preview {
-    inset: 48px 12px 12px;
-  }
-  .code {
-    min-height: 0;
-    flex: 1;
-    overflow: auto;
-    padding: 10px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    white-space: pre;
-    color: var(--text);
-    background: var(--bg);
-    border-radius: var(--radius-sm);
-  }
-  .perm-grid {
-    font-size: 12px;
-    color: var(--text-muted);
-    border-spacing: 12px 4px;
-  }
-  .perm-grid th {
-    font-weight: normal;
-    text-align: left;
-  }
-  .perm-grid td {
-    text-align: center;
   }
 </style>

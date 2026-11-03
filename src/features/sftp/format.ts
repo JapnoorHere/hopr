@@ -88,3 +88,15 @@ export function formatSpeed(bytesPerSec: number): string {
 export function shellQuote(path: string): string {
   return /^[\w./~-]+$/.test(path) ? path : `'${path.replaceAll("'", `'\\''`)}'`;
 }
+
+/** A modified time, short: "24 Oct 26, 14:05". Empty when unknown. */
+export function formatTime(sec: number | null): string {
+  if (!sec) return "";
+  return new Date(sec * 1000).toLocaleString(undefined, {
+    year: "2-digit",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

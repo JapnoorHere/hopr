@@ -4,6 +4,7 @@ import {
   crumbs,
   filterEntries,
   formatSize,
+  formatTime,
   modeString,
   octal,
   parentPath,
@@ -64,5 +65,16 @@ describe("sftp formatting", () => {
   it("quotes paths for a shell", () => {
     expect(shellQuote("/home/me/a.txt")).toBe("/home/me/a.txt");
     expect(shellQuote("/tmp/it's here")).toBe(`'/tmp/it'\\''s here'`);
+  });
+});
+
+describe("formatTime", () => {
+  it("is empty when the time is unknown", () => {
+    expect(formatTime(null)).toBe("");
+    expect(formatTime(0)).toBe("");
+  });
+
+  it("shows a date and a time", () => {
+    expect(formatTime(1_700_000_000)).toMatch(/\d/);
   });
 });
