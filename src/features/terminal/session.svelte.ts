@@ -1,3 +1,4 @@
+/** The open tabs: their split layouts, the session in front, closing, reopening and tearing off. */
 import { SvelteMap } from "svelte/reactivity";
 import {
   type Direction,
