@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { panes } from "$features/workspace/layout";
-import { sessions, type TabTarget } from "./session.svelte";
+import { sessions } from "./session.svelte";
+import type { TabTarget } from "./terminal-session.svelte";
 
 const local = (label: string): TabTarget => ({ kind: "local", shellId: "cmd", label });
 

@@ -5,7 +5,8 @@
  */
 
 import { library } from "$features/hosts/library.svelte";
-import { sessions, type TerminalSession } from "$features/terminal/session.svelte";
+import { sessions } from "$features/terminal/session.svelte";
+import type { TerminalSession } from "$features/terminal/terminal-session.svelte";
 import { wrap } from "$features/vault/vault.svelte";
 import { commands, inTauri, type Snippet, type SnippetInput } from "$lib/ipc";
 import { flash } from "$lib/motion";

@@ -8,7 +8,7 @@ import { appearance } from "$lib/design/appearance.svelte";
 import App from "./App.svelte";
 import { profiles } from "./features/profiles/profiles.svelte";
 import QuickTerminal from "./features/shell/QuickTerminal.svelte";
-import { initSessionEvents } from "./features/terminal/session.svelte";
+import { initSessionEvents } from "./features/terminal/terminal-session.svelte";
 import { vault } from "./features/vault/vault.svelte";
 import { isQuickWindow } from "./lib/window";
 

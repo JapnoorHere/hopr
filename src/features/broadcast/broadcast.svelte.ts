@@ -2,7 +2,8 @@
  * Live broadcast (§9.13 mode A, R2): what is typed in one of the chosen panes is typed
  * into all of them. Starting it on a production host asks first.
  */
-import { sessions, type TerminalSession } from "$features/terminal/session.svelte";
+import { sessions } from "$features/terminal/session.svelte";
+import type { TerminalSession } from "$features/terminal/terminal-session.svelte";
 
 class Broadcast {
   /** Session keys that receive each other's keystrokes. */

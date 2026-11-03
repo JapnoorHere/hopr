@@ -22,8 +22,8 @@ import { checkPaste, smartKey } from "./paste";
 import { decodeOsc52, type TerminalPrefs } from "./prefs";
 import { prefs } from "./prefs.svelte";
 import SearchBar from "./SearchBar.svelte";
-import type { TerminalSession } from "./session.svelte";
 import { CommandTracker, type Mark, parse133, parse633, parseOsc7 } from "./shellint";
+import type { TerminalSession } from "./terminal-session.svelte";
 
 /** Prompt marks kept for jumping (older ones are dropped with their scrollback anyway). */
 const MAX_PROMPTS = 500;

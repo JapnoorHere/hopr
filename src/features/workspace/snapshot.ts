@@ -3,7 +3,7 @@
  * into a list of targets. Targets never carry secrets (a quick-connect password is not
  * part of `TabTarget`).
  */
-import type { TabTarget } from "$features/terminal/session.svelte";
+import type { TabTarget } from "$features/terminal/terminal-session.svelte";
 import { type Layout, panes, relabel } from "./layout";
 
 export interface SavedTab {

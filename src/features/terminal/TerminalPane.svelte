@@ -17,9 +17,10 @@ import ConnectRoute from "./ConnectRoute.svelte";
 import { advance, type Progress, START } from "./connect";
 import HostKeyCard from "./HostKeyCard.svelte";
 import { prefs } from "./prefs.svelte";
-import { sessions, type TerminalSession } from "./session.svelte";
+import { sessions } from "./session.svelte";
 import { describeState, isBusy } from "./state";
 import Terminal from "./Terminal.svelte";
+import { type TerminalSession } from "./terminal-session.svelte";
 
 let { session, active }: { session: TerminalSession; active: boolean } = $props();
 

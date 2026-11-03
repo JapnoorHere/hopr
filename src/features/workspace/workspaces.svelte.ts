@@ -4,7 +4,8 @@
  */
 import { jumpTrail } from "$features/hosts/chain";
 import { library } from "$features/hosts/library.svelte";
-import { sessions, type TabTarget } from "$features/terminal/session.svelte";
+import { sessions } from "$features/terminal/session.svelte";
+import type { TabTarget } from "$features/terminal/terminal-session.svelte";
 import { wrap } from "$features/vault/vault.svelte";
 import { commands, inTauri, type Workspace } from "$lib/ipc";
 import { parseWorkspace, type SavedWorkspace } from "./snapshot";

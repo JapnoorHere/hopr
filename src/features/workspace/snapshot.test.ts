@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TabTarget } from "$features/terminal/session.svelte";
+import type { TabTarget } from "$features/terminal/terminal-session.svelte";
 import { pane, panes, relabel, split } from "./layout";
 import { loadTab, parseWorkspace, saveTab } from "./snapshot";
 
