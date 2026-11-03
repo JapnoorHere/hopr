@@ -2,7 +2,7 @@
 
 How we write code in Hopr: Rust (backend and crates), TypeScript and Svelte 5 (UI), CSS (design tokens). The goal is code that is **small, reusable, module-wise and easy to read**: fewer lines, one job per piece, shared helpers instead of copies.
 
-This is a plan and a reference. The refactor backlog at the end lists concrete changes; none of them are made yet.
+This is the reference for new code. The refactor log at the end shows what was changed to bring the existing code in line and what is next; [CODE-AUDIT.md](./CODE-AUDIT.md) has the status of every source file.
 
 ---
 
@@ -70,9 +70,10 @@ Rules:
 
 - `strict`, `noUncheckedIndexedAccess` and `noImplicitOverride` are on; keep them on.
 - **No `any`.** Use `unknown` for untrusted input and narrow it with a parser. `as` casts only right after a validated parse, with a comment.
-- **Model states as discriminated unions** (`{ kind: "connecting" } | { kind: "open" } | { kind: "closed"; reason }`) and handle every case; add an `assertNever` helper in `src/lib` for exhaustive `switch`es.
+- **Model states as discriminated unions** (`{ kind: "connecting" } | { kind: "open" } | { kind: "closed"; reason }`) and handle every case. Let TypeScript prove it: a function with a return type and a `switch` that returns in every case fails to compile when a case is missing, so no "unknown" fallback. When each case only maps to a value, use a lookup table typed `Record<Union, Value>` instead of a `switch` (see `CLOSED` in `terminal/state.ts`).
 - **IPC results** always go through `wrap()` into `Result<T>`; check `.ok` before using `.data`. Show errors as inline messages or toasts, never `alert`.
-- **Storage** goes through one helper module (`src/lib/storage.ts`, to create): `read(key, parse, fallback)`, `write(key, value)`, the profile `scoped()` key and the try/catch in one place. Today `localStorage` is touched directly in several stores.
+- **Storage** goes through `src/lib/storage.ts` only: `readText`/`writeText`, `readJson(key, parse, fallback)`/`writeJson`, `removeKey`, and `scoped(key)` for profile-owned keys. It owns the try/catch, so callers never touch `localStorage` directly.
+- **No import cycles.** When two modules need each other, the lower one exposes a setter and the higher one registers (see `setInFront` in `terminal/terminal-session.svelte.ts`).
 - Pure helpers live in `.ts` files with tests (`*.test.ts` beside them). If a function doesn't need Svelte, it doesn't go in a `.svelte` file.
 
 ---
@@ -93,7 +94,12 @@ Rules:
 ### 5.3 Components
 - **Props in, events out.** A component gets data via props and reports actions through callback props (`onclose`, `onpick`).
 - Split when a component mixes jobs. Typical split: a container (data, IPC) plus presentational children.
-- **Reuse UI primitives** from `src/lib/ui` instead of rebuilding them. Planned primitives (see the backlog): `Modal`, `Menu`, `Segmented`, `ColorSwatch`, `ConfirmBar`.
+- **Reuse UI primitives** from `src/lib/ui` instead of rebuilding them:
+  - `Modal`: a dialog over the window. Esc, outside click, Tab wrap and focus return; dialogs stack, and only the top one answers Esc.
+  - `Menu`: a button that opens actions. Outside click, Esc with focus back to the button, and arrow keys; items are `<button role="menuitem" class="menu-item">`.
+  - `Segmented`: one choice from a few, with the sliding pill.
+  - `Drawer`, `SelectMenu`, `IconButton`, `FieldError`, `Kbd`, `Count` and the toasts.
+- Pieces that keep appearing and could become primitives next: `ColorSwatch` (profile and theme colours) and `ConfirmBar` (inline "are you sure" strips).
 - Accessibility: real buttons for actions, labels for inputs, `role`/`aria-*` where native semantics aren't enough, and keyboard support for every pointer interaction.
 
 ---
@@ -134,24 +140,43 @@ Commits: one line, imperative, describing the user-visible change.
 
 ---
 
-## 9. Refactor backlog (planned, not done)
+## 9. Refactor log
 
-Reuse and simplification opportunities found while writing this guide:
+The file-by-file status of every source file is in [CODE-AUDIT.md](./CODE-AUDIT.md).
 
-1. **Rust error helpers:** replace the 8 copies of `fn invalid` (`backups.rs`, `foreign.rs`, `grouprun.rs`, `history.rs`, `library.rs`, `platform.rs`, `profiles.rs`, `sessions.rs`) with `AppError::invalid` in `hopr-core`.
-2. **Split large files by responsibility:**
-   - `src-tauri/src/sftp.rs` (1,311 lines): sessions, transfers, remote edit, listing.
-   - `src-tauri/src/sessions.rs` (968): open/close, I/O channel, host-key prompts.
-   - `src-tauri/src/library.rs` (784): hosts, groups, keys.
-   - `src/features/hosts/HostsView.svelte` (880): toolbar, quick connect, list/grid, row menu, bulk bar.
-   - `src/features/terminal/Terminal.svelte` (754) and `session.svelte.ts` (753): xterm setup, input handling, command blocks.
-   - `src/lib/design/themes.ts` (806): move theme data to `themes.data.ts`, keep maths in `themes.ts`.
-3. **One `Modal` component:** `ProfileDialog`, `SettingsDrawer` (scrim) and the delete confirmations each build their own scrim, focus and Escape handling.
-4. **One `Menu` component:** the profile switcher menu, the host row menu, the export menu and the local-terminal menu each re-implement positioning, outside-click and Escape. `SelectMenu.svelte` already has most of the behaviour.
-5. **One `Segmented` control:** Density, Motion, List/Grid and the onboarding choices use near-identical markup and styles.
-6. **`src/lib/storage.ts`:** a single typed wrapper for `localStorage` (try/catch, profile scope, parse with fallback) used by appearance, prefs, frecency, SFTP bookmarks, hosts view and onboarding.
-7. **`assertNever` helper** for exhaustive `switch` on unions (session state, stages, steps).
-8. **Dead parameters:** `TerminalBackground.opacity` is always 100 since see-through terminals were removed. Drop the field and its callers.
+### Done
+
+| Change | Where |
+|---|---|
+| `AppError::invalid` and `AppError::internal` replace 14 copied error helpers | `crates/hopr-core/src/lib.rs`, 26 files |
+| One storage module for every saved setting, with tests | `src/lib/storage.ts`, 11 callers |
+| Dead `opacity` parameter removed; the terminal background takes only its brightness | `themes.ts` and 3 callers |
+| Lint clean, with a reason written next to each deliberate exception | `app.css`, `tokens.css`, `themes.ts` |
+| Session state labels: exhaustive by type, lookup table for close reasons | `terminal/state.ts` |
+| `Segmented` replaces 7 hand-built radio rows | Settings, host editor, tunnels, hosts view |
+| `Menu` replaces 5 hand-built menus and their window listeners | hosts view, files drawer, profile switcher |
+| `Modal` replaces 3 hand-built dialogs | Settings, profile dialog, command palette |
+| Theme data split from theme maths (806 → 298 + 503 data) | `themes.ts`, `themes.data.ts` |
+| Hosts view split (784 → 568): quick connect, bulk bar, actions menu, address line (tested) | `src/features/hosts/` |
+| `sftp.rs` (1,311) split: browse, transfers, enqueue, local, edit | `src-tauri/src/sftp/` |
+| `sessions.rs` (968) split: registry, route, commands | `src-tauri/src/sessions/` |
+| `library.rs` (784) split: hosts, keys, import, system | `src-tauri/src/library/` |
+| `model.rs` (1,055) split: host, files, keys, snippets, tunnels, activity | `crates/hopr-core/src/model/` |
+| Session store split from one terminal session, no import cycle | `terminal/session.svelte.ts`, `terminal-session.svelte.ts` |
+| Shell integration and buffer reading out of the terminal component (754 → 526) | `terminal/integration.ts`, `terminal/buffer.ts` |
+| Files drawer split (713 → 584): permissions card, preview, shared time format (tested) | `src/features/sftp/` |
+
+The IPC surface didn't change: `bindings.ts` regenerates identical. Biome, svelte-check, vitest (164), clippy and `cargo test` (138) all pass.
+
+### Next
+
+1. `HostEditor.svelte` (639): move the serial and proxy field groups into their own components.
+2. `SettingsDrawer.svelte` (603): move search highlighting and the scroll spy into a plain module.
+3. `hopr-import/src/foreign.rs` (601 lines of code): one file per source (PuTTY, MobaXterm, SecureCRT, CSV).
+4. `hopr-store/src/hosts.rs` and `sync.rs` (about 630 lines of code each): split queries from mapping, and the engine from merging.
+5. `src-tauri/src/tunnels.rs` (504) and `hopr-sftp/src/lib.rs` (502): runtime from commands, transfers from directory operations.
+6. `ColorSwatch` and `ConfirmBar` primitives.
+7. End-to-end tests (see KNOWN-ISSUES #17); the CDP smoke script used for this refactor is a starting point.
 
 ---
 

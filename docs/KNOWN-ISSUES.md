@@ -21,13 +21,13 @@ Things that are broken, half-wired, or don't behave the way the UI or config sug
 | 9 | No LICENSE although the site invites contributions | Repo | P2 |
 | 10 | Switching profiles in dev mode kills `tauri dev` | Dev | P3 |
 | 11 | `windowVisible` command has no caller | Backend | P3 |
-| 12 | `TerminalBackground.opacity` is a dead parameter | Terminal | P3 |
+| 12 | ~~`TerminalBackground.opacity` is a dead parameter~~ Fixed | Terminal | P3 |
 | 13 | Most UI text is hardcoded English; i18n has 45 keys | i18n | P3 |
 | 14 | Taskbar icon doesn't refresh in dev after icon changes | Dev | P3 |
 | 15 | One unexplained app restart seen in testing | App | P3 |
 | 16 | No `.gitattributes`: line endings depend on each machine | Repo | P3 |
 | 17 | No end-to-end tests | Testing | P3 |
-| 18 | Duplicated helpers and very large files | Code health | P3 |
+| 18 | Duplicated helpers and very large files (mostly done) | Code health | P3 |
 
 ---
 
@@ -96,7 +96,8 @@ Things that are broken, half-wired, or don't behave the way the UI or config sug
 - **What:** the command exists but nothing uses it.
 - **Fix:** either use it (for example to skip notifications while the window is visible) or delete it and regenerate bindings.
 
-### 12. Dead `opacity` parameter
+### 12. Dead `opacity` parameter (fixed)
+- **Status:** removed in the coding-standards refactor; `terminalBackground` and `terminalColors` take only the brightness.
 - **What:** `TerminalBackground.opacity` in `themes.ts` is always 100 since see-through terminals were removed.
 - **Fix:** remove the field and its arguments; keep the brightness logic.
 
@@ -122,8 +123,8 @@ Things that are broken, half-wired, or don't behave the way the UI or config sug
 - **Fix:** add a small suite (WebDriver via `tauri-driver`, or CDP against WebView2) covering first run, unlock, profile switch, connect to a local SSH server in CI, and Settings search.
 
 ### 18. Duplicated helpers and large files
-- **What:** `fn invalid` is copied into 8 Rust files; several files are far over the size guideline (`sftp.rs` 1,311 lines, `sessions.rs` 968, `HostsView.svelte` 880, `themes.ts` 806, `library.rs` 784, `Terminal.svelte` 754, `session.svelte.ts` 753).
-- **Fix:** see the refactor backlog in [`CODING-STANDARDS.md`](./CODING-STANDARDS.md#9-refactor-backlog-planned-not-done).
+- **What:** `fn invalid` was copied into 14 Rust files and several files were far over the size guideline. Mostly done: see the refactor log.
+- **Fix:** what remains is under "Next" in the [refactor log](./CODING-STANDARDS.md#9-refactor-log); every file's status is in [CODE-AUDIT.md](./CODE-AUDIT.md).
 
 ---
 
