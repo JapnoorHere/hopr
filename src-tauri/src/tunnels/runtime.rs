@@ -1,19 +1,15 @@
-//! Tunnels (§9.11, P1–P8): saved local / remote / dynamic forwards, each on its own
-//! headless SSH connection (through the host's jump chain, proxy or ProxyCommand), with a
-//! 1 Hz stats event while any is running.
+//! Running tunnels: binding, forwarding, live stats and stopping.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use hopr_core::model::{Protocol, Tunnel, TunnelInput, TunnelKind};
-use hopr_core::{AppError, ErrorCode};
+use hopr_core::AppError;
+use hopr_core::model::{Tunnel, TunnelKind};
 use hopr_ssh::forward::{ForwardStats, RemoteForwards, serve_local, serve_socks};
 use hopr_ssh::{ConnectParams, QuietConnection, SessionHooks};
-use serde::{Deserialize, Serialize};
-use specta::Type;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -21,80 +17,9 @@ use tokio::sync::watch;
 use crate::sessions;
 use crate::state::AppState;
 
-fn poisoned() -> AppError {
-    AppError::new(ErrorCode::Internal, "Tunnel registry poisoned")
-}
+use super::*;
 
-/// Where a tunnel is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum TunnelState {
-    /// Not running.
-    Stopped,
-    /// Connecting.
-    Starting,
-    /// Listening and forwarding.
-    Running,
-    /// Couldn't start, or the connection dropped.
-    Failed,
-}
-
-/// Live status of one tunnel.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct TunnelStatus {
-    /// Tunnel id.
-    pub id: String,
-    /// State.
-    pub state: TunnelState,
-    /// Why it failed.
-    pub error: Option<String>,
-    /// The port actually listened on (differs from the saved one when that was 0).
-    pub bound_port: Option<u16>,
-    /// Bytes towards the destination.
-    #[specta(type = u32)]
-    pub up: f64,
-    /// Bytes back.
-    #[specta(type = u32)]
-    pub down: f64,
-    /// Bytes per second towards the destination (last second).
-    #[specta(type = u32)]
-    pub up_rate: f64,
-    /// Bytes per second back.
-    #[specta(type = u32)]
-    pub down_rate: f64,
-    /// Connections open now.
-    pub active: u32,
-    /// Connections since start.
-    pub total: u32,
-}
-
-impl TunnelStatus {
-    fn idle(id: &str) -> Self {
-        Self {
-            id: id.to_owned(),
-            state: TunnelState::Stopped,
-            error: None,
-            bound_port: None,
-            up: 0.0,
-            down: 0.0,
-            up_rate: 0.0,
-            down_rate: 0.0,
-            active: 0,
-            total: 0,
-        }
-    }
-}
-
-/// Every live tunnel's status, once a second while any runs.
-#[derive(Serialize, Deserialize, Clone, Type, Event)]
-#[serde(rename_all = "camelCase")]
-pub struct TunnelStatsEvent {
-    /// Statuses (running, starting, failed, and ones that just stopped).
-    pub tunnels: Vec<TunnelStatus>,
-}
-
-struct Running {
+pub(super) struct Running {
     stop: watch::Sender<bool>,
     stats: Arc<ForwardStats>,
     conn: Option<Arc<QuietConnection>>,
@@ -114,7 +39,7 @@ pub struct TunnelManager {
 }
 
 #[allow(clippy::cast_precision_loss)] // byte counters stay far below 2^53
-fn status_of(id: &str, r: &Running) -> TunnelStatus {
+pub(super) fn status_of(id: &str, r: &Running) -> TunnelStatus {
     TunnelStatus {
         id: id.to_owned(),
         state: r.state,
@@ -130,7 +55,7 @@ fn status_of(id: &str, r: &Running) -> TunnelStatus {
 }
 
 impl TunnelManager {
-    fn status(&self, id: &str) -> TunnelStatus {
+    pub(super) fn status(&self, id: &str) -> TunnelStatus {
         self.running
             .lock()
             .ok()
@@ -179,7 +104,7 @@ impl TunnelManager {
 }
 
 /// Emit stats once a second while anything is running or starting.
-fn ensure_ticker(app: &AppHandle) {
+pub(super) fn ensure_ticker(app: &AppHandle) {
     let mgr = app.state::<TunnelManager>();
     if mgr.ticking.swap(true, Ordering::SeqCst) {
         return;
@@ -202,7 +127,7 @@ fn ensure_ticker(app: &AppHandle) {
     });
 }
 
-async fn params_for(
+pub(super) async fn params_for(
     state: &Arc<AppState>,
     host_id: &str,
     remote_forwards: Option<RemoteForwards>,
@@ -224,7 +149,7 @@ async fn params_for(
     })
 }
 
-fn bind_error(addr: &str, port: u16, e: &std::io::Error) -> AppError {
+pub(super) fn bind_error(addr: &str, port: u16, e: &std::io::Error) -> AppError {
     let message = if e.kind() == std::io::ErrorKind::AddrInUse {
         format!("Port {port} on {addr} is already in use; pick another, or 0 for any free port")
     } else if e.kind() == std::io::ErrorKind::PermissionDenied {
@@ -236,7 +161,7 @@ fn bind_error(addr: &str, port: u16, e: &std::io::Error) -> AppError {
 }
 
 /// Connect and start forwarding. Runs with the tunnel already marked "starting".
-async fn run(app: &AppHandle, t: &Tunnel) -> Result<(), AppError> {
+pub(super) async fn run(app: &AppHandle, t: &Tunnel) -> Result<(), AppError> {
     let state = app.state::<Arc<AppState>>().inner().clone();
     let mgr = app.state::<TunnelManager>();
     let (stats, stop_rx) = {
@@ -304,7 +229,7 @@ async fn run(app: &AppHandle, t: &Tunnel) -> Result<(), AppError> {
     Ok(())
 }
 
-fn describe(t: &Tunnel, bound: Option<u16>) -> String {
+pub(super) fn describe(t: &Tunnel, bound: Option<u16>) -> String {
     let port = bound.unwrap_or(t.bind_port);
     match t.kind {
         TunnelKind::Local => format!(
@@ -321,7 +246,7 @@ fn describe(t: &Tunnel, bound: Option<u16>) -> String {
 
 /// Start a tunnel (no-op if it runs already). Returns its status once it is listening
 /// or has failed.
-async fn start(app: &AppHandle, id: &str) -> Result<TunnelStatus, AppError> {
+pub(super) async fn start(app: &AppHandle, id: &str) -> Result<TunnelStatus, AppError> {
     let state = app.state::<Arc<AppState>>().inner().clone();
     state.require_unlocked()?;
     let t = state.store.get_tunnel(id).await?;
@@ -368,7 +293,7 @@ async fn start(app: &AppHandle, id: &str) -> Result<TunnelStatus, AppError> {
     Ok(mgr.status(id))
 }
 
-async fn stop(app: &AppHandle, id: &str) {
+pub(super) async fn stop(app: &AppHandle, id: &str) {
     let mgr = app.state::<TunnelManager>();
     let removed = mgr.running.lock().ok().and_then(|mut m| m.remove(id));
     if let Some(r) = removed {
@@ -384,121 +309,4 @@ async fn stop(app: &AppHandle, id: &str) {
         tunnels: vec![TunnelStatus::idle(id)],
     }
     .emit(app);
-}
-
-/// A tunnel and its live status.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct TunnelView {
-    /// Saved settings.
-    pub tunnel: Tunnel,
-    /// Live status.
-    pub status: TunnelStatus,
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnels_list(
-    state: State<'_, Arc<AppState>>,
-    mgr: State<'_, TunnelManager>,
-) -> Result<Vec<TunnelView>, AppError> {
-    state.require_unlocked()?;
-    Ok(state
-        .store
-        .list_tunnels()
-        .await?
-        .into_iter()
-        .map(|t| TunnelView {
-            status: mgr.status(&t.id),
-            tunnel: t,
-        })
-        .collect())
-}
-
-/// Create (no `id`) or update a tunnel. A running tunnel keeps its old settings until
-/// it is restarted.
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnel_save(
-    state: State<'_, Arc<AppState>>,
-    id: Option<String>,
-    input: TunnelInput,
-) -> Result<Tunnel, AppError> {
-    state.require_unlocked()?;
-    let input = input.normalized()?;
-    let host = state.store.get_host(&input.host_id).await?;
-    if host.protocol != Protocol::Ssh {
-        return Err(AppError::invalid("Tunnels need an SSH host"));
-    }
-    Ok(state.store.save_tunnel(id.as_deref(), &input).await?)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnel_delete(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    id: String,
-) -> Result<(), AppError> {
-    state.require_unlocked()?;
-    stop(&app, &id).await;
-    Ok(state.store.delete_tunnel(&id).await?)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnel_start(app: AppHandle, id: String) -> Result<TunnelStatus, AppError> {
-    start(&app, &id).await
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnel_stop(app: AppHandle, id: String) -> Result<(), AppError> {
-    stop(&app, &id).await;
-    Ok(())
-}
-
-/// Start every tunnel marked "start on unlock" (the UI calls this after unlocking).
-/// Returns how many are running.
-#[tauri::command]
-#[specta::specta]
-pub async fn tunnels_autostart(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-) -> Result<u32, AppError> {
-    state.require_unlocked()?;
-    let mut n = 0;
-    let auto: Vec<Tunnel> = state
-        .store
-        .list_tunnels()
-        .await?
-        .into_iter()
-        .filter(|t| t.auto_start)
-        .collect();
-    for t in auto {
-        match start(&app, &t.id).await {
-            Ok(_) => n += 1,
-            Err(e) => eprintln!("hopr: tunnel {} didn't start: {}", t.id, e.message),
-        }
-    }
-    Ok(n)
-}
-
-/// Whether `addr:port` is free to listen on here (P8).
-#[tauri::command]
-#[specta::specta]
-pub async fn port_free(addr: String, port: u16) -> bool {
-    TcpListener::bind((addr.as_str(), port)).await.is_ok()
-}
-
-/// A free port on `addr`, chosen by the system (P8).
-#[tauri::command]
-#[specta::specta]
-pub async fn port_pick(addr: String) -> Result<u16, AppError> {
-    let l = TcpListener::bind((addr.as_str(), 0))
-        .await
-        .map_err(|e| bind_error(&addr, 0, &e))?;
-    l.local_addr()
-        .map(|a| a.port())
-        .map_err(|e| AppError::internal("No free port", e))
 }
