@@ -165,18 +165,18 @@ The file-by-file status of every source file is in [CODE-AUDIT.md](./CODE-AUDIT.
 | Session store split from one terminal session, no import cycle | `terminal/session.svelte.ts`, `terminal-session.svelte.ts` |
 | Shell integration and buffer reading out of the terminal component (754 → 526) | `terminal/integration.ts`, `terminal/buffer.ts` |
 | Files drawer split (713 → 584): permissions card, preview, shared time format (tested) | `src/features/sftp/` |
+| Settings split (603 → 485): sections list, reusable find-in-page | `shell/settings-sections.ts`, `src/lib/find-in-page.ts` |
 
 The IPC surface didn't change: `bindings.ts` regenerates identical. Biome, svelte-check, vitest (164), clippy and `cargo test` (138) all pass.
 
 ### Next
 
 1. `HostEditor.svelte` (639): move the serial and proxy field groups into their own components.
-2. `SettingsDrawer.svelte` (603): move search highlighting and the scroll spy into a plain module.
-3. `hopr-import/src/foreign.rs` (601 lines of code): one file per source (PuTTY, MobaXterm, SecureCRT, CSV).
-4. `hopr-store/src/hosts.rs` and `sync.rs` (about 630 lines of code each): split queries from mapping, and the engine from merging.
-5. `src-tauri/src/tunnels.rs` (504) and `hopr-sftp/src/lib.rs` (502): runtime from commands, transfers from directory operations.
-6. `ColorSwatch` and `ConfirmBar` primitives.
-7. End-to-end tests (see KNOWN-ISSUES #17); the CDP smoke script used for this refactor is a starting point.
+2. `hopr-import/src/foreign.rs` (601 lines of code): one file per source (PuTTY, MobaXterm, SecureCRT, CSV).
+3. `hopr-store/src/hosts.rs` and `sync.rs` (about 630 lines of code each): split queries from mapping, and the engine from merging.
+4. `src-tauri/src/tunnels.rs` (504) and `hopr-sftp/src/lib.rs` (502): runtime from commands, transfers from directory operations.
+5. `ColorSwatch` and `ConfirmBar` primitives.
+6. End-to-end tests (see KNOWN-ISSUES #17); the CDP smoke script used for this refactor is a starting point.
 
 ---
 

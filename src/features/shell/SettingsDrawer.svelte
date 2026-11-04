@@ -3,22 +3,7 @@
  * Settings as its own window (not a side drawer): a section list on the left, every
  * section on one scrolling page on the right, and search that filters sections and cards.
  */
-import {
-  AppWindow,
-  Archive,
-  ArrowsClockwise,
-  CaretRight,
-  ClockCounterClockwise,
-  FolderSimple,
-  Keyboard,
-  MagnifyingGlass,
-  Palette,
-  ShieldCheck,
-  SquaresFour,
-  TerminalWindow,
-  UserCircle,
-  X,
-} from "phosphor-svelte";
+import { CaretRight, MagnifyingGlass, X } from "phosphor-svelte";
 import { onDestroy, tick } from "svelte";
 import ProfilesSettings from "$features/profiles/ProfilesSettings.svelte";
 import BackupSettings from "$features/settings/BackupSettings.svelte";
@@ -33,89 +18,19 @@ import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
 import SecuritySettings from "$features/vault/SecuritySettings.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { DENSITIES, type Density, MOTIONS } from "$lib/design/theme";
+import { PageFinder } from "$lib/find-in-page";
 import { i18n, LOCALES, type LocalePref, t } from "$lib/i18n/i18n.svelte";
 import { sink, slidingPill, springIn } from "$lib/motion";
 import { motion, motionLevel } from "$lib/platform";
 import Modal from "$lib/ui/Modal.svelte";
 import Segmented from "$lib/ui/Segmented.svelte";
+import { SECTIONS, type SectionId } from "./settings-sections";
 import { shell } from "./shell.state.svelte";
 
 const densityOptions = $derived(
   (Object.keys(DENSITIES) as Density[]).map((d) => ({ id: d, label: t(`density.${d}`) })),
 );
 const motionOptions = $derived(MOTIONS.map((m) => ({ id: m, label: t(`motion.${m}`) })));
-
-/** Sections, in order. `keywords` lets search find a section by words it doesn't show. */
-const SECTIONS = [
-  {
-    id: "appearance",
-    label: "Appearance",
-    icon: Palette,
-    keywords:
-      "theme dark light colour color custom terminal palette ansi density motion animation language",
-  },
-  {
-    id: "profiles",
-    label: "Profiles",
-    icon: UserCircle,
-    keywords: "profile profiles switch separate vault account picker startup",
-  },
-  {
-    id: "terminal",
-    label: "Terminal",
-    icon: TerminalWindow,
-    keywords: "font size cursor scrollback copy paste bell blocks",
-  },
-  {
-    id: "keyboard",
-    label: "Keyboard",
-    icon: Keyboard,
-    keywords: "shortcuts keys bindings hotkeys",
-  },
-  {
-    id: "workspaces",
-    label: "Workspaces",
-    icon: SquaresFour,
-    keywords: "layout tabs restore session",
-  },
-  {
-    id: "transfers",
-    label: "Files & transfers",
-    icon: FolderSimple,
-    keywords: "sftp upload download speed limit parallel",
-  },
-  {
-    id: "history",
-    label: "History",
-    icon: ClockCounterClockwise,
-    keywords: "commands recording shell integration exclude",
-  },
-  {
-    id: "sync",
-    label: "Sync",
-    icon: ArrowsClockwise,
-    keywords: "devices folder onedrive dropbox passphrase",
-  },
-  {
-    id: "security",
-    label: "Security",
-    icon: ShieldCheck,
-    keywords: "vault lock password clipboard windows hello biometric audit",
-  },
-  {
-    id: "backups",
-    label: "Backups",
-    icon: Archive,
-    keywords: "restore export import settings file",
-  },
-  {
-    id: "app",
-    label: "App & updates",
-    icon: AppWindow,
-    keywords: "tray startup quick terminal hotkey update version about",
-  },
-] as const;
-type SectionId = (typeof SECTIONS)[number]["id"];
 
 let query = $state("");
 let current = $state<SectionId>("appearance");
@@ -147,51 +62,21 @@ $effect(() => {
   });
 });
 
-// Find in page: every match of the search is highlighted; Enter / Shift+Enter step through
-// them like a text search, scrolling the current one into view.
-let hits: Range[] = [];
-let hitAt = $state(-1);
-let hitCount = $state(0);
+// Find in page: every match is highlighted; Enter / Shift+Enter step through them.
+const finder = new PageFinder("settings");
+let found = $state({ at: -1, count: 0 });
 
 function findAll(q: string) {
-  hits = [];
-  if (q && content) {
-    const walk = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) =>
-        n.parentElement?.closest("[hidden], select, .bar")
-          ? NodeFilter.FILTER_REJECT
-          : NodeFilter.FILTER_ACCEPT,
-    });
-    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
-      const text = (n.textContent ?? "").toLowerCase();
-      for (let i = text.indexOf(q); i >= 0; i = text.indexOf(q, i + q.length)) {
-        const r = document.createRange();
-        r.setStart(n, i);
-        r.setEnd(n, i + q.length);
-        hits.push(r);
-      }
-    }
-  }
-  hitCount = hits.length;
-  hitAt = -1;
-  paint();
-}
-
-function paint() {
-  if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
-  CSS.highlights.set("settings-hit", new Highlight(...hits));
-  const now = hits.at(hitAt);
-  if (now) CSS.highlights.set("settings-now", new Highlight(now));
-  else CSS.highlights.delete("settings-now");
+  finder.find(content, q, "[hidden], select, .bar");
+  found = { at: finder.at, count: finder.count };
 }
 
 function step(by: number) {
-  if (!hits.length || !content) return;
-  hitAt = (hitAt + by + hits.length) % hits.length;
-  paint();
-  const r = hits[hitAt]?.getBoundingClientRect();
+  const r = finder.step(by)?.getBoundingClientRect();
+  found = { at: finder.at, count: finder.count };
+  if (!r || !content) return;
   const box = content.getBoundingClientRect();
-  if (r && (r.top < box.top + 24 || r.bottom > box.bottom - 24)) {
+  if (r.top < box.top + 24 || r.bottom > box.bottom - 24) {
     content.scrollBy({
       top: r.top - box.top - box.height / 3,
       behavior: motionLevel() === "full" ? "smooth" : "auto",
@@ -206,12 +91,7 @@ function onSearchKey(e: KeyboardEvent) {
   }
 }
 
-onDestroy(() => {
-  if (typeof CSS !== "undefined" && "highlights" in CSS) {
-    CSS.highlights.delete("settings-hit");
-    CSS.highlights.delete("settings-now");
-  }
-});
+onDestroy(() => finder.clear());
 
 /**
  * A jump from the list is under way: the clicked item stays lit while the page scrolls past
@@ -293,7 +173,7 @@ $effect(() => {
         />
         {#if query}
           <span class="count" title="Enter for next, Shift+Enter for previous">
-            {hitCount ? `${hitAt + 1 || "–"}/${hitCount}` : "0"}
+            {found.count ? `${found.at + 1 || "–"}/${found.count}` : "0"}
           </span>
           <button type="button" class="clear" aria-label="Clear search" onclick={() => (query = "")}>
             <X size={12} />

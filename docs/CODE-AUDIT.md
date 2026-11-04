@@ -33,7 +33,7 @@ Biome, svelte-check and clippy clean.
 | `src/features/profiles` | 6 | 955 |
 | `src/features/settings` | 14 | 1,743 |
 | `src/features/sftp` | 10 | 1,814 |
-| `src/features/shell` | 8 | 1,051 |
+| `src/features/shell` | 8 | 932 |
 | `src/features/snippets` | 4 | 671 |
 | `src/features/sync` | 1 | 82 |
 | `src/features/terminal` | 28 | 4,113 |
@@ -57,7 +57,7 @@ Biome, svelte-check and clippy clean.
 | `src/lib/ui` | 12 | 1,212 |
 | `src/lib/window.ts` | 1 | 12 |
 | `src/main.ts` | 1 | 45 |
-| **Total** | **239** | **45,166** |
+| **Total** | **239** | **45,047** |
 
 ## `crates/hopr-core`
 
@@ -303,10 +303,10 @@ Biome, svelte-check and clippy clean.
 |---|---|---|
 | `QuickTerminal.svelte` | 88 | ✓ |
 | `Rail.svelte` | 124 | ✓ |
-| `SettingsDrawer.svelte` | 603 | **Next** move search highlighting and the scroll spy into a plain module. |
+| `SettingsDrawer.svelte` | 483 | **Split** sections list and find-in-page moved out; the rest is layout, scroll spy and the sections. |
 | `StatusBar.svelte` | 63 | ✓ |
 | `TitleBar.svelte` | 85 | ✓ |
-| `settings-order.test.ts` | 14 | ✓ test |
+| `settings-order.test.ts` | 15 | ✓ test |
 | `shell.state.svelte.ts` | 52 | ✓ |
 | `shell.state.test.ts` | 22 | ✓ test |
 
