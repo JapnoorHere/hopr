@@ -21,6 +21,8 @@ import Segmented, { type SegmentOption } from "$lib/ui/Segmented.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import { jumpCandidates } from "./chain";
 import { library } from "./library.svelte";
+import ProxyFields from "./ProxyFields.svelte";
+import SerialFields from "./SerialFields.svelte";
 
 let { id }: { id: string | null } = $props();
 
@@ -161,7 +163,6 @@ const PROTOCOLS: SegmentOption<Protocol>[] = [
   { id: "telnet", label: "Telnet" },
   { id: "serial", label: "Serial" },
 ];
-const BAUDS = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
 /** Switching protocol moves the port to its usual default, unless it was changed. */
 function pickProtocol(next: Protocol) {
@@ -277,66 +278,17 @@ function onsubmit(e: SubmitEvent) {
   <form class="flex flex-col gap-4 pt-2" {onsubmit} autocomplete="off" novalidate bind:this={form}>
     <Segmented label="Protocol" options={PROTOCOLS} value={protocol} onchange={pickProtocol} />
     {#if protocol === "serial"}
-      <label class="field">
-        <span class="label-caps text-faint">Serial port</span>
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          class="input font-mono"
-          bind:value={hostname}
-          list="hopr-serial-ports"
-          placeholder="COM3 or /dev/ttyUSB0"
-          spellcheck="false"
-          aria-label="Serial port"
-          autofocus
-          aria-invalid={!!errors.hostname}
-          oninput={fix("hostname")}
-        />
-        <FieldError message={errors.hostname} />
-        <datalist id="hopr-serial-ports">
-          {#each serialPorts as sp (sp)}<option value={sp}></option>{/each}
-        </datalist>
-        <span class="text-xs text-faint">
-          {serialPorts.length ? `Found: ${serialPorts.join(", ")}` : "No serial ports found right now."}
-        </span>
-      </label>
-      <FieldError message={errors.serial} />
-      <div class="grid grid-cols-2 gap-2">
-        <label class="field">
-          <span class="label-caps text-faint">Baud</span>
-          <select class="input" bind:value={baud} aria-label="Baud rate">
-            {#each BAUDS as b (b)}<option value={String(b)}>{b}</option>{/each}
-          </select>
-        </label>
-        <label class="field">
-          <span class="label-caps text-faint">Data bits</span>
-          <select class="input" bind:value={dataBits} aria-label="Data bits">
-            {#each [8, 7, 6, 5] as d (d)}<option value={d}>{d}</option>{/each}
-          </select>
-        </label>
-        <label class="field">
-          <span class="label-caps text-faint">Parity</span>
-          <select class="input" bind:value={parity} aria-label="Parity">
-            <option value="none">None</option>
-            <option value="odd">Odd</option>
-            <option value="even">Even</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="label-caps text-faint">Stop bits</span>
-          <select class="input" bind:value={stopBits} aria-label="Stop bits">
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-          </select>
-        </label>
-      </div>
-      <label class="field">
-        <span class="label-caps text-faint">Flow control</span>
-        <select class="input" bind:value={serialFlow} aria-label="Flow control">
-          <option value="none">None</option>
-          <option value="software">XON/XOFF</option>
-          <option value="hardware">RTS/CTS</option>
-        </select>
-      </label>
+      <SerialFields
+        bind:port={hostname}
+        bind:baud
+        bind:dataBits
+        bind:parity
+        bind:stopBits
+        bind:flow={serialFlow}
+        ports={serialPorts}
+        {errors}
+        {fix}
+      />
     {:else}
       <div class="field">
         <div class="grid grid-cols-[1fr_76px] gap-2">
@@ -487,58 +439,18 @@ function onsubmit(e: SubmitEvent) {
       <input type="checkbox" bind:checked={agentForwarding} /> Forward my SSH agent to this host
     </label>
 
-    <div class="field">
-      <label class="field">
-        <span class="label-caps text-faint">Proxy</span>
-        <select class="input" bind:value={proxyProtocol} aria-label="Proxy">
-          <option value="">None</option>
-          <option value="socks5">SOCKS5</option>
-          <option value="http">HTTP CONNECT</option>
-        </select>
-      </label>
-      {#if proxyProtocol}
-        <div class="flex flex-col gap-2" transition:expand>
-        <div class="grid grid-cols-[1fr_76px] gap-2">
-          <input
-            class="input"
-            bind:value={proxyHost}
-            placeholder="proxy.corp"
-            spellcheck="false"
-            aria-label="Proxy host"
-            aria-invalid={!!errors.proxyHost}
-            oninput={fix("proxyHost")}
-          />
-          <input
-            class="input tabular"
-            bind:value={proxyPort}
-            inputmode="numeric"
-            aria-label="Proxy port"
-            aria-invalid={!!errors.proxyPort}
-            oninput={fix("proxyPort")}
-          />
-        </div>
-        <FieldError message={errors.proxyHost} />
-        <FieldError message={errors.proxyPort} />
-        <div class="grid grid-cols-2 gap-2">
-          <input class="input" bind:value={proxyUser} placeholder="Username (optional)" spellcheck="false" aria-label="Proxy username" aria-invalid={!!errors.proxyUser} oninput={fix("proxyUser")} />
-          <input
-            class="input"
-            type="password"
-            bind:value={proxyPassword}
-            aria-label="Proxy password"
-            placeholder={existing?.hasProxyPassword && !clearProxyPassword ? "Saved" : "Password"}
-          />
-        </div>
-        <FieldError message={errors.proxyUser} />
-        {#if existing?.hasProxyPassword}
-          <label class="check text-xs"><input type="checkbox" bind:checked={clearProxyPassword} /> Forget proxy password</label>
-        {/if}
-        <span class="text-xs text-faint">
-          {jumpHostId ? "With a jump host, the proxy of the first host in the chain is used." : "The proxy resolves the hostname, so names only it can see work."}
-        </span>
-        </div>
-      {/if}
-    </div>
+    <ProxyFields
+      bind:protocol={proxyProtocol}
+      bind:host={proxyHost}
+      bind:port={proxyPort}
+      bind:user={proxyUser}
+      bind:password={proxyPassword}
+      bind:forgetPassword={clearProxyPassword}
+      savedPassword={!!existing?.hasProxyPassword}
+      viaJump={!!jumpHostId}
+      {errors}
+      {fix}
+    />
 
     <div class="field">
       <label class="field">

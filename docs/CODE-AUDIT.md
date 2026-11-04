@@ -27,13 +27,13 @@ Biome, svelte-check and clippy clean.
 | `src/features/broadcast` | 2 | 117 |
 | `src/features/grouprun` | 4 | 510 |
 | `src/features/history` | 6 | 939 |
-| `src/features/hosts` | 13 | 2,300 |
+| `src/features/hosts` | 13 | 2,212 |
 | `src/features/keys` | 2 | 549 |
 | `src/features/palette` | 4 | 313 |
 | `src/features/profiles` | 6 | 955 |
 | `src/features/settings` | 14 | 1,743 |
 | `src/features/sftp` | 10 | 1,814 |
-| `src/features/shell` | 8 | 932 |
+| `src/features/shell` | 9 | 1,018 |
 | `src/features/snippets` | 4 | 671 |
 | `src/features/sync` | 1 | 82 |
 | `src/features/terminal` | 28 | 4,113 |
@@ -42,6 +42,7 @@ Biome, svelte-check and clippy clean.
 | `src/features/workspace` | 7 | 1,167 |
 | `src/lib/design` | 8 | 1,390 |
 | `src/lib/download.ts` | 1 | 9 |
+| `src/lib/find-in-page.ts` | 1 | 66 |
 | `src/lib/fuzzy.test.ts` | 1 | 16 |
 | `src/lib/fuzzy.ts` | 1 | 33 |
 | `src/lib/i18n` | 4 | 218 |
@@ -57,7 +58,7 @@ Biome, svelte-check and clippy clean.
 | `src/lib/ui` | 12 | 1,212 |
 | `src/lib/window.ts` | 1 | 12 |
 | `src/main.ts` | 1 | 45 |
-| **Total** | **239** | **45,047** |
+| **Total** | **241** | **45,111** |
 
 ## `crates/hopr-core`
 
@@ -224,7 +225,7 @@ Biome, svelte-check and clippy clean.
 |---|---|---|
 | `BulkBar.svelte` | 108 | ✓ |
 | `HostActionsMenu.svelte` | 61 | ✓ |
-| `HostEditor.svelte` | 639 | **Next** move the serial and proxy field groups into their own components. |
+| `HostEditor.svelte` | 551 | **Split** serial and proxy field groups moved out; the rest is one form and its validation. |
 | `HostsView.svelte` | 568 | **Split** quick connect, bulk bar, actions menu and address line moved out. |
 | `ImportDrawer.svelte` | 281 | ✓ |
 | `QuickConnect.svelte` | 65 | ✓ |
@@ -307,6 +308,7 @@ Biome, svelte-check and clippy clean.
 | `StatusBar.svelte` | 63 | ✓ |
 | `TitleBar.svelte` | 85 | ✓ |
 | `settings-order.test.ts` | 15 | ✓ test |
+| `settings-sections.ts` | 86 | ✓ |
 | `shell.state.svelte.ts` | 52 | ✓ |
 | `shell.state.test.ts` | 22 | ✓ test |
 
@@ -408,6 +410,12 @@ Biome, svelte-check and clippy clean.
 | File | Lines | Status |
 |---|---|---|
 | `` | 9 | ✓ |
+
+## `src/lib/find-in-page.ts`
+
+| File | Lines | Status |
+|---|---|---|
+| `` | 66 | ✓ |
 
 ## `src/lib/fuzzy.test.ts`
 
