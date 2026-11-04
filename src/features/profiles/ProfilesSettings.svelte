@@ -3,6 +3,7 @@
 import { ArrowRight, PencilSimple, Plus } from "phosphor-svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import type { Profile } from "$lib/ipc";
+import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
 import ProfileDialog from "./ProfileDialog.svelte";
@@ -56,10 +57,10 @@ async function open(p: Profile) {
         {/if}
       </li>
       {#if confirming?.id === p.id}
-        <li class="confirm">
-          <span class="flex-1">Switching closes {sessions.tabs.length} open tab{sessions.tabs.length === 1 ? "" : "s"}.</span>
-          <button type="button" class="btn-ghost" onclick={() => (confirming = null)}>Cancel</button>
-          <button type="button" class="btn-primary" onclick={() => open(p)}>Switch</button>
+        <li class="p-2">
+          <ConfirmBar confirmLabel="Switch" onconfirm={() => open(p)} oncancel={() => (confirming = null)}>
+            Switching closes {sessions.tabs.length} open tab{sessions.tabs.length === 1 ? "" : "s"}.
+          </ConfirmBar>
         </li>
       {/if}
     {/each}
@@ -92,17 +93,7 @@ async function open(p: Profile) {
     gap: 10px;
     padding: 10px 12px;
   }
-  .row + .row,
-  .confirm {
+  .row + .row {
     border-top: 1px solid var(--border);
-  }
-  .confirm {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font-size: 12.5px;
-    color: var(--text-muted);
-    background: color-mix(in oklab, var(--warning) 8%, transparent);
   }
 </style>

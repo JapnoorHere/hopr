@@ -12,6 +12,7 @@ import HoprMark from "$lib/icons/HoprMark.svelte";
 import type { Profile } from "$lib/ipc";
 import { blurFade, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
+import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
 import ProfileDialog from "./ProfileDialog.svelte";
@@ -123,13 +124,11 @@ $effect(() => {
     </div>
 
     {#if confirming}
-      <div class="confirm" role="alert" in:blurFade={{ y: 6, duration: 180 }}>
-        <span class="flex-1">
+      <div class="mt-6 w-full max-w-[520px] text-left">
+        <ConfirmBar confirmLabel="Switch" onconfirm={() => confirming && pick(confirming)} oncancel={() => (confirming = null)}>
           Switching to <b>{profileName(confirming)}</b> closes {sessions.tabs.length} open
           tab{sessions.tabs.length === 1 ? "" : "s"}.
-        </span>
-        <button type="button" class="btn-ghost" onclick={() => (confirming = null)}>Cancel</button>
-        <button type="button" class="btn-primary" onclick={() => confirming && pick(confirming)}>Switch</button>
+        </ConfirmBar>
       </div>
     {/if}
 
@@ -286,21 +285,5 @@ $effect(() => {
   }
   .more:hover {
     color: var(--text);
-  }
-  .confirm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    max-width: 520px;
-    margin-top: 24px;
-    padding: 8px 8px 8px 14px;
-    font-size: 13px;
-    text-align: left;
-    color: var(--text-muted);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-left: 2px solid var(--warning);
-    border-radius: var(--radius);
   }
 </style>

@@ -99,7 +99,8 @@ Rules:
   - `Menu`: a button that opens actions. Outside click, Esc with focus back to the button, and arrow keys; items are `<button role="menuitem" class="menu-item">`.
   - `Segmented`: one choice from a few, with the sliding pill.
   - `Drawer`, `SelectMenu`, `IconButton`, `FieldError`, `Kbd`, `Count` and the toasts.
-- Pieces that keep appearing and could become primitives next: `ColorSwatch` (profile and theme colours) and `ConfirmBar` (inline "are you sure" strips).
+  - `ColorSwatches`: pick one colour from a few (profiles, onboarding).
+  - `ConfirmBar`: an inline "are you sure?" with Cancel and the action; `tone="danger"` for things that can't be undone.
 - Accessibility: real buttons for actions, labels for inputs, `role`/`aria-*` where native semantics aren't enough, and keyboard support for every pointer interaction.
 
 ---
@@ -167,16 +168,17 @@ The file-by-file status of every source file is in [CODE-AUDIT.md](./CODE-AUDIT.
 | Files drawer split (713 → 584): permissions card, preview, shared time format (tested) | `src/features/sftp/` |
 | Settings split (603 → 485): sections list, reusable find-in-page | `shell/settings-sections.ts`, `src/lib/find-in-page.ts` |
 | Host editor split (639 → 552): serial and proxy field groups | `hosts/SerialFields.svelte`, `hosts/ProxyFields.svelte` |
+| Foreign importers: one file per source | `hopr-import/src/foreign/` |
+| Tunnels: running tunnels apart from the commands | `src-tauri/src/tunnels/` |
+| SFTP crate: downloads and uploads in their own module (527 → 380 + 157) | `hopr-sftp/src/transfer.rs` |
+| Store: host rows and field writers, and the sync folder, in their own modules | `hopr-store/src/hosts/`, `hopr-store/src/sync/` |
+| `ColorSwatches` and `ConfirmBar` replace 2 swatch rows and 5 confirm strips | `src/lib/ui/` |
 
 The IPC surface didn't change: `bindings.ts` regenerates identical. Biome, svelte-check, vitest (164), clippy and `cargo test` (138) all pass.
 
 ### Next
 
-1. `hopr-import/src/foreign.rs` (601 lines of code): one file per source (PuTTY, MobaXterm, SecureCRT, CSV).
-2. `hopr-store/src/hosts.rs` and `sync.rs` (about 630 lines of code each): split queries from mapping, and the engine from merging.
-3. `src-tauri/src/tunnels.rs` (504) and `hopr-sftp/src/lib.rs` (502): runtime from commands, transfers from directory operations.
-4. `ColorSwatch` and `ConfirmBar` primitives.
-5. End-to-end tests (see KNOWN-ISSUES #17); the CDP smoke script used for this refactor is a starting point.
+1. End-to-end tests (see KNOWN-ISSUES #17); the CDP smoke script used for this refactor is a starting point.
 
 ---
 

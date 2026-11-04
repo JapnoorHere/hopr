@@ -3,10 +3,11 @@
  * Create or edit a profile: a name the person chooses and an avatar colour. Editing also
  * offers delete, guarded by typing the profile's name.
  */
-import { Check, Trash, X } from "phosphor-svelte";
+import { Trash, X } from "phosphor-svelte";
 import { PROFILE_COLORS } from "$lib/design/themes";
 import type { Profile } from "$lib/ipc";
 import { sink, springIn } from "$lib/motion";
+import ColorSwatches from "$lib/ui/ColorSwatches.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Modal from "$lib/ui/Modal.svelte";
 import { toast } from "$lib/ui/toast.svelte";
@@ -120,21 +121,8 @@ async function remove() {
 
     <div class="mt-4">
       <span class="text-xs text-muted">Colour</span>
-      <div class="swatches" role="radiogroup" aria-label="Colour">
-        {#each PROFILE_COLORS as c (c)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={color === c}
-            aria-label="Colour {c}"
-            class="swatch"
-            class:on={color === c}
-            style:background={c}
-            onclick={() => (color = c)}
-          >
-            {#if color === c}<Check size={12} weight="bold" />{/if}
-          </button>
-        {/each}
+      <div class="mt-1.5">
+        <ColorSwatches colors={PROFILE_COLORS} value={color} onchange={(c) => (color = c)} />
       </div>
     </div>
 
@@ -201,30 +189,6 @@ async function remove() {
   .close:hover {
     color: var(--text);
     background: var(--surface-3);
-  }
-  .swatches {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 6px;
-  }
-  .swatch {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    color: var(--bg);
-    border-radius: 999px;
-    box-shadow: inset 0 0 0 1px var(--border);
-    transition: transform var(--dur-fast) var(--ease-spring);
-  }
-  .swatch:hover {
-    transform: scale(1.1);
-  }
-  .swatch.on {
-    box-shadow:
-      0 0 0 2px var(--surface-2),
-      0 0 0 4px var(--text);
   }
   .danger-zone {
     display: flex;

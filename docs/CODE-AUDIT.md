@@ -16,29 +16,29 @@ Biome, svelte-check and clippy clean.
 |---|---|---|
 | `crates/hopr-core` | 11 | 2,031 |
 | `crates/hopr-devsshd` | 1 | 775 |
-| `crates/hopr-import` | 3 | 1,493 |
-| `crates/hopr-sftp` | 3 | 1,267 |
+| `crates/hopr-import` | 7 | 1,524 |
+| `crates/hopr-sftp` | 4 | 1,277 |
 | `crates/hopr-ssh` | 13 | 4,594 |
-| `crates/hopr-store` | 11 | 3,836 |
+| `crates/hopr-store` | 14 | 3,875 |
 | `crates/hopr-term` | 5 | 1,061 |
 | `crates/hopr-vault` | 1 | 385 |
-| `src-tauri/src` | 33 | 7,538 |
+| `src-tauri/src` | 35 | 7,564 |
 | `src/App.svelte` | 1 | 292 |
 | `src/features/broadcast` | 2 | 117 |
-| `src/features/grouprun` | 4 | 510 |
+| `src/features/grouprun` | 4 | 498 |
 | `src/features/history` | 6 | 939 |
-| `src/features/hosts` | 13 | 2,212 |
+| `src/features/hosts` | 15 | 2,408 |
 | `src/features/keys` | 2 | 549 |
 | `src/features/palette` | 4 | 313 |
-| `src/features/profiles` | 6 | 955 |
+| `src/features/profiles` | 6 | 882 |
 | `src/features/settings` | 14 | 1,743 |
-| `src/features/sftp` | 10 | 1,814 |
+| `src/features/sftp` | 10 | 1,812 |
 | `src/features/shell` | 9 | 1,018 |
 | `src/features/snippets` | 4 | 671 |
 | `src/features/sync` | 1 | 82 |
 | `src/features/terminal` | 28 | 4,113 |
 | `src/features/tunnels` | 4 | 615 |
-| `src/features/vault` | 6 | 1,235 |
+| `src/features/vault` | 6 | 1,209 |
 | `src/features/workspace` | 7 | 1,167 |
 | `src/lib/design` | 8 | 1,390 |
 | `src/lib/download.ts` | 1 | 9 |
@@ -58,7 +58,7 @@ Biome, svelte-check and clippy clean.
 | `src/lib/ui` | 12 | 1,212 |
 | `src/lib/window.ts` | 1 | 12 |
 | `src/main.ts` | 1 | 45 |
-| **Total** | **241** | **45,111** |
+| **Total** | **253** | **45,300** |
 
 ## `crates/hopr-core`
 
@@ -87,15 +87,20 @@ Biome, svelte-check and clippy clean.
 | File | Lines | Status |
 |---|---|---|
 | `src/export.rs` | 209 | ✓ |
-| `src/foreign.rs` | 770 | **Next** one file per source (PuTTY, MobaXterm, SecureCRT, CSV). |
+| `src/foreign/csv.rs` | 110 | ✓ |
+| `src/foreign/mobaxterm.rs` | 82 | ✓ |
+| `src/foreign/mod.rs` | 311 | ✓ |
+| `src/foreign/putty.rs` | 157 | ✓ |
+| `src/foreign/securecrt.rs` | 141 | ✓ |
 | `src/lib.rs` | 514 | **OK** 405 lines of code, the rest tests. |
 
 ## `crates/hopr-sftp`
 
 | File | Lines | Status |
 |---|---|---|
-| `src/lib.rs` | 527 | **Next** split transfers from directory operations. |
+| `src/lib.rs` | 380 | ✓ |
 | `src/server.rs` | 370 | ✓ |
+| `src/transfer.rs` | 157 | ✓ |
 | `tests/sftp.rs` | 370 | ✓ test |
 
 ## `crates/hopr-ssh`
@@ -123,12 +128,15 @@ Biome, svelte-check and clippy clean.
 | `src/audit.rs` | 107 | ✓ |
 | `src/backup.rs` | 268 | ✓ |
 | `src/history.rs` | 412 | **OK** 304 lines of code, the rest tests. |
-| `src/hosts.rs` | 889 | **Next** split queries from row mapping (633 lines of code, the rest tests). |
+| `src/hosts/fields.rs` | 116 | ✓ |
+| `src/hosts/mod.rs` | 706 | **Split** rows and field writers moved out; 447 lines of host queries, the rest tests. |
+| `src/hosts/rows.rs` | 94 | ✓ |
 | `src/keys.rs` | 265 | ✓ |
 | `src/known.rs` | 172 | ✓ |
 | `src/lib.rs` | 239 | ✓ |
 | `src/snippets.rs` | 245 | ✓ |
-| `src/sync.rs` | 824 | **Next** split the sync engine from conflict merging (630 lines of code). |
+| `src/sync/folder.rs` | 102 | ✓ |
+| `src/sync/mod.rs` | 734 | **Split** the sync folder moved out; 538 lines of database sync, the rest tests. |
 | `src/tunnels.rs` | 243 | ✓ |
 | `src/workspaces.rs` | 172 | ✓ |
 
@@ -181,7 +189,9 @@ Biome, svelte-check and clippy clean.
 | `snippets.rs` | 174 | ✓ |
 | `state.rs` | 281 | ✓ |
 | `sync.rs` | 259 | ✓ |
-| `tunnels.rs` | 504 | **Next** split tunnel runtime from the commands. |
+| `tunnels/commands.rs` | 132 | ✓ |
+| `tunnels/mod.rs` | 86 | ✓ |
+| `tunnels/runtime.rs` | 312 | ✓ |
 | `updates.rs` | 108 | ✓ |
 | `vault.rs` | 382 | ✓ |
 | `workspaces.rs` | 73 | ✓ |
@@ -203,7 +213,7 @@ Biome, svelte-check and clippy clean.
 
 | File | Lines | Status |
 |---|---|---|
-| `RunOnHosts.svelte` | 360 | **OK** slightly over; 141 lines are CSS. |
+| `RunOnHosts.svelte` | 348 | **OK** slightly over; 141 lines are CSS. |
 | `export.test.ts` | 41 | ✓ test |
 | `export.ts` | 34 | ✓ |
 | `grouprun.svelte.ts` | 75 | ✓ |
@@ -228,7 +238,9 @@ Biome, svelte-check and clippy clean.
 | `HostEditor.svelte` | 551 | **Split** serial and proxy field groups moved out; the rest is one form and its validation. |
 | `HostsView.svelte` | 568 | **Split** quick connect, bulk bar, actions menu and address line moved out. |
 | `ImportDrawer.svelte` | 281 | ✓ |
+| `ProxyFields.svelte` | 100 | ✓ |
 | `QuickConnect.svelte` | 65 | ✓ |
+| `SerialFields.svelte` | 96 | ✓ |
 | `chain.test.ts` | 73 | ✓ test |
 | `chain.ts` | 51 | ✓ |
 | `describe.test.ts` | 69 | ✓ test |
@@ -258,10 +270,10 @@ Biome, svelte-check and clippy clean.
 | File | Lines | Status |
 |---|---|---|
 | `ProfileAvatar.svelte` | 33 | ✓ |
-| `ProfileDialog.svelte` | 248 | ✓ |
-| `ProfilePicker.svelte` | 306 | **OK** slightly over; 155 lines are CSS. |
-| `ProfileSwitcher.svelte` | 162 | ✓ |
-| `ProfilesSettings.svelte` | 108 | ✓ |
+| `ProfileDialog.svelte` | 212 | ✓ |
+| `ProfilePicker.svelte` | 289 | **OK** slightly over; 155 lines are CSS. |
+| `ProfileSwitcher.svelte` | 151 | ✓ |
+| `ProfilesSettings.svelte` | 99 | ✓ |
 | `profiles.svelte.ts` | 98 | ✓ |
 
 ## `src/features/settings`
@@ -290,7 +302,7 @@ Biome, svelte-check and clippy clean.
 | `ClashBar.svelte` | 31 | ✓ |
 | `DualPane.svelte` | 320 | **OK** slightly over. |
 | `FilePreview.svelte` | 51 | ✓ |
-| `FilesDrawer.svelte` | 584 | **Split** preview and permissions moved out; the rest is the file list. |
+| `FilesDrawer.svelte` | 582 | **Split** preview and permissions moved out; the rest is the file list. |
 | `PermissionsCard.svelte` | 99 | ✓ |
 | `TransferPill.svelte` | 229 | ✓ |
 | `files.svelte.ts` | 259 | ✓ |
@@ -373,7 +385,7 @@ Biome, svelte-check and clippy clean.
 
 | File | Lines | Status |
 |---|---|---|
-| `Onboarding.svelte` | 675 | **Kept** one wizard whose steps share state; 286 of its lines are CSS. |
+| `Onboarding.svelte` | 649 | **Kept** one wizard whose steps share state; 286 of its lines are CSS. |
 | `SecuritySettings.svelte` | 135 | ✓ |
 | `UnlockScreen.svelte` | 226 | ✓ |
 | `strength.test.ts` | 17 | ✓ test |

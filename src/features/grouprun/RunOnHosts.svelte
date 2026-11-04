@@ -3,6 +3,7 @@ import { X } from "phosphor-svelte";
 import { library } from "$features/hosts/library.svelte";
 import { saveText } from "$lib/download";
 import { pop } from "$lib/motion";
+import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { grouprun, toCsv, toJson } from "./grouprun.svelte";
 
@@ -149,14 +150,10 @@ function stamp() {
         </div>
       {/if}
       {#if confirmProd}
-        <div class="confirm" role="alertdialog" aria-label="Confirm production run">
-          <span class="flex-1 text-sm">
+        <ConfirmBar tone="danger" confirmLabel="Run" onconfirm={start} oncancel={() => (confirmProd = false)}>
             This includes {prodChosen.length} production host{prodChosen.length === 1 ? "" : "s"}
             ({prodChosen.map((h) => h.label).join(", ")}). Run anyway?
-          </span>
-          <button type="button" class="btn-ghost" onclick={() => (confirmProd = false)}>Cancel</button>
-          <button type="button" class="btn-danger" onclick={start}>Run</button>
-        </div>
+        </ConfirmBar>
       {/if}
       {#if grouprun.error}<p class="text-xs text-danger" role="alert">{grouprun.error}</p>{/if}
 
@@ -265,15 +262,6 @@ function stamp() {
     color: var(--danger);
     border: 1px solid currentColor;
     border-radius: 3px;
-  }
-  .confirm {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px;
-    background: color-mix(in oklab, var(--danger) 12%, transparent);
-    border-left: 2px solid var(--danger);
-    border-radius: var(--radius-sm);
   }
   .grid {
     width: 100%;

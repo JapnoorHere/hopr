@@ -7,7 +7,7 @@ import { CaretDown, Check, GearSix, Plus, SquaresFour } from "phosphor-svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import type { Profile } from "$lib/ipc";
-import { blurFade } from "$lib/motion";
+import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import Menu from "$lib/ui/Menu.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
@@ -66,16 +66,14 @@ function close() {
         </button>
       {/each}
       {#if confirming}
-        <div class="confirm" in:blurFade={{ y: -2, duration: 140 }}>
-          <p>
+        <div class="m-1">
+          <ConfirmBar
+            confirmLabel="Switch to {profileName(confirming)}"
+            onconfirm={() => confirming && pick(confirming)}
+            oncancel={() => (confirming = null)}
+          >
             Switching closes {sessions.tabs.length} open tab{sessions.tabs.length === 1 ? "" : "s"}.
-          </p>
-          <div class="mt-2 flex justify-end gap-1.5">
-            <button type="button" class="btn-ghost" onclick={() => (confirming = null)}>Cancel</button>
-            <button type="button" class="btn-primary" onclick={() => confirming && pick(confirming)}
-              >Switch to {profileName(confirming)}</button
-            >
-          </div>
+          </ConfirmBar>
         </div>
       {/if}
       <hr class="menu-sep" />
@@ -149,14 +147,5 @@ function close() {
     place-items: center;
     width: 22px;
     color: var(--text-muted);
-  }
-  .confirm {
-    margin: 4px;
-    padding: 8px 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    background: var(--surface-2);
-    border-left: 2px solid var(--warning);
-    border-radius: var(--radius-sm);
   }
 </style>

@@ -24,6 +24,7 @@ import HoprMark from "$lib/icons/HoprMark.svelte";
 import { commands, inTauri, type Profile } from "$lib/ipc";
 import { blurFade } from "$lib/motion";
 import { readText, writeText } from "$lib/storage";
+import ColorSwatches from "$lib/ui/ColorSwatches.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { focusFirstInvalid } from "$lib/ui/form";
 import Kbd from "$lib/ui/Kbd.svelte";
@@ -295,12 +296,8 @@ const nextLabel = $derived(
                 {#if nameError}<div class="mt-1.5"><FieldError message={nameError} /></div>{/if}
               </div>
             </div>
-            <div class="colours" role="radiogroup" aria-label="Colour">
-              {#each PROFILE_COLORS as c (c)}
-                <button type="button" role="radio" aria-checked={color === c} aria-label="Colour {c}" class="dot" class:on={color === c} style:background={c} onclick={() => (color = c)}>
-                  {#if color === c}<Check size={12} weight="bold" />{/if}
-                </button>
-              {/each}
+            <div style:--swatch-gap="var(--surface-1)">
+              <ColorSwatches colors={PROFILE_COLORS} value={color} onchange={(c) => (color = c)} />
             </div>
           {:else if step === "secure"}
             <header><ShieldCheck size={20} /><div><h2>Lock it with a master password</h2><p>It encrypts your hosts, passwords and keys. Hopr never sees it or sends it anywhere.</p></div></header>
@@ -558,29 +555,6 @@ const nextLabel = $derived(
     display: flex;
     align-items: center;
     gap: 16px;
-  }
-  .colours {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .dot {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    color: var(--bg);
-    border-radius: 99px;
-    box-shadow: inset 0 0 0 1px var(--border);
-    transition: transform var(--dur-fast) var(--ease-spring);
-  }
-  .dot:hover {
-    transform: scale(1.1);
-  }
-  .dot.on {
-    box-shadow:
-      0 0 0 2px var(--surface-1),
-      0 0 0 4px var(--text);
   }
   .meter {
     height: 4px;

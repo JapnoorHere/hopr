@@ -21,6 +21,7 @@ import { library } from "$features/hosts/library.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { inTauri, type RemoteEntry } from "$lib/ipc";
 import { blurFade, expand, sink } from "$lib/motion";
+import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Menu from "$lib/ui/Menu.svelte";
@@ -320,22 +321,19 @@ function editPath() {
     {/if}
 
     {#if confirmDelete}
-      <div class="strip" role="alertdialog" aria-label="Confirm delete">
-        <span class="flex-1 text-sm text-fg">
+      <ConfirmBar
+        tone="danger"
+        confirmLabel="Delete"
+        oncancel={() => (confirmDelete = null)}
+        onconfirm={() => {
+          const p = confirmDelete ?? [];
+          confirmDelete = null;
+          void files.remove(p);
+        }}
+      >
           Delete {confirmDelete.length === 1 ? confirmDelete[0]?.split("/").pop() : `${confirmDelete.length} items`}?
           <span class="text-faint">Folders are deleted with everything in them.</span>
-        </span>
-        <button type="button" class="btn-ghost" onclick={() => (confirmDelete = null)}>Cancel</button>
-        <button
-          type="button"
-          class="btn-danger"
-          onclick={() => {
-            const p = confirmDelete ?? [];
-            confirmDelete = null;
-            void files.remove(p);
-          }}>Delete</button
-        >
-      </div>
+      </ConfirmBar>
     {/if}
 
     <ClashBar />
