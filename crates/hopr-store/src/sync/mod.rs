@@ -9,11 +9,15 @@
 //! Secrets travel decrypted inside the sealed snapshot and are re-encrypted under each
 //! device's own vault when applied.
 
+mod folder;
+
+pub use folder::*;
+
 use std::collections::HashMap;
 use std::path::Path;
 
-use hopr_vault::{KdfParams, UnlockedVault, VaultHeader};
-use secrecy::{ExposeSecret, SecretString};
+use hopr_vault::{UnlockedVault, VaultHeader};
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sqlx::sqlite::SqliteRow;
@@ -190,102 +194,6 @@ fn row_json(row: &SqliteRow, skip: &[&str]) -> Map<String, Value> {
 fn text(v: Option<&Value>) -> Option<String> {
     v.and_then(Value::as_str).map(str::to_owned)
 }
-
-// ---------- the folder ----------
-
-/// Open the folder's sync vault with `passphrase`, creating it (and the folder layout) if
-/// this is the first device. A wrong passphrase is an error.
-pub fn open_folder(
-    folder: &Path,
-    passphrase: &SecretString,
-    kdf: KdfParams,
-) -> Result<UnlockedVault> {
-    std::fs::create_dir_all(folder.join("devices"))?;
-    let path = folder.join(HEADER_FILE);
-    if path.exists() {
-        let header: Header = serde_json::from_slice(&std::fs::read(&path)?)?;
-        if header.format != FORMAT {
-            return Err(StoreError::InUse(format!(
-                "This sync folder uses an unknown format ({})",
-                header.format
-            )));
-        }
-        return Ok(hopr_vault::unlock(&header.vault, passphrase)?);
-    }
-    let created = hopr_vault::create(passphrase, kdf)?;
-    let header = Header {
-        format: FORMAT.into(),
-        vault: created.header,
-    };
-    write_atomic(&path, &serde_json::to_vec_pretty(&header)?)?;
-    Ok(created.vault)
-}
-
-/// Reopen the folder's sync vault from its saved key (no passphrase needed again).
-pub fn open_folder_with_key(folder: &Path, dek: &[u8]) -> Result<UnlockedVault> {
-    let header: Header = serde_json::from_slice(&std::fs::read(folder.join(HEADER_FILE))?)?;
-    Ok(hopr_vault::unlock_with_dek(&header.vault, dek)?)
-}
-
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, bytes)?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
-}
-
-fn snapshot_aad(device_id: &str) -> Vec<u8> {
-    format!("hopr.sync.v1:{device_id}").into_bytes()
-}
-
-/// Seal and write this device's snapshot.
-pub fn write_snapshot(folder: &Path, key: &UnlockedVault, snap: &Snapshot) -> Result<()> {
-    let json = zeroize::Zeroizing::new(serde_json::to_vec(snap)?);
-    let sealed = key.encrypt(&snapshot_aad(&snap.device_id), &json)?;
-    write_atomic(
-        &folder
-            .join("devices")
-            .join(format!("{}.hsync", snap.device_id)),
-        &sealed,
-    )
-}
-
-/// Every other device's snapshot. Unreadable files are reported, not fatal.
-pub fn read_snapshots(
-    folder: &Path,
-    key: &UnlockedVault,
-    except_device: &str,
-) -> Result<(Vec<Snapshot>, Vec<String>)> {
-    let mut out = Vec::new();
-    let mut warnings = Vec::new();
-    let Ok(entries) = std::fs::read_dir(folder.join("devices")) else {
-        return Ok((out, warnings));
-    };
-    for e in entries.flatten() {
-        let name = e.file_name().to_string_lossy().into_owned();
-        let Some(device) = name.strip_suffix(".hsync") else {
-            continue;
-        };
-        if device == except_device {
-            continue;
-        }
-        let parsed = std::fs::read(e.path())
-            .map_err(StoreError::from)
-            .and_then(|b| {
-                key.decrypt(&snapshot_aad(device), &b)
-                    .map_err(StoreError::from)
-            })
-            .and_then(|plain| serde_json::from_slice::<Snapshot>(&plain).map_err(StoreError::from));
-        match parsed {
-            Ok(s) if s.device_id == device => out.push(s),
-            Ok(_) => warnings.push(format!("{name}: device id doesn't match its file")),
-            Err(err) => warnings.push(format!("{name}: couldn't be read ({err})")),
-        }
-    }
-    Ok((out, warnings))
-}
-
-// ---------- the database ----------
 
 impl Store {
     async fn columns(&self, table: &str) -> Result<Vec<String>> {
@@ -635,6 +543,8 @@ mod tests {
         AuthKind, Environment, HostInput, RunMode, SecretChange, SnippetInput, TunnelInput,
         TunnelKind,
     };
+    use hopr_vault::KdfParams;
+    use secrecy::SecretString;
 
     async fn device() -> (Store, UnlockedVault) {
         let store = Store::open_memory().await.unwrap();
