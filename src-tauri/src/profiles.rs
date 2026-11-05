@@ -267,7 +267,8 @@ impl Profiles {
     /// Pick the profile to open: the last used one. Consumes a pending "skip asking".
     pub fn open(root: PathBuf) -> Self {
         let mut reg = load(&root);
-        let ask_now = reg.ask_at_start && !reg.skip_ask_once;
+        // With a single profile there is nothing to choose.
+        let ask_now = reg.ask_at_start && !reg.skip_ask_once && reg.profiles.len() > 1;
         if reg.skip_ask_once {
             reg.skip_ask_once = false;
         }
@@ -390,7 +391,7 @@ pub fn profile_switch(app: tauri::AppHandle, state: S<'_>, id: String) -> Result
         r.skip_ask_once = true;
         Ok(())
     })?;
-    app.restart()
+    crate::platform::restart(&app, "profile switch")
 }
 
 #[cfg(test)]
@@ -477,6 +478,13 @@ mod tests {
         assert_eq!(opened.current(), p.id);
         assert!(!opened.ask_now);
         assert!(Profiles::open(root).ask_now);
+    }
+
+    #[test]
+    fn one_profile_opens_without_asking() {
+        let root = temp();
+        save(&root, &Registry::fresh()).unwrap();
+        assert!(!Profiles::open(root).ask_now);
     }
 
     #[test]

@@ -110,7 +110,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             platform::tray_set_recent,
             platform::quick_toggle,
             platform::main_show,
-            platform::window_visible,
+            platform::app_restart,
             platform::window_tear_off,
             platform::window_handoff_take,
             updates::update_check,
@@ -242,6 +242,7 @@ pub fn run() {
         .on_window_event(platform::on_window_event)
         .setup(move |app| {
             builder.mount_events(app);
+            sftp::edit::clear_temp();
             // HOPR_DATA_DIR lets tests (and portable installs) keep data out of the user's profile.
             let custom = std::env::var_os("HOPR_DATA_DIR");
             let root = match &custom {
@@ -315,10 +316,17 @@ pub fn run() {
             platform::init_hotkey(app.handle());
             Ok(())
         })
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!());
 
-    if let Err(e) = result {
-        eprintln!("error while running Hopr: {e}");
-        std::process::exit(1);
+    match result {
+        Ok(app) => app.run(|_, event| {
+            if let tauri::RunEvent::Exit = event {
+                sftp::edit::clear_temp();
+            }
+        }),
+        Err(e) => {
+            eprintln!("error while running Hopr: {e}");
+            std::process::exit(1);
+        }
     }
 }

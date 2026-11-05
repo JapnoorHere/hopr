@@ -1,6 +1,5 @@
 <script lang="ts">
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { prefs } from "$features/terminal/prefs.svelte";
 import { wrap } from "$features/vault/vault.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
@@ -138,7 +137,7 @@ function size(bytes: number): string {
     {#if pending}
       <div class="flex items-center gap-2 rounded-md border border-border px-3 py-2">
         <span class="flex-1 text-xs text-fg">A restore is ready. It replaces your current data when Hopr restarts.</span>
-        <button type="button" class="btn-primary" onclick={() => relaunch()}>Restart now</button>
+        <button type="button" class="btn-primary" onclick={() => commands.appRestart("restore a backup")}>Restart now</button>
       </div>
     {/if}
     {#if restoring}

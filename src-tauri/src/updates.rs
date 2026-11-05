@@ -104,5 +104,5 @@ pub async fn update_install(app: AppHandle, pending: State<'_, Pending>) -> Resu
     update
         .install(bytes)
         .map_err(|e| AppError::internal("Installing the update failed", e))?;
-    app.restart();
+    crate::platform::restart(&app, "update installed")
 }

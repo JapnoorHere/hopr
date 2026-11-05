@@ -202,8 +202,8 @@ export const commands = {
 	quickToggle: () => __TAURI_INVOKE<void>("quick_toggle"),
 	/**  Bring the main window to the front. */
 	mainShow: () => __TAURI_INVOKE<void>("main_show"),
-	/**  Whether a window exists and is showing (tray and quick-terminal checks). */
-	windowVisible: (label: string) => __TAURI_INVOKE<boolean>("window_visible", { label }),
+	/**  Restart from the UI (after a restore is staged), with the reason logged. */
+	appRestart: (reason: string) => __TAURI_INVOKE<void>("app_restart", { reason }),
 	/**
 	 *  Open a new window for tabs torn off another one. `handoff` (the tabs, their live
 	 *  session ids and scrollback, as JSON) waits until the new window takes it.

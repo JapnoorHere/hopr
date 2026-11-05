@@ -376,13 +376,29 @@ pub fn quick_toggle(app: AppHandle) {
     toggle_quick(&app);
 }
 
-/// Whether a window exists and is showing (tray and quick-terminal checks).
+/// Restart Hopr, first noting why in `restarts.log` (the app's log folder), so a restart
+/// nobody expected can be traced.
+pub fn restart(app: &AppHandle, reason: &str) -> ! {
+    if let Ok(dir) = app.path().app_log_dir() {
+        let _ = std::fs::create_dir_all(&dir);
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let line = format!("{secs} {reason}\n");
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir.join("restarts.log"))
+            .and_then(|mut f| std::io::Write::write_all(&mut f, line.as_bytes()));
+    }
+    app.restart()
+}
+
+/// Restart from the UI (after a restore is staged), with the reason logged.
 #[tauri::command]
 #[specta::specta]
-pub fn window_visible(app: AppHandle, label: String) -> bool {
-    app.get_webview_window(&label)
-        .and_then(|w| w.is_visible().ok())
-        .unwrap_or(false)
+pub fn app_restart(app: AppHandle, reason: String) {
+    restart(&app, &reason)
 }
 
 /// Bring the main window to the front.
