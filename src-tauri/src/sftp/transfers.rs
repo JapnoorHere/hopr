@@ -12,7 +12,6 @@ use tauri::{AppHandle, Manager, State};
 use tauri_specta::Event;
 
 use super::*;
-use crate::state::AppState;
 
 /// Upload or download.
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Type)]
@@ -387,15 +386,10 @@ pub async fn transfers_set_settings(
             "Choose 1–8 transfers and a sensible limit",
         ));
     }
-    let state = app.state::<Arc<AppState>>().inner().clone();
-    state
-        .store
-        .set_setting(CONCURRENCY_KEY, &settings.concurrency)
-        .await?;
-    state
-        .store
-        .set_setting(LIMIT_KEY, &settings.limit_kbps)
-        .await?;
+    app.state::<crate::device::Device>().update(|d| {
+        d.transfer_concurrency = Some(settings.concurrency);
+        d.transfer_limit_kbps = Some(settings.limit_kbps);
+    })?;
     app.state::<Files>().apply(&settings);
     Ok(())
 }

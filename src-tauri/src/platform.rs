@@ -19,6 +19,7 @@ use tauri::{
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_specta::Event;
 
+use crate::device::Device;
 use crate::state::{AppState, VaultLockedEvent};
 
 /// Settings key: closing the main window keeps Hopr in the tray.
@@ -318,11 +319,11 @@ pub fn desktop_prefs(platform: State<'_, Platform>) -> DesktopPrefs {
 #[tauri::command]
 #[specta::specta]
 pub async fn desktop_set_close_to_tray(
-    state: State<'_, Arc<AppState>>,
+    device: State<'_, Device>,
     platform: State<'_, Platform>,
     enabled: bool,
 ) -> Result<(), AppError> {
-    state.store.set_setting(CLOSE_TO_TRAY_KEY, &enabled).await?;
+    device.update(|d| d.close_to_tray = Some(enabled))?;
     platform.close_to_tray.store(enabled, Ordering::Relaxed);
     Ok(())
 }
@@ -333,7 +334,7 @@ pub async fn desktop_set_close_to_tray(
 #[specta::specta]
 pub async fn desktop_set_quick_hotkey(
     app: AppHandle,
-    state: State<'_, Arc<AppState>>,
+    device: State<'_, Device>,
     platform: State<'_, Platform>,
     chord: String,
 ) -> Result<(), AppError> {
@@ -351,7 +352,7 @@ pub async fn desktop_set_quick_hotkey(
         let _ = register_hotkey(&app, &old);
         return Err(e);
     }
-    state.store.set_setting(HOTKEY_KEY, &chord).await?;
+    device.update(|d| d.hotkey = Some(chord.clone()))?;
     if let Ok(mut h) = platform.hotkey.lock() {
         *h = chord;
     }

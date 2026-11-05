@@ -4,6 +4,7 @@ mod backups;
 mod biometric;
 mod clipboard;
 mod commands;
+mod device;
 mod foreign;
 mod grouprun;
 mod history;
@@ -252,6 +253,8 @@ pub fn run() {
             if custom.is_some() {
                 state::keychain::set_data_scope(&root);
             }
+            // Window, hotkey and transfer settings belong to this computer, not a profile.
+            let device = device::Device::open(root.clone());
             // Each profile is its own data folder; open the last used one.
             let profiles = profiles::Profiles::open(root);
             let data_dir = profiles.data_dir();
@@ -282,22 +285,36 @@ pub fn run() {
                         .setting::<u32>(clipboard::CLEAR_KEY)
                         .await?
                         .unwrap_or(clipboard::CLEAR_DEFAULT);
-                    let close_to_tray = store
-                        .setting::<bool>(platform::CLOSE_TO_TRAY_KEY)
-                        .await?
-                        .unwrap_or(true);
-                    let hotkey = store
-                        .setting::<String>(platform::HOTKEY_KEY)
-                        .await?
-                        .unwrap_or_else(|| platform::HOTKEY_DEFAULT.to_owned());
+                    // Device settings; one not saved there yet comes from this profile once.
+                    let saved = device.get();
+                    let close_to_tray = match saved.close_to_tray {
+                        Some(v) => v,
+                        None => store
+                            .setting::<bool>(platform::CLOSE_TO_TRAY_KEY)
+                            .await?
+                            .unwrap_or(true),
+                    };
+                    let hotkey = match saved.hotkey {
+                        Some(v) => v,
+                        None => store
+                            .setting::<String>(platform::HOTKEY_KEY)
+                            .await?
+                            .unwrap_or_else(|| platform::HOTKEY_DEFAULT.to_owned()),
+                    };
                     let state = Arc::new(state::AppState::new(store, data_dir, minutes, clear));
                     let transfer = sftp::TransferSettings {
-                        concurrency: state
-                            .store
-                            .setting(sftp::CONCURRENCY_KEY)
-                            .await?
-                            .unwrap_or(3),
-                        limit_kbps: state.store.setting(sftp::LIMIT_KEY).await?.unwrap_or(0),
+                        concurrency: match saved.transfer_concurrency {
+                            Some(v) => v,
+                            None => state
+                                .store
+                                .setting(sftp::CONCURRENCY_KEY)
+                                .await?
+                                .unwrap_or(3),
+                        },
+                        limit_kbps: match saved.transfer_limit_kbps {
+                            Some(v) => v,
+                            None => state.store.setting(sftp::LIMIT_KEY).await?.unwrap_or(0),
+                        },
                     };
                     Ok::<_, hopr_store::StoreError>((
                         state,
@@ -307,6 +324,13 @@ pub fn run() {
                         history,
                     ))
                 })?;
+            device.update(|d| {
+                d.close_to_tray = Some(close_to_tray);
+                d.hotkey = Some(hotkey.clone());
+                d.transfer_concurrency = Some(transfer.concurrency);
+                d.transfer_limit_kbps = Some(transfer.limit_kbps);
+            })?;
+            app.manage(device);
             state::spawn_auto_lock(app.handle().clone(), state.clone());
             app.manage(state);
             app.state::<sftp::Files>().apply(&transfer);

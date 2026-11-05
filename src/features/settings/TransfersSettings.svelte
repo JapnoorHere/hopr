@@ -36,6 +36,7 @@ function num(e: Event): number {
 {#if inTauri}
   <section class="mt-5 flex flex-col gap-2">
     <h3 class="label-caps text-faint">Transfers</h3>
+    <p class="text-xs text-faint">For this computer: the same in every profile.</p>
     <label class="field">
       <span class="text-xs text-muted">At the same time</span>
       <select

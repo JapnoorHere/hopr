@@ -60,6 +60,7 @@ function record(e: KeyboardEvent) {
 {#if inTauri}
   <section class="mt-5 flex flex-col gap-3">
     <h3 class="label-caps text-faint">Desktop</h3>
+    <p class="text-xs text-faint">For this computer: the same in every profile.</p>
     <label class="check">
       <input type="checkbox" checked={closeToTray} onchange={setTray} />
       Keep Hopr running in the tray when the window is closed
