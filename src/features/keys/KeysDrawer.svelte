@@ -17,6 +17,7 @@ import { motion } from "$lib/platform";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors } from "$lib/ui/form";
+import InlineRename from "$lib/ui/InlineRename.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 
 // Opened from the host editor's "Generate key" / "Import key": start on that panel.
@@ -207,7 +208,9 @@ function knownName(k: KnownHost): string {
           animate:flip={{ duration: motion(200) }}
         >
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm text-fg">{k.label}</p>
+            <p class="text-sm text-fg">
+              <InlineRename value={k.label} label="key {k.label}" onsave={(l) => library.renameKey(k.id, l)} />
+            </p>
             <p class="truncate font-mono text-xs text-faint" title={k.fingerprint}>{k.fingerprint}</p>
             <p class="text-xs text-muted">
               {k.algorithm} · {k.usedBy ? `used by ${k.usedBy} host${k.usedBy === 1 ? "" : "s"}` : "unused"}

@@ -23,6 +23,7 @@ import { blurFade, expand, flash, pop, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
 import { readText, scoped, writeText } from "$lib/storage";
 import Count from "$lib/ui/Count.svelte";
+import InlineRename from "$lib/ui/InlineRename.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
 import Menu from "$lib/ui/Menu.svelte";
 import Segmented from "$lib/ui/Segmented.svelte";
@@ -253,7 +254,16 @@ const ENV_LABEL = { none: "", dev: "dev", staging: "staging", prod: "prod" } as 
       </div>
       {#each sections as section (section.id)}
         <section class="mb-5">
-          <h3 class="label-caps mb-2 px-1 text-faint">{section.title} <span class="count">{section.hosts.length}</span></h3>
+          <h3 class="label-caps mb-2 flex items-center px-1 text-faint">
+            {#if library.groups.some((g) => g.id === section.id)}
+              <InlineRename
+                value={section.title}
+                label="group {section.title}"
+                onsave={(name) => library.renameGroup(section.id, name)}
+              />
+            {:else}{section.title}{/if}
+            <span class="count">{section.hosts.length}</span>
+          </h3>
           <div class="items">
           {#each section.hosts as h, i (h.id)}
             <div

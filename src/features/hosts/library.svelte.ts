@@ -163,6 +163,19 @@ class LibraryStore {
     return res;
   }
 
+  /** Rename a group or key; resolves to an error message, or null when it worked. */
+  async renameGroup(id: string, name: string): Promise<string | null> {
+    const res = wrap(await commands.groupRename(id, name));
+    if (res.ok) await this.refresh();
+    return res.ok ? null : res.error.message;
+  }
+
+  async renameKey(id: string, label: string): Promise<string | null> {
+    const res = wrap(await commands.keyRename(id, label));
+    if (res.ok) await this.refresh();
+    return res.ok ? null : res.error.message;
+  }
+
   async deleteGroup(id: string) {
     const res = wrap(await commands.groupDelete(id));
     if (res.ok) await this.refresh();
