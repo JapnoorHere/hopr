@@ -1,0 +1,12 @@
+# Same line endings on every machine, whatever core.autocrlf says.
+* text=auto eol=lf
+
+# Binary: never touch.
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
