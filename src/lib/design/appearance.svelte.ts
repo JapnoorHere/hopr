@@ -41,16 +41,15 @@ class AppearanceStore {
     if (patch.theme !== undefined) void this.#windowTheme();
   }
 
-  /** Match the window frame to the theme's light/dark, and clear any old backdrop effect. */
+  /** Match the window frame to the theme's light or dark. */
   async #windowTheme() {
     if (!inTauri) return;
     try {
       const win = getCurrentWindow();
       const dark = this.tokens.scheme !== "light";
       await win.setTheme(dark ? "dark" : "light");
-      await win.clearEffects();
     } catch {
-      // Older Windows or no permission: nothing to change.
+      // Older Windows: the frame keeps its default.
     }
   }
 }
