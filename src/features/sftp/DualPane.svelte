@@ -1,6 +1,7 @@
 <script lang="ts">
 import { ArrowLeft, ArrowRight, ArrowUp, File, Folder, X } from "phosphor-svelte";
 import { library } from "$features/hosts/library.svelte";
+import { shell } from "$features/shell/shell.state.svelte";
 import { commands, inTauri, type LocalEntry, type RemoteEntry } from "$lib/ipc";
 import ClashBar from "./ClashBar.svelte";
 import { files } from "./files.svelte";
@@ -36,6 +37,11 @@ function localUp() {
   const up = trimmed.slice(0, i);
   void goLocal(up.endsWith(":") ? `${up}\\` : up);
 }
+
+// Closing the last place that shows files lets the host's SFTP connection go.
+$effect(() => () => {
+  if (shell.drawer !== "files" && !files.dual) files.release();
+});
 
 $effect(() => {
   if (!inTauri) return;

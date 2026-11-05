@@ -38,6 +38,16 @@ pub struct EditEvent {
     pub message: Option<String>,
 }
 
+/// Where local copies of remote files live while they are edited.
+fn temp_root() -> PathBuf {
+    std::env::temp_dir().join("hopr-edit")
+}
+
+/// Delete every local copy: at startup (left from a crash or a previous run) and on exit.
+pub fn clear_temp() {
+    let _ = std::fs::remove_dir_all(temp_root());
+}
+
 pub(super) fn edit_event(
     app: &AppHandle,
     edit_id: &str,
@@ -113,10 +123,7 @@ pub async fn sftp_edit(
         return Err(AppError::invalid("Only files can be edited"));
     }
     let edit_id = uuid::Uuid::new_v4().to_string();
-    let local = std::env::temp_dir()
-        .join("hopr-edit")
-        .join(&edit_id[..8])
-        .join(&entry.name);
+    let local = temp_root().join(&edit_id[..8]).join(&entry.name);
     s.download(&path, &local, false, &AtomicBool::new(false), |_, _| {})
         .await?;
     let stop = Arc::new(AtomicBool::new(false));

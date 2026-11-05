@@ -149,6 +149,34 @@ pub(super) fn retryable(e: &AppError) -> bool {
     )
 }
 
+/// A host with transfers queued or running keeps its SFTP session.
+pub(super) fn host_busy(files: &Files, host_id: &str) -> bool {
+    files.jobs.lock().is_ok_and(|jobs| {
+        jobs.iter().any(|j| {
+            j.info.host_id == host_id
+                && matches!(
+                    j.info.status,
+                    TransferStatus::Queued | TransferStatus::Running
+                )
+        })
+    })
+}
+
+/// A close asked for while transfers ran happens once the host's last one ends.
+async fn release_if_idle(app: &AppHandle, host_id: &str) {
+    let asked = {
+        let files = app.state::<Files>();
+        !host_busy(&files, host_id)
+            && files
+                .close_when_idle
+                .lock()
+                .is_ok_and(|mut idle| idle.remove(host_id))
+    };
+    if asked {
+        close_session(app, host_id).await;
+    }
+}
+
 pub(super) async fn run_job(app: &AppHandle, id: &str) {
     let (info, cancel, pausing) = {
         let files = app.state::<Files>();
@@ -218,6 +246,7 @@ pub(super) async fn run_job(app: &AppHandle, id: &str) {
         }
         emit(app, &t);
     }
+    release_if_idle(app, &info.host_id).await;
 }
 
 pub(super) async fn transfer_once(

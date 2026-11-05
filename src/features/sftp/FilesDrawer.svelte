@@ -26,6 +26,7 @@ import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import Menu from "$lib/ui/Menu.svelte";
 import ClashBar from "./ClashBar.svelte";
+import EditsBar from "./EditsBar.svelte";
 import FilePreview from "./FilePreview.svelte";
 import { files } from "./files.svelte";
 import {
@@ -62,6 +63,11 @@ $effect(() => {
 
 const hostId = $derived(files.hostId ?? "");
 const host = $derived(hostId ? library.host(hostId) : undefined);
+
+// Closing the last place that shows files lets the host's SFTP connection go.
+$effect(() => () => {
+  if (shell.drawer !== "files" && !files.dual) files.release();
+});
 
 // Open the first host if none is chosen yet.
 $effect(() => {
@@ -337,6 +343,7 @@ function editPath() {
     {/if}
 
     <ClashBar />
+    <EditsBar />
 
     {#if files.conflict}
       <div class="strip" role="alertdialog" aria-label="Edit conflict">

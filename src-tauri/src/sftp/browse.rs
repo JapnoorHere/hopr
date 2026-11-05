@@ -13,6 +13,10 @@ use super::*;
 #[tauri::command]
 #[specta::specta]
 pub async fn sftp_open(app: AppHandle, host_id: String) -> Result<String, AppError> {
+    // Browsing again: a close that was waiting for transfers no longer applies.
+    if let Ok(mut idle) = app.state::<Files>().close_when_idle.lock() {
+        idle.remove(&host_id);
+    }
     sftp(&app, &host_id).await?.home().await
 }
 
@@ -205,9 +209,16 @@ pub async fn sftp_preview(
 #[tauri::command]
 #[specta::specta]
 pub async fn sftp_close(app: AppHandle, host_id: String) -> Result<(), AppError> {
-    let s = app.state::<Files>().sessions.lock().await.remove(&host_id);
-    if let Some(s) = s {
-        s.close().await;
+    // Transfers still going keep the connection; it closes when the last one ends.
+    {
+        let files = app.state::<Files>();
+        if super::transfers::host_busy(&files, &host_id) {
+            if let Ok(mut idle) = files.close_when_idle.lock() {
+                idle.insert(host_id);
+            }
+            return Ok(());
+        }
     }
+    close_session(&app, &host_id).await;
     Ok(())
 }

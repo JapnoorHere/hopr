@@ -47,6 +47,8 @@ class FilesStore {
   notice = $state<string | null>(null);
   /** An edit with a pending conflict (changed on the server too). */
   conflict = $state<{ editId: string; remote: string } | null>(null);
+  /** Files open in a local editor; each uploads on save until stopped. */
+  edits = $state<{ id: string; name: string; remote: string }[]>([]);
   bookmarks = $state<Record<string, string[]>>(loadBookmarks());
   /** Targets that already exist, waiting for "overwrite / keep both / skip". */
   clash = $state<{ names: string[]; resolve: (p: ConflictPolicy | null) => void } | null>(null);
@@ -100,6 +102,8 @@ class FilesStore {
       if (at && at !== this.cwd) await this.#goOr(at, this.cwd);
       return;
     }
+    // Another host: the previous one's connection is no longer needed here.
+    if (this.hostId && this.hostId !== hostId) void commands.sftpClose(this.hostId);
     this.hostId = hostId;
     this.entries = [];
     this.selected = [];
@@ -237,8 +241,26 @@ class FilesStore {
     if (!this.hostId) return;
     void this.#listen();
     const res = wrap(await commands.sftpEdit(this.hostId, entry.path, true));
-    if (res.ok) this.flash(`Editing ${entry.name}: changes upload when you save`);
-    else this.flash(res.error.message, "error");
+    if (!res.ok) {
+      this.flash(res.error.message, "error");
+      return;
+    }
+    this.edits = [...this.edits, { id: res.data, name: entry.name, remote: entry.path }];
+    this.flash(`Editing ${entry.name}: changes upload when you save`);
+  }
+
+  /** Stop uploading a locally edited file and delete its local copy. */
+  async stopEdit(id: string) {
+    this.edits = this.edits.filter((e) => e.id !== id);
+    await commands.sftpEditStop(id);
+  }
+
+  /**
+   * Nothing shows files any more (drawer and dual pane closed): let the host's SFTP connection
+   * go. Running transfers keep it until they finish; browsing again reconnects.
+   */
+  release() {
+    if (this.hostId) void commands.sftpClose(this.hostId);
   }
 
   async resolveConflict(overwrite: boolean) {

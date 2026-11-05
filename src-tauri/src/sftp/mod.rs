@@ -2,7 +2,7 @@
 //! transfer queue; file operations; preview; the transfer queue (concurrency 3, resume,
 //! 3 retries, pause/cancel, progress at most 10 Hz); and "edit locally".
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -43,6 +43,8 @@ pub struct Files {
     edits: Mutex<HashMap<String, Edit>>,
     concurrency: std::sync::atomic::AtomicUsize,
     throttle: Arc<hopr_sftp::Throttle>,
+    /// Hosts nothing shows any more, whose session closes when their last transfer ends.
+    close_when_idle: Mutex<HashSet<String>>,
 }
 
 impl Default for Files {
@@ -55,7 +57,16 @@ impl Default for Files {
             edits: Mutex::new(HashMap::new()),
             concurrency: std::sync::atomic::AtomicUsize::new(CONCURRENCY),
             throttle: Arc::new(hopr_sftp::Throttle::default()),
+            close_when_idle: Mutex::new(HashSet::new()),
         }
+    }
+}
+
+/// Drop a host's SFTP session and close its connection.
+async fn close_session(app: &AppHandle, host_id: &str) {
+    let s = app.state::<Files>().sessions.lock().await.remove(host_id);
+    if let Some(s) = s {
+        s.close().await;
     }
 }
 
