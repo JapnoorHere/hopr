@@ -163,10 +163,15 @@ pub async fn vault_unlock_biometric(state: S<'_>) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Create the vault. Returns the recovery key, shown to the user exactly once.
+/// Create the vault. Returns the recovery key, shown to the user exactly once. With `remember`,
+/// this device keeps the key (as an unlock with "remember" would) without deriving it again.
 #[tauri::command]
 #[specta::specta]
-pub async fn vault_create(state: S<'_>, password: String) -> Result<String, AppError> {
+pub async fn vault_create(
+    state: S<'_>,
+    password: String,
+    remember: bool,
+) -> Result<String, AppError> {
     if state.store.vault_header().await?.is_some() {
         return Err(AppError::invalid("A vault already exists"));
     }
@@ -177,6 +182,9 @@ pub async fn vault_create(state: S<'_>, password: String) -> Result<String, AppE
         .map_err(vault_err)?;
     state.store.save_vault_header(&nv.header).await?;
     let recovery = nv.recovery_key.expose_secret().to_owned();
+    if remember && !keychain::store(&nv.vault.export_dek()) {
+        eprintln!("hopr: could not store the vault key in the OS keychain");
+    }
     state.set_vault(nv.vault);
     Ok(recovery)
 }

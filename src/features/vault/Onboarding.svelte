@@ -130,16 +130,17 @@ async function create() {
   else if (password !== confirm) errors.confirm = "The passwords don't match";
   if (errors.password || errors.confirm) return focusFirstInvalid(form);
   busy = true;
-  const res = await vault.create(password);
+  // Quick unlock next time: Windows Hello where it's set up, otherwise remember this device
+  // (stored as the vault is created, so the password isn't run through the KDF twice).
+  const res = await vault.create(password, unlockEasy && !hello);
   if (!res.ok) {
     busy = false;
     errors = { form: res.error.message };
     return;
   }
   recoveryKey = res.data;
-  // Quick unlock next time: Windows Hello where it's set up, otherwise remember this device.
-  if (unlockEasy) {
-    const quick = hello ? await vault.setBiometric(true) : await vault.unlock(password, true);
+  if (unlockEasy && hello) {
+    const quick = await vault.setBiometric(true);
     if (!quick.ok)
       toast.info("Quick unlock isn't available; you can turn it on in Settings › Security");
   }

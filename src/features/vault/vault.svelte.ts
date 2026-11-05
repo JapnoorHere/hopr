@@ -77,11 +77,12 @@ class VaultStore {
     }
   }
 
-  async create(password: string): Promise<Result<string>> {
-    const res = wrap(await commands.vaultCreate(password));
+  /** Create the vault; with `remember`, this device unlocks without the password next time. */
+  async create(password: string, remember = false): Promise<Result<string>> {
+    const res = wrap(await commands.vaultCreate(password, remember));
     if (res.ok) {
       this.showRecovery = true;
-      if (this.status) this.status = { ...this.status, exists: true };
+      if (this.status) this.status = { ...this.status, exists: true, remembered: remember };
       this.#setUnlocked(true);
     }
     return res;

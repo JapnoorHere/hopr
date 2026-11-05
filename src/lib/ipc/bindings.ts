@@ -25,8 +25,11 @@ export const commands = {
 	profileSwitch: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("profile_switch", { id })),
 	/**  Current vault status. */
 	vaultStatus: () => typedError<VaultStatus, AppError>(__TAURI_INVOKE("vault_status")),
-	/**  Create the vault. Returns the recovery key, shown to the user exactly once. */
-	vaultCreate: (password: string) => typedError<string, AppError>(__TAURI_INVOKE("vault_create", { password })),
+	/**
+	 *  Create the vault. Returns the recovery key, shown to the user exactly once. With `remember`,
+	 *  this device keeps the key (as an unlock with "remember" would) without deriving it again.
+	 */
+	vaultCreate: (password: string, remember: boolean) => typedError<string, AppError>(__TAURI_INVOKE("vault_create", { password, remember })),
 	/**  Unlock with the master password, optionally remembering this device. */
 	vaultUnlock: (password: string, remember: boolean) => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock", { password, remember })),
 	/**  Unlock with the key remembered in the OS keychain. */
