@@ -34,7 +34,7 @@ async function open(p: Profile) {
   </div>
   <p class="-mt-1 text-xs text-muted">
     Each profile is separate: its own hosts, keys, snippets, history, backups and master password. Switching
-    restarts Hopr into the other profile.
+    closes the open tabs and opens the other profile in the same window.
   </p>
   <ul class="list">
     {#each profiles.list as p (p.id)}

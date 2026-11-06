@@ -21,7 +21,11 @@ export const commands = {
 	profilesSetAskAtStart: (ask: boolean) => typedError<null, AppError>(__TAURI_INVOKE("profiles_set_ask_at_start", { ask })),
 	/**  Delete a profile and all its data (hosts, keys, history, backups). Not the open one. */
 	profileDelete: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("profile_delete", { id })),
-	/**  Open another profile: Hopr restarts into it (without asking again). */
+	/**
+	 *  Open another profile in place, without restarting: what belongs to the open one closes
+	 *  (tabs, tunnels, transfers, the vault), the database and remembered key switch over, and the
+	 *  UI reloads itself once this returns.
+	 */
 	profileSwitch: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("profile_switch", { id })),
 	/**  Current vault status. */
 	vaultStatus: () => typedError<VaultStatus, AppError>(__TAURI_INVOKE("vault_status")),

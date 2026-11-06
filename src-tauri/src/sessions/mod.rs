@@ -88,6 +88,23 @@ impl SessionManager {
         Ok(())
     }
 
+    /// Close every session (another profile is being opened).
+    pub(crate) async fn close_all(&self) {
+        let handles: Vec<SessionHandle> = self
+            .lock()
+            .map(|m| m.values().cloned().collect())
+            .unwrap_or_default();
+        for h in handles {
+            let _ = h.close().await;
+        }
+        if let Ok(mut m) = self.lock() {
+            m.clear();
+        }
+        if let Ok(mut l) = self.lives.lock() {
+            l.clear();
+        }
+    }
+
     fn remove(&self, id: &str) {
         if let Ok(mut map) = self.lock() {
             map.remove(id);

@@ -49,7 +49,7 @@ impl Store {
                     (SELECT COUNT(*) FROM hosts h WHERE h.key_id = k.id AND h.deleted_at IS NULL) AS used_by
              FROM ssh_keys k ORDER BY k.label COLLATE NOCASE",
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows
             .into_iter()
@@ -73,7 +73,7 @@ impl Store {
         let dup: Option<(String,)> =
             sqlx::query_as("SELECT label FROM ssh_keys WHERE fingerprint = ?")
                 .bind(&key.fingerprint)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         if let Some((label,)) = dup {
             return Err(StoreError::InUse(format!(
@@ -100,7 +100,7 @@ impl Store {
         .bind(enc)
         .bind(&ts)
         .bind(&ts)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(SshKeyInfo {
             id,
@@ -123,7 +123,7 @@ impl Store {
             .bind(certificate)
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?
             .rows_affected();
         if n == 0 {
@@ -137,7 +137,7 @@ impl Store {
         let row: Option<(Option<String>,)> =
             sqlx::query_as("SELECT certificate FROM ssh_keys WHERE id = ?")
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         Ok(row.and_then(|(c,)| c))
     }
@@ -148,7 +148,7 @@ impl Store {
             .bind(label.trim())
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -158,7 +158,7 @@ impl Store {
         let (used,): (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE key_id = ? AND deleted_at IS NULL")
                 .bind(id)
-                .fetch_one(&self.pool)
+                .fetch_one(&self.pool())
                 .await?;
         if used > 0 {
             return Err(StoreError::InUse(format!(
@@ -168,11 +168,11 @@ impl Store {
         // Soft-deleted hosts may still reference it; they go too.
         sqlx::query("DELETE FROM hosts WHERE key_id = ? AND deleted_at IS NOT NULL")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         sqlx::query("DELETE FROM ssh_keys WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -182,7 +182,7 @@ impl Store {
         let row: Option<(Vec<u8>,)> =
             sqlx::query_as("SELECT private_key_enc FROM ssh_keys WHERE id = ?")
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         let (enc,) = row.ok_or(StoreError::NotFound("key"))?;
         Ok(vault.decrypt_string(&aad_private(id), &enc)?)

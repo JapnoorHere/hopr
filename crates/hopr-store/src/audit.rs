@@ -45,14 +45,14 @@ impl Store {
         .bind(e.host_id)
         .bind(e.host_label)
         .bind(detail)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         sqlx::query(
             "DELETE FROM audit_events WHERE id NOT IN
                (SELECT id FROM audit_events ORDER BY id DESC LIMIT ?)",
         )
         .bind(AUDIT_KEEP)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -63,7 +63,7 @@ impl Store {
             "SELECT id, at, kind, host_id, host_label, detail FROM audit_events ORDER BY id DESC LIMIT ?",
         )
         .bind(i64::from(limit))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows
             .into_iter()

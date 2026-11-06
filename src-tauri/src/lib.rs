@@ -257,7 +257,7 @@ pub fn run() {
             let profiles = profiles::Profiles::open(root);
             let data_dir = profiles.data_dir();
             std::fs::create_dir_all(&data_dir)?;
-            state::keychain::set_profile(profiles.current());
+            state::keychain::set_profile(&profiles.current());
             app.manage(profiles);
             let db_path = data_dir.join("hopr.db");
             // A restore staged before the last restart replaces the database now.

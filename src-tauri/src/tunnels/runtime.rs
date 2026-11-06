@@ -293,6 +293,19 @@ pub(super) async fn start(app: &AppHandle, id: &str) -> Result<TunnelStatus, App
     Ok(mgr.status(id))
 }
 
+/// Stop every running tunnel (another profile is being opened).
+pub(crate) async fn stop_all(app: &AppHandle) {
+    let ids: Vec<String> = app
+        .state::<TunnelManager>()
+        .running
+        .lock()
+        .map(|m| m.keys().cloned().collect())
+        .unwrap_or_default();
+    for id in ids {
+        stop(app, &id).await;
+    }
+}
+
 pub(super) async fn stop(app: &AppHandle, id: &str) {
     let mgr = app.state::<TunnelManager>();
     let removed = mgr.running.lock().ok().and_then(|mut m| m.remove(id));

@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hopr_core::{AppError, ErrorCode};
@@ -72,8 +73,8 @@ pub struct ProfilesView {
 /// Managed state: where the data root is, which profile is open, and the registry.
 pub struct Profiles {
     root: PathBuf,
-    current: String,
-    ask_now: bool,
+    current: Mutex<String>,
+    ask_now: AtomicBool,
     registry: Mutex<Registry>,
 }
 
@@ -274,27 +275,27 @@ impl Profiles {
         }
         let _ = save(&root, &reg);
         Self {
-            current: reg.last.clone(),
+            current: Mutex::new(reg.last.clone()),
             root,
-            ask_now,
+            ask_now: AtomicBool::new(ask_now),
             registry: Mutex::new(reg),
         }
     }
 
-    pub fn current(&self) -> &str {
-        &self.current
+    pub fn current(&self) -> String {
+        self.current.lock().map(|c| c.clone()).unwrap_or_default()
     }
 
     pub fn data_dir(&self) -> PathBuf {
-        dir(&self.root, &self.current)
+        dir(&self.root, &self.current())
     }
 
     fn view(&self, reg: &Registry) -> ProfilesView {
         ProfilesView {
             profiles: reg.profiles.clone(),
-            current: self.current.clone(),
+            current: self.current(),
             ask_at_start: reg.ask_at_start,
-            ask_now: self.ask_now,
+            ask_now: self.ask_now.load(Ordering::Relaxed),
         }
     }
 
@@ -350,7 +351,7 @@ pub fn profile_set_look(state: S<'_>, look: ProfileLook) -> Result<(), AppError>
     {
         return Err(AppError::invalid("Colours must be #rrggbb"));
     }
-    let current = state.current.clone();
+    let current = state.current();
     state.edit(|r| {
         if let Some(p) = r.profiles.iter_mut().find(|p| p.id == current) {
             p.look = Some(look);
@@ -373,25 +374,83 @@ pub fn profiles_set_ask_at_start(state: S<'_>, ask: bool) -> Result<(), AppError
 #[tauri::command]
 #[specta::specta]
 pub fn profile_delete(state: S<'_>, id: String) -> Result<(), AppError> {
-    let current = state.current.clone();
+    let current = state.current();
     state.edit(|r| r.remove(&id, &current))?;
     crate::state::keychain::forget_for(&id);
     delete_data(&state.root, &id)
 }
 
-/// Open another profile: Hopr restarts into it (without asking again).
+/// Open another profile in place, without restarting: what belongs to the open one closes
+/// (tabs, tunnels, transfers, the vault), the database and remembered key switch over, and the
+/// UI reloads itself once this returns.
 #[tauri::command]
 #[specta::specta]
-pub fn profile_switch(app: tauri::AppHandle, state: S<'_>, id: String) -> Result<(), AppError> {
+pub async fn profile_switch(
+    app: tauri::AppHandle,
+    state: S<'_>,
+    id: String,
+) -> Result<(), AppError> {
+    use tauri::Manager;
     state.edit(|r| {
         if r.get(&id).is_none() {
             return Err(AppError::invalid("That profile no longer exists"));
         }
         r.last = id.clone();
-        r.skip_ask_once = true;
         Ok(())
     })?;
-    crate::platform::restart(&app, "profile switch")
+    state.ask_now.store(false, Ordering::Relaxed);
+
+    app.state::<crate::sessions::SessionManager>()
+        .close_all()
+        .await;
+    crate::tunnels::runtime::stop_all(&app).await;
+    crate::sftp::reset(&app).await;
+
+    let app_state = app
+        .state::<std::sync::Arc<crate::state::AppState>>()
+        .inner()
+        .clone();
+    app_state.lock();
+    crate::state::keychain::set_profile(&id);
+    if let Ok(mut c) = state.current.lock() {
+        id.clone_into(&mut c);
+    }
+    let data_dir = state.data_dir();
+    std::fs::create_dir_all(&data_dir).map_err(io)?;
+    let db = data_dir.join("hopr.db");
+    hopr_store::backup::apply_pending_restore(&db)?;
+    let store = &app_state.store;
+    store.reopen(&db).await?;
+    let _ = store.purge_deleted_hosts().await;
+    let _ = store.prune_history().await;
+    app_state.set_data_dir(data_dir);
+    app_state.set_auto_lock_minutes(
+        store
+            .setting::<u32>(crate::state::AUTO_LOCK_KEY)
+            .await?
+            .unwrap_or(crate::state::AUTO_LOCK_DEFAULT),
+    );
+    app_state.set_clipboard_clear_secs(
+        store
+            .setting::<u32>(crate::clipboard::CLEAR_KEY)
+            .await?
+            .unwrap_or(crate::clipboard::CLEAR_DEFAULT),
+    );
+    app.state::<crate::history::HistoryState>().set(
+        store
+            .setting::<crate::history::HistorySettings>(crate::history::SETTINGS_KEY)
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+    );
+    // Torn-off tabs and the quick terminal belonged to the old profile.
+    for (label, w) in app.webview_windows() {
+        if label != "main" {
+            let _ = w.close();
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -476,15 +535,15 @@ mod tests {
         save(&root, &reg).unwrap();
         let opened = Profiles::open(root.clone());
         assert_eq!(opened.current(), p.id);
-        assert!(!opened.ask_now);
-        assert!(Profiles::open(root).ask_now);
+        assert!(!opened.ask_now.load(Ordering::Relaxed));
+        assert!(Profiles::open(root).ask_now.load(Ordering::Relaxed));
     }
 
     #[test]
     fn one_profile_opens_without_asking() {
         let root = temp();
         save(&root, &Registry::fresh()).unwrap();
-        assert!(!Profiles::open(root).ask_now);
+        assert!(!Profiles::open(root).ask_now.load(Ordering::Relaxed));
     }
 
     #[test]

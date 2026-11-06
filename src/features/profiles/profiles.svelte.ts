@@ -1,6 +1,7 @@
 /**
  * Profiles: separate vaults, each in its own data folder (see src-tauri/src/profiles.rs).
- * Switching restarts Hopr into the chosen profile; the picker shows at start-up.
+ * Switching happens in place: the backend moves to the chosen profile and the page reloads (no
+ * restart, the window stays). The picker shows at start-up.
  */
 import { wrap } from "$features/vault/vault.svelte";
 import type { ThemeSpec } from "$lib/design/themes";
@@ -15,7 +16,7 @@ class ProfilesStore {
   picking = $state(false);
   /** The picker was opened from the switcher (so it can be dismissed). */
   fromMenu = $state(false);
-  /** A switch is under way (Hopr is about to restart). */
+  /** A switch is under way (the page reloads into the other profile). */
   switching = $state<string | null>(null);
 
   active = $derived(this.list.find((p) => p.id === this.current) ?? null);
@@ -61,7 +62,7 @@ class ProfilesStore {
     wrap(await commands.profilesSetAskAtStart(ask));
   }
 
-  /** Open a profile: the current one just closes the picker; another restarts Hopr into it. */
+  /** Open a profile: the current one just closes the picker; another is opened in place. */
   async open(id: string) {
     if (id === this.current) {
       this.picking = false;
@@ -69,7 +70,12 @@ class ProfilesStore {
     }
     this.switching = id;
     const r = wrap(await commands.profileSwitch(id));
-    if (!r.ok) this.switching = null;
+    if (!r.ok) {
+      this.switching = null;
+      return r;
+    }
+    // Every store (hosts, tabs, theme, saved layout) starts again for the new profile.
+    location.reload();
     return r;
   }
 

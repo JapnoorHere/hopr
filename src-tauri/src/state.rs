@@ -33,8 +33,8 @@ pub struct AppState {
     last_activity: AtomicU64,
     auto_lock_minutes: AtomicU32,
     clipboard_clear_secs: AtomicU32,
-    /// Where `hopr.db` and `backups/` live.
-    pub data_dir: PathBuf,
+    /// Where `hopr.db` and `backups/` live (changes when another profile is opened).
+    data_dir: RwLock<PathBuf>,
     /// Tabs handed to a new window, by window label, until it picks them up.
     pub handoffs: Mutex<HashMap<String, String>>,
 }
@@ -62,17 +62,27 @@ impl AppState {
             last_activity: AtomicU64::new(now_secs()),
             auto_lock_minutes: AtomicU32::new(auto_lock_minutes),
             clipboard_clear_secs: AtomicU32::new(clipboard_clear_secs),
-            data_dir,
+            data_dir: RwLock::new(data_dir),
             handoffs: Mutex::new(HashMap::new()),
         }
     }
 
+    pub fn data_dir(&self) -> PathBuf {
+        self.data_dir.read().map(|d| d.clone()).unwrap_or_default()
+    }
+
+    pub fn set_data_dir(&self, dir: PathBuf) {
+        if let Ok(mut d) = self.data_dir.write() {
+            *d = dir;
+        }
+    }
+
     pub fn db_path(&self) -> PathBuf {
-        self.data_dir.join("hopr.db")
+        self.data_dir().join("hopr.db")
     }
 
     pub fn backups_dir(&self) -> PathBuf {
-        self.data_dir.join("backups")
+        self.data_dir().join("backups")
     }
 
     /// Record an audit event in the background (X7). Failures are logged, never surfaced:
@@ -185,14 +195,16 @@ pub mod keychain {
 
     /// The open profile: each profile remembers its own key. The original profile keeps the
     /// old name, so a key remembered before profiles existed still works.
-    static PROFILE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    static PROFILE: std::sync::RwLock<String> = std::sync::RwLock::new(String::new());
 
     /// A custom data folder (HOPR_DATA_DIR: tests, portable copies) gets its own names, so its
     /// profiles never overwrite the keys remembered by the normal install.
     static SCOPE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
     pub fn set_profile(id: &str) {
-        let _ = PROFILE.set(id.to_owned());
+        if let Ok(mut p) = PROFILE.write() {
+            id.clone_into(&mut p);
+        }
     }
 
     pub fn set_data_scope(root: &std::path::Path) {
@@ -224,9 +236,12 @@ pub mod keychain {
     }
 
     fn entry() -> Option<keyring::Entry> {
-        let id = PROFILE
-            .get()
-            .map_or(crate::profiles::DEFAULT_ID, String::as_str);
+        let id = PROFILE.read().ok().map(|p| p.clone()).unwrap_or_default();
+        let id = if id.is_empty() {
+            crate::profiles::DEFAULT_ID
+        } else {
+            id.as_str()
+        };
         keyring::Entry::new(SERVICE, &user_for(id)).ok()
     }
 

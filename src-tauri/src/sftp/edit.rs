@@ -21,7 +21,7 @@ pub(super) struct Edit {
     local: PathBuf,
     /// Remote mtime when we last downloaded or uploaded it.
     remote_mtime: Option<u32>,
-    stop: Arc<AtomicBool>,
+    pub(super) stop: Arc<AtomicBool>,
 }
 
 /// What happened to a locally edited file.

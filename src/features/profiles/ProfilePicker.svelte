@@ -2,7 +2,7 @@
 /**
  * "Choose a profile": shown when Hopr opens (like a browser's profile picker) and from the
  * switcher. Each tile is drawn in that profile's own theme on the plain background. Picking the open profile carries
- * on; another one restarts Hopr into it.
+ * on; another one opens in place.
  */
 import { DotsThree, Plus, X } from "phosphor-svelte";
 import { fade } from "svelte/transition";

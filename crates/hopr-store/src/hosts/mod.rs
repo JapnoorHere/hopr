@@ -44,11 +44,11 @@ impl Store {
     pub async fn list_hosts(&self) -> Result<Vec<Host>> {
         let rows: Vec<HostRow> =
             sqlx::query_as(&format!("{HOST_SELECT} ORDER BY h.label COLLATE NOCASE"))
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         let tag_rows: Vec<(String, String)> =
             sqlx::query_as("SELECT host_id, tag FROM host_tags ORDER BY tag")
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         let mut tags: HashMap<String, Vec<String>> = HashMap::new();
         for (host_id, tag) in tag_rows {
@@ -67,13 +67,13 @@ impl Store {
     pub async fn get_host(&self, id: &str) -> Result<Host> {
         let row: Option<HostRow> = sqlx::query_as(&format!("{HOST_SELECT} AND h.id = ?"))
             .bind(id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&self.pool())
             .await?;
         let row = row.ok_or(StoreError::NotFound("host"))?;
         let tags: Vec<(String,)> =
             sqlx::query_as("SELECT tag FROM host_tags WHERE host_id = ? ORDER BY tag")
                 .bind(id)
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         Ok(row.into_host(tags.into_iter().map(|(t,)| t).collect()))
     }
@@ -125,7 +125,7 @@ impl Store {
         self.check_jump(None, input.jump_host_id.as_deref()).await?;
         let id = new_id();
         let ts = now();
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool().begin().await?;
         sqlx::query(
             "INSERT INTO hosts (id, label, hostname, username, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?)",
@@ -193,7 +193,7 @@ impl Store {
         let add = normalize_tags(&edit.add_tags);
         let remove = normalize_tags(&edit.remove_tags);
         let ts = now();
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool().begin().await?;
         let mut changed = 0;
         for id in &edit.ids {
             let live: Option<(String,)> =
@@ -253,7 +253,7 @@ impl Store {
     ) -> Result<Host> {
         self.check_jump(Some(id), input.jump_host_id.as_deref())
             .await?;
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool().begin().await?;
         if write_fields(&mut tx, id, &input).await? == 0 {
             return Err(StoreError::NotFound("host"));
         }
@@ -274,7 +274,7 @@ impl Store {
             .bind(jump)
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -285,7 +285,7 @@ impl Store {
             .bind(key_id)
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -296,7 +296,7 @@ impl Store {
             .bind(favorite)
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -309,7 +309,7 @@ impl Store {
             .bind(&ts)
             .bind(&ts)
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -319,7 +319,7 @@ impl Store {
         sqlx::query("UPDATE hosts SET deleted_at = NULL, updated_at = ? WHERE id = ?")
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -327,7 +327,7 @@ impl Store {
     /// Permanently remove soft-deleted hosts (run at startup).
     pub async fn purge_deleted_hosts(&self) -> Result<u64> {
         let res = sqlx::query("DELETE FROM hosts WHERE deleted_at IS NOT NULL")
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(res.rows_affected())
     }
@@ -337,7 +337,7 @@ impl Store {
         sqlx::query("UPDATE hosts SET last_connected_at = ?, connect_count = connect_count + 1 WHERE id = ?")
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -352,7 +352,7 @@ impl Store {
         let change = SecretChange::Set {
             value: password.to_owned(),
         };
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool().begin().await?;
         write_secret(&mut tx, vault, id, Secret::Password, &change).await?;
         tx.commit().await?;
         Ok(())
@@ -368,7 +368,7 @@ impl Store {
             "SELECT password_enc, totp_seed_enc, proxy_password_enc FROM host_secrets WHERE host_id = ?",
         )
         .bind(id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&self.pool())
         .await?;
         let (pw, totp, proxy) = row.unwrap_or((None, None, None));
         Ok(HostCredentials {
@@ -389,7 +389,7 @@ impl Store {
         let rows: Vec<(String, String, i32)> = sqlx::query_as(
             "SELECT id, name, sort_order FROM groups ORDER BY sort_order, name COLLATE NOCASE",
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows
             .into_iter()
@@ -406,7 +406,7 @@ impl Store {
         let id = new_id();
         let ts = now();
         let next: (i32,) = sqlx::query_as("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM groups")
-            .fetch_one(&self.pool)
+            .fetch_one(&self.pool())
             .await?;
         sqlx::query("INSERT INTO groups (id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
             .bind(&id)
@@ -414,7 +414,7 @@ impl Store {
             .bind(next.0)
             .bind(&ts)
             .bind(&ts)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(Group {
             id,
@@ -429,7 +429,7 @@ impl Store {
             .bind(name.trim())
             .bind(now())
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -438,7 +438,7 @@ impl Store {
     pub async fn delete_group(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM groups WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -646,7 +646,7 @@ mod tests {
         store.create_host(&vault, input("a")).await.unwrap();
         let blobs: Vec<(Option<Vec<u8>>,)> =
             sqlx::query_as("SELECT password_enc FROM host_secrets")
-                .fetch_all(&store.pool)
+                .fetch_all(&store.pool())
                 .await
                 .unwrap();
         let blob = blobs[0].0.clone().unwrap();
@@ -687,7 +687,7 @@ mod tests {
         // Deleting a jump host ungroups the chain instead of breaking it.
         sqlx::query("DELETE FROM hosts WHERE id = ?")
             .bind(&b.id)
-            .execute(&store.pool)
+            .execute(&store.pool())
             .await
             .unwrap();
         assert_eq!(store.jump_chain(&c.id).await.unwrap().len(), 1);

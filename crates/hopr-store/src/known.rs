@@ -63,7 +63,7 @@ impl Store {
         ))
         .bind(host.to_ascii_lowercase())
         .bind(i64::from(port))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
@@ -86,7 +86,7 @@ impl Store {
         .bind(&ts)
         .bind(&ts)
         .bind(k.source)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -96,7 +96,7 @@ impl Store {
         sqlx::query("DELETE FROM known_hosts WHERE host_pattern = ? AND port = ?")
             .bind(k.host_pattern.to_ascii_lowercase())
             .bind(i64::from(k.port))
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         self.trust_key(k).await
     }
@@ -106,7 +106,7 @@ impl Store {
         let rows: Vec<KnownRow> = sqlx::query_as(&format!(
             "SELECT {KNOWN_COLS} FROM known_hosts ORDER BY host_pattern, port"
         ))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
@@ -115,7 +115,7 @@ impl Store {
     pub async fn delete_known_host(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM known_hosts WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }

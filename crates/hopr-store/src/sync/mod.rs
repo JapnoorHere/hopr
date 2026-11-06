@@ -199,7 +199,7 @@ impl Store {
     async fn columns(&self, table: &str) -> Result<Vec<String>> {
         let rows: Vec<(i64, String, String, i64, Option<String>, i64)> =
             sqlx::query_as(&format!("PRAGMA table_info({table})"))
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         Ok(rows.into_iter().map(|r| r.1).collect())
     }
@@ -209,7 +209,7 @@ impl Store {
         let mut out = Vec::new();
         for k in &KINDS {
             let rows = sqlx::query(&format!("SELECT * FROM {}", k.table))
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
             for row in rows {
                 let mut data = row_json(&row, k.secret_cols);
@@ -232,7 +232,7 @@ impl Store {
                             "SELECT tag FROM host_tags WHERE host_id = ? ORDER BY tag",
                         )
                         .bind(&id)
-                        .fetch_all(&self.pool)
+                        .fetch_all(&self.pool())
                         .await?;
                         data.insert(
                             "tags".into(),
@@ -265,7 +265,7 @@ impl Store {
         }
         let tombs: Vec<(String, String, String)> =
             sqlx::query_as("SELECT kind, id, deleted_at FROM sync_tombstones")
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         for (kind, id, at) in tombs {
             out.push(SyncRecord {
@@ -286,7 +286,7 @@ impl Store {
             k.table, k.pk
         ))
         .bind(id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&self.pool())
         .await?;
         if let Some((t,)) = row {
             return Ok(Some(t));
@@ -295,7 +295,7 @@ impl Store {
             sqlx::query_as("SELECT deleted_at FROM sync_tombstones WHERE kind = ? AND id = ?")
                 .bind(k.name)
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         Ok(tomb.map(|(t,)| t))
     }
@@ -355,7 +355,7 @@ impl Store {
         for (_, bytes) in extra {
             q = q.bind(bytes.clone());
         }
-        q.execute(&self.pool).await?;
+        q.execute(&self.pool()).await?;
         Ok(())
     }
 
@@ -386,7 +386,7 @@ impl Store {
                     .await?;
                 sqlx::query("DELETE FROM host_tags WHERE host_id = ?")
                     .bind(&r.id)
-                    .execute(&self.pool)
+                    .execute(&self.pool())
                     .await?;
                 for t in data
                     .get("tags")
@@ -398,7 +398,7 @@ impl Store {
                         sqlx::query("INSERT OR IGNORE INTO host_tags (host_id, tag) VALUES (?, ?)")
                             .bind(&r.id)
                             .bind(t)
-                            .execute(&self.pool)
+                            .execute(&self.pool())
                             .await?;
                     }
                 }
@@ -415,7 +415,7 @@ impl Store {
                 .bind(seal(crate::hosts::aad_password(&r.id), secret("password"))?)
                 .bind(seal(crate::hosts::aad_totp(&r.id), secret("totp_seed"))?)
                 .bind(seal(crate::hosts::aad_proxy(&r.id), secret("proxy_password"))?)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?;
             }
             _ => self.upsert_row(k, &data, &[], &[]).await?,
@@ -424,7 +424,7 @@ impl Store {
         sqlx::query("DELETE FROM sync_tombstones WHERE kind = ? AND id = ?")
             .bind(k.name)
             .bind(&r.id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -468,7 +468,7 @@ impl Store {
             .bind(&jump)
             .bind(&id)
             .bind(&jump)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await;
         }
         // Deletions, children first.
@@ -479,7 +479,7 @@ impl Store {
                     k.table, k.pk
                 ))
                 .bind(&r.id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
                 let Some((local,)) = row else { continue };
                 if !newer(&r.updated_at, Some(&local)) {
@@ -487,7 +487,7 @@ impl Store {
                 }
                 let res = sqlx::query(&format!("DELETE FROM {} WHERE {} = ?", k.table, k.pk))
                     .bind(&r.id)
-                    .execute(&self.pool)
+                    .execute(&self.pool())
                     .await;
                 match res {
                     Ok(_) => outcome.deleted += 1,

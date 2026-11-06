@@ -38,7 +38,7 @@ impl Store {
         let rows: Vec<Row> = sqlx::query_as(&format!(
             "{SELECT} ORDER BY is_autosave DESC, name COLLATE NOCASE"
         ))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
@@ -49,7 +49,7 @@ impl Store {
         let existing: Option<(String,)> =
             sqlx::query_as("SELECT id FROM workspaces WHERE name = ? AND is_autosave = 0")
                 .bind(name)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         let id = match existing {
             Some((id,)) => {
@@ -57,7 +57,7 @@ impl Store {
                     .bind(layout_json)
                     .bind(&ts)
                     .bind(&id)
-                    .execute(&self.pool)
+                    .execute(&self.pool())
                     .await?;
                 id
             }
@@ -71,7 +71,7 @@ impl Store {
                 .bind(layout_json)
                 .bind(&ts)
                 .bind(&ts)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?;
                 id
             }
@@ -87,7 +87,7 @@ impl Store {
         )
         .bind(layout_json)
         .bind(&ts)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         if res.rows_affected() == 0 {
             sqlx::query(
@@ -98,7 +98,7 @@ impl Store {
             .bind(layout_json)
             .bind(&ts)
             .bind(&ts)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         }
         Ok(())
@@ -108,7 +108,7 @@ impl Store {
     pub async fn get_workspace(&self, id: &str) -> Result<Workspace> {
         let row: Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE id = ?"))
             .bind(id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&self.pool())
             .await?;
         row.map(Into::into).ok_or(StoreError::NotFound("workspace"))
     }
@@ -117,14 +117,14 @@ impl Store {
     pub async fn delete_workspace(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM workspaces WHERE id = ? AND is_autosave = 0")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
 
     /// Make `id` the startup workspace (or clear it with `None`).
     pub async fn set_startup_workspace(&self, id: Option<&str>) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool().begin().await?;
         sqlx::query("UPDATE workspaces SET is_startup = 0")
             .execute(&mut *tx)
             .await?;

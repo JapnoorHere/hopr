@@ -17,6 +17,7 @@ mod workspaces;
 
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::{Arc, PoisonError, RwLock};
 
 use hopr_core::{AppError, ErrorCode};
 use hopr_vault::{VaultError, VaultHeader};
@@ -87,13 +88,34 @@ pub(crate) fn new_id() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
-/// Handle to the Hopr database.
+/// Handle to the Hopr database. Clones share it: `reopen` moves every clone to another file
+/// (switching profile without restarting the app).
 #[derive(Clone)]
 pub struct Store {
-    pub(crate) pool: SqlitePool,
+    pool: Arc<RwLock<SqlitePool>>,
 }
 
 impl Store {
+    /// The connection pool for one query (a cheap handle).
+    pub(crate) fn pool(&self) -> SqlitePool {
+        self.pool
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Switch this store, and every clone of it, to the database at `path`. The old one is
+    /// closed once its running queries finish.
+    pub async fn reopen(&self, path: &Path) -> Result<()> {
+        let next = Self::open(path).await?.pool();
+        let old = std::mem::replace(
+            &mut *self.pool.write().unwrap_or_else(PoisonError::into_inner),
+            next,
+        );
+        old.close().await;
+        Ok(())
+    }
+
     /// Open (or create) the database at `path`, back it up, and run migrations.
     pub async fn open(path: &Path) -> Result<Self> {
         if path.exists() {
@@ -128,14 +150,16 @@ impl Store {
 
     async fn migrate(pool: SqlitePool) -> Result<Self> {
         sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(Self { pool })
+        Ok(Self {
+            pool: Arc::new(RwLock::new(pool)),
+        })
     }
 
     /// The vault header, if a vault has been created.
     pub async fn vault_header(&self) -> Result<Option<VaultHeader>> {
         let row: Option<(String,)> =
             sqlx::query_as("SELECT header_json FROM vault_meta WHERE id = 1")
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         row.map(|(json,)| serde_json::from_str(&json).map_err(StoreError::from))
             .transpose()
@@ -152,7 +176,7 @@ impl Store {
         .bind(json)
         .bind(&ts)
         .bind(&ts)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -162,7 +186,7 @@ impl Store {
         let row: Option<(String,)> =
             sqlx::query_as("SELECT value_json FROM app_settings WHERE key = ?")
                 .bind(key)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         row.map(|(json,)| serde_json::from_str(&json).map_err(StoreError::from))
             .transpose()
@@ -172,7 +196,7 @@ impl Store {
     pub async fn delete_setting(&self, key: &str) -> Result<()> {
         sqlx::query("DELETE FROM app_settings WHERE key = ?")
             .bind(key)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -185,7 +209,7 @@ impl Store {
         )
         .bind(key)
         .bind(serde_json::to_string(value)?)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -219,13 +243,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn reopen_moves_every_clone_to_the_other_database() {
+        let dir = std::env::temp_dir().join(format!("hopr-store-reopen-{}", new_id()));
+        let (a, b) = (dir.join("a.db"), dir.join("b.db"));
+        Store::open(&b)
+            .await
+            .unwrap()
+            .set_setting("who", &"b")
+            .await
+            .unwrap();
+        let store = Store::open(&a).await.unwrap();
+        store.set_setting("who", &"a").await.unwrap();
+        let clone = store.clone();
+        store.reopen(&b).await.unwrap();
+        assert_eq!(
+            clone.setting::<String>("who").await.unwrap().as_deref(),
+            Some("b")
+        );
+        store.pool().close().await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
     async fn file_database_persists_and_backs_up() {
         let dir = std::env::temp_dir().join(format!("hopr-store-test-{}", new_id()));
         let path = dir.join("hopr.db");
         {
             let s = Store::open(&path).await.unwrap();
             s.set_setting("k", &"v").await.unwrap();
-            s.pool.close().await;
+            s.pool().close().await;
         }
         let s = Store::open(&path).await.unwrap();
         assert_eq!(
@@ -233,7 +279,7 @@ mod tests {
             Some("v")
         );
         assert!(path.with_extension("db.bak").exists());
-        s.pool.close().await;
+        s.pool().close().await;
         let _ = std::fs::remove_dir_all(dir);
     }
 }

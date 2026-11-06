@@ -41,7 +41,7 @@ impl Store {
         let tmp = std::env::temp_dir().join(format!("hopr-snapshot-{}.db", new_id()));
         let path = tmp.to_string_lossy().replace('\\', "/").replace('\'', "''");
         sqlx::query(&format!("VACUUM INTO '{path}'"))
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         let bytes = std::fs::read(&tmp);
         let _ = std::fs::remove_file(&tmp);
@@ -232,8 +232,8 @@ mod tests {
             .await
             .unwrap();
         assert!(c.password.is_some());
-        restored.pool.close().await;
-        store.pool.close().await;
+        restored.pool().close().await;
+        store.pool().close().await;
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(src_dir);
     }

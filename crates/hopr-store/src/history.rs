@@ -161,11 +161,11 @@ impl Store {
         .bind(c.exact)
         .bind(&started)
         .bind(c.duration_ms)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         let row: CommandRow = sqlx::query_as(&format!("{SELECT_COMMANDS} WHERE id = ?"))
             .bind(&id)
-            .fetch_one(&self.pool)
+            .fetch_one(&self.pool())
             .await?;
         Ok(row.into())
     }
@@ -189,7 +189,7 @@ impl Store {
         if let Some(h) = host_id.filter(|h| !h.is_empty()) {
             q = q.bind(h);
         }
-        let rows = q.bind(limit.clamp(1, 5000)).fetch_all(&self.pool).await?;
+        let rows = q.bind(limit.clamp(1, 5000)).fetch_all(&self.pool()).await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -197,7 +197,7 @@ impl Store {
     pub async fn delete_command(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM command_history WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -205,11 +205,11 @@ impl Store {
     /// Forget all commands and connections. Returns how many commands were removed.
     pub async fn clear_history(&self) -> Result<u64> {
         let n = sqlx::query("DELETE FROM command_history")
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?
             .rows_affected();
         sqlx::query("DELETE FROM connection_history")
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(n)
     }
@@ -221,12 +221,12 @@ impl Store {
              (SELECT id FROM command_history ORDER BY started_at DESC LIMIT -1 OFFSET ?)",
         )
         .bind(HISTORY_KEEP)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         sqlx::query(
             "UPDATE connection_history SET ended_at = started_at, end_reason = 'unknown' WHERE ended_at IS NULL",
         )
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -247,7 +247,7 @@ impl Store {
         .bind(host_label)
         .bind(kind)
         .bind(now())
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(id)
     }
@@ -268,7 +268,7 @@ impl Store {
         .bind(i64::try_from(bytes_in).unwrap_or(i64::MAX))
         .bind(i64::try_from(bytes_out).unwrap_or(i64::MAX))
         .bind(id)
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -286,14 +286,14 @@ impl Store {
             ))
             .bind(h)
             .bind(limit)
-            .fetch_all(&self.pool)
+            .fetch_all(&self.pool())
             .await?,
             None => {
                 sqlx::query_as(&format!(
                     "{SELECT_CONNECTIONS} ORDER BY started_at DESC, id DESC LIMIT ?"
                 ))
                 .bind(limit)
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?
             }
         };

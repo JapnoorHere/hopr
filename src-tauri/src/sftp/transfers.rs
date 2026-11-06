@@ -148,6 +148,20 @@ pub(super) fn retryable(e: &AppError) -> bool {
     )
 }
 
+/// Cancel and forget every transfer (another profile is being opened).
+pub(super) fn cancel_all(files: &Files) {
+    if let Ok(mut jobs) = files.jobs.lock() {
+        for j in jobs.iter() {
+            j.pausing.store(false, Ordering::Relaxed);
+            j.cancel.store(true, Ordering::Relaxed);
+        }
+        jobs.clear();
+    }
+    if let Ok(mut q) = files.queue.lock() {
+        q.clear();
+    }
+}
+
 /// A host with transfers queued or running keeps its SFTP session.
 pub(super) fn host_busy(files: &Files, host_id: &str) -> bool {
     files.jobs.lock().is_ok_and(|jobs| {

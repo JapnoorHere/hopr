@@ -43,7 +43,7 @@ impl Store {
         let rows: Vec<Row> = sqlx::query_as(&format!(
             "{SELECT} ORDER BY h.label COLLATE NOCASE, t.bind_port"
         ))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows.into_iter().filter_map(Row::into_tunnel).collect())
     }
@@ -52,7 +52,7 @@ impl Store {
     pub async fn get_tunnel(&self, id: &str) -> Result<Tunnel> {
         let row: Option<Row> = sqlx::query_as(&format!("{SELECT} WHERE t.id = ?"))
             .bind(id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&self.pool())
             .await?;
         row.and_then(Row::into_tunnel)
             .ok_or(StoreError::NotFound("tunnel"))
@@ -77,7 +77,7 @@ impl Store {
                 .bind(t.auto_start)
                 .bind(&ts)
                 .bind(id)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?
                 .rows_affected();
                 if n == 0 {
@@ -102,7 +102,7 @@ impl Store {
                 .bind(t.auto_start)
                 .bind(&ts)
                 .bind(&ts)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?;
                 id
             }
@@ -114,7 +114,7 @@ impl Store {
     pub async fn delete_tunnel(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM tunnels WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }

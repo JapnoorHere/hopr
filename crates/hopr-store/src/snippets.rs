@@ -57,7 +57,7 @@ impl Store {
         let rows: Vec<Row> = sqlx::query_as(&format!(
             "{SELECT} ORDER BY folder COLLATE NOCASE, name COLLATE NOCASE"
         ))
-        .fetch_all(&self.pool)
+        .fetch_all(&self.pool())
         .await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
@@ -80,7 +80,7 @@ impl Store {
                 .bind(s.run_mode.as_str())
                 .bind(&ts)
                 .bind(id)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?
                 .rows_affected();
                 if n == 0 {
@@ -103,14 +103,14 @@ impl Store {
                 .bind(s.run_mode.as_str())
                 .bind(&ts)
                 .bind(&ts)
-                .execute(&self.pool)
+                .execute(&self.pool())
                 .await?;
                 id
             }
         };
         let row: Row = sqlx::query_as(&format!("{SELECT} WHERE id = ?"))
             .bind(&id)
-            .fetch_one(&self.pool)
+            .fetch_one(&self.pool())
             .await?;
         Ok(row.into())
     }
@@ -119,7 +119,7 @@ impl Store {
     pub async fn delete_snippet(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM snippets WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -128,7 +128,7 @@ impl Store {
     pub async fn secret_names(&self) -> Result<Vec<String>> {
         let rows: Vec<(String,)> =
             sqlx::query_as("SELECT name FROM snippet_secrets ORDER BY name COLLATE NOCASE")
-                .fetch_all(&self.pool)
+                .fetch_all(&self.pool())
                 .await?;
         Ok(rows.into_iter().map(|(n,)| n).collect())
     }
@@ -143,7 +143,7 @@ impl Store {
         .bind(name)
         .bind(sealed)
         .bind(now())
-        .execute(&self.pool)
+        .execute(&self.pool())
         .await?;
         Ok(())
     }
@@ -157,7 +157,7 @@ impl Store {
         let row: Option<(Vec<u8>,)> =
             sqlx::query_as("SELECT value_enc FROM snippet_secrets WHERE name = ?")
                 .bind(name)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&self.pool())
                 .await?;
         row.map(|(c,)| vault.decrypt_string(&aad(name), &c).map_err(Into::into))
             .transpose()
@@ -167,7 +167,7 @@ impl Store {
     pub async fn delete_secret(&self, name: &str) -> Result<()> {
         sqlx::query("DELETE FROM snippet_secrets WHERE name = ?")
             .bind(name)
-            .execute(&self.pool)
+            .execute(&self.pool())
             .await?;
         Ok(())
     }
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(v.expose_secret(), "s3cret");
         // Not stored in plaintext.
         let (raw,): (Vec<u8>,) = sqlx::query_as("SELECT value_enc FROM snippet_secrets")
-            .fetch_one(&store.pool)
+            .fetch_one(&store.pool())
             .await
             .unwrap();
         assert!(!raw.windows(6).any(|w| w == b"s3cret"));

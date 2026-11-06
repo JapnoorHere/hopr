@@ -24,7 +24,7 @@ fn io_err(what: &str, e: &std::io::Error) -> AppError {
 }
 
 pub fn dir(state: &AppState) -> PathBuf {
-    state.data_dir.join("recordings")
+    state.data_dir().join("recordings")
 }
 
 /// A recording's path, refusing anything that isn't a plain `.cast` file name.

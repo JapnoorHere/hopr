@@ -62,6 +62,32 @@ impl Default for Files {
     }
 }
 
+/// Close everything SFTP holds for the open profile: transfers, sessions, local edits.
+pub(crate) async fn reset(app: &AppHandle) {
+    let files = app.state::<Files>();
+    transfers::cancel_all(&files);
+    if let Ok(mut idle) = files.close_when_idle.lock() {
+        idle.clear();
+    }
+    if let Ok(mut edits) = files.edits.lock() {
+        for e in edits.values() {
+            e.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        edits.clear();
+    }
+    edit::clear_temp();
+    let sessions: Vec<Arc<Sftp>> = files
+        .sessions
+        .lock()
+        .await
+        .drain()
+        .map(|(_, s)| s)
+        .collect();
+    for s in sessions {
+        s.close().await;
+    }
+}
+
 /// Drop a host's SFTP session and close its connection.
 async fn close_session(app: &AppHandle, host_id: &str) {
     let s = app.state::<Files>().sessions.lock().await.remove(host_id);
