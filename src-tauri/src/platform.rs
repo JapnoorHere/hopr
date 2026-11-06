@@ -377,6 +377,16 @@ pub fn quick_toggle(app: AppHandle) {
     toggle_quick(&app);
 }
 
+/// Whether a window exists and is showing (the end-to-end suite checks the tray and the quick
+/// terminal with it).
+#[tauri::command]
+#[specta::specta]
+pub fn window_visible(app: AppHandle, label: String) -> bool {
+    app.get_webview_window(&label)
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
+}
+
 /// Restart Hopr, first noting why in `restarts.log` (the app's log folder), so a restart
 /// nobody expected can be traced.
 pub fn restart(app: &AppHandle, reason: &str) -> ! {
@@ -391,6 +401,12 @@ pub fn restart(app: &AppHandle, reason: &str) -> ! {
             .append(true)
             .open(dir.join("restarts.log"))
             .and_then(|mut f| std::io::Write::write_all(&mut f, line.as_bytes()));
+    }
+    // Under `pnpm dev:app`, exit and let its loop start Hopr again: restarting in place would end
+    // the process `tauri dev` watches and take the dev server with it.
+    if cfg!(debug_assertions) && std::env::var_os("HOPR_DEV_LOOP").is_some() {
+        let _ = std::fs::write(std::env::temp_dir().join("hopr-dev-restart"), reason);
+        std::process::exit(0);
     }
     app.restart()
 }

@@ -12,7 +12,8 @@
     "lint": "biome check --css-parse-tailwind-directives=true . && node scripts/check-tokens.mjs",
     "format": "biome check --write --css-parse-tailwind-directives=true .",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev:app": "node scripts/dev-loop.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",

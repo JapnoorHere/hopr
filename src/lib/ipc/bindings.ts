@@ -205,6 +205,11 @@ export const commands = {
 	quickToggle: () => __TAURI_INVOKE<void>("quick_toggle"),
 	/**  Bring the main window to the front. */
 	mainShow: () => __TAURI_INVOKE<void>("main_show"),
+	/**
+	 *  Whether a window exists and is showing (the end-to-end suite checks the tray and the quick
+	 *  terminal with it).
+	 */
+	windowVisible: (label: string) => __TAURI_INVOKE<boolean>("window_visible", { label }),
 	/**  Restart from the UI (after a restore is staged), with the reason logged. */
 	appRestart: (reason: string) => __TAURI_INVOKE<void>("app_restart", { reason }),
 	/**

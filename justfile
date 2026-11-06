@@ -6,13 +6,15 @@ setup:
     pnpm install
     cargo fetch
 
-# Run the desktop app with hot reload.
+# Run the desktop app with hot reload (survives profile switches and restores).
 dev:
-    pnpm tauri dev
+    pnpm dev:app
 
-# All unit tests (Rust + TS).
+# All unit tests (Rust + TS). The app crate turns its tests off by default (its test binary
+# can't load the webview DLLs), so they run here with --lib.
 test:
     cargo test --workspace
+    cargo test -p hopr --lib
     pnpm test
 
 # Lint, typecheck, format checks. CI runs exactly this.

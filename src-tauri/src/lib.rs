@@ -111,6 +111,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             platform::tray_set_recent,
             platform::quick_toggle,
             platform::main_show,
+            platform::window_visible,
             platform::app_restart,
             platform::window_tear_off,
             platform::window_handoff_take,
