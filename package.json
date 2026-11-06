@@ -1,6 +1,7 @@
 {
   "name": "hopr",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Hopr: a fast, lightweight SSH client",
   "type": "module",

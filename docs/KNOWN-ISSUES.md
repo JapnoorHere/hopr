@@ -20,7 +20,7 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 | 6 | The profile picker showed at launch even with one profile | Profiles | P2 | ✅ |
 | 7 | Onboarding "remember me" unlocked the vault twice | Onboarding | P2 | ✅ |
 | 8 | The website's download button points to a release that doesn't exist | Site | P2 | ❓ |
-| 9 | No LICENSE although the site invites contributions | Repo | P2 | ❓ |
+| 9 | No LICENSE although the site invites contributions | Repo | P2 | ✅ |
 | 10 | Switching profiles in dev mode killed `tauri dev` | Dev | P3 | ✅ |
 | 11 | `windowVisible` command looked unused | Backend | P3 | ✏️ |
 | 12 | `TerminalBackground.opacity` was a dead parameter | Terminal | P3 | ✅ |
@@ -76,8 +76,8 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 - **What:** the site's download button points to `github.com/JapnoorHere/hopr/releases/latest`, and no release is published yet.
 - **Decision needed:** `.github/workflows/release.yml` already builds and publishes on a `v*` tag, so the fix is a first tag. That needs the signing key secrets in the repo and a version number, which is your call. Until then, the button could point at the Open source section ("Build from source").
 
-### 9. No license ❓
-- **Decision needed:** which license (MIT or Apache-2.0 are typical for desktop tools; GPL-3.0 if derivatives must stay open). After that: add `LICENSE`, update `package.json` and `Cargo.toml`, and add a short `CONTRIBUTING.md` that links to `CODING-STANDARDS.md`.
+### 9. No license ✅
+- **Fixed:** MIT (`LICENSE`), declared in the workspace `Cargo.toml` and `package.json`. A short `CONTRIBUTING.md` linking to `CODING-STANDARDS.md` is still worth adding.
 
 ### 19. The app crate's tests never ran ✅
 - **What:** `src-tauri/Cargo.toml` sets `test = false` (its test binary can't load the webview DLLs), so `cargo test --workspace` skipped its 15 tests (profiles, device settings, keychain naming), in `just test` and in CI.
@@ -126,5 +126,5 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 
 ## What's left
 
-1. **Your decisions:** a license (9), the first release tag or a temporary download link (8), and whether to translate the UI (13).
+1. **Your decisions:** the first release tag or a temporary download link (8), and whether to translate the UI (13).
 2. **Open, no decision needed:** a Delete action for groups (in 4), in-process profile reopen (in 10), and running the end-to-end suite in CI with Onboarding and Settings added (17).
