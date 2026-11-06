@@ -67,7 +67,7 @@ export const SECTIONS = [
     id: "security",
     label: "Security",
     icon: ShieldCheck,
-    keywords: "vault lock password clipboard windows hello biometric audit",
+    keywords: "vault lock password clipboard remember device audit",
   },
   {
     id: "backups",

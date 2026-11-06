@@ -9,7 +9,6 @@ import {
   Check,
   Copy,
   DownloadSimple,
-  Fingerprint,
   Palette,
   ShieldCheck,
   Sparkle,
@@ -120,7 +119,6 @@ let errors = $state<{ password?: string; confirm?: string; form?: string }>({});
 let form = $state<HTMLFormElement>();
 let recoveryKey = $state("");
 const strength = $derived(passwordStrength(password));
-const hello = $derived(!!vault.status?.biometricAvailable);
 
 async function create() {
   errors = {};
@@ -130,20 +128,15 @@ async function create() {
   else if (password !== confirm) errors.confirm = "The passwords don't match";
   if (errors.password || errors.confirm) return focusFirstInvalid(form);
   busy = true;
-  // Quick unlock next time: Windows Hello where it's set up, otherwise remember this device
-  // (stored as the vault is created, so the password isn't run through the KDF twice).
-  const res = await vault.create(password, unlockEasy && !hello);
+  // Quick unlock next time: this device remembers the key, stored as the vault is created
+  // (so the password isn't run through the KDF twice).
+  const res = await vault.create(password, unlockEasy);
   if (!res.ok) {
     busy = false;
     errors = { form: res.error.message };
     return;
   }
   recoveryKey = res.data;
-  if (unlockEasy && hello) {
-    const quick = await vault.setBiometric(true);
-    if (!quick.ok)
-      toast.info("Quick unlock isn't available; you can turn it on in Settings › Security");
-  }
   password = "";
   confirm = "";
   busy = false;
@@ -323,7 +316,7 @@ const nextLabel = $derived(
             </label>
             <label class="check">
               <input type="checkbox" bind:checked={unlockEasy} />
-              {#if hello}<Fingerprint size={15} /> Unlock with Windows Hello{:else}Remember this device (no password on this computer){/if}
+              Remember this device (no password on this computer)
             </label>
             <FieldError message={errors.form} />
           {:else if step === "recovery"}

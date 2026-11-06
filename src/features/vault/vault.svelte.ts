@@ -39,8 +39,6 @@ class VaultStore {
         remembered: false,
         autoLockMinutes: 0,
         clipboardClearSecs: 30,
-        biometric: false,
-        biometricAvailable: false,
       };
       this.everUnlocked = true;
       return;
@@ -53,8 +51,7 @@ class VaultStore {
     // Every window runs this; only the main window prompts at startup.
 
     if (isMainWindow && this.status?.exists && !this.status.unlocked) {
-      if (this.status.biometric) await this.unlockBiometric();
-      else if (this.status.remembered) await this.unlockRemembered();
+      if (this.status.remembered) await this.unlockRemembered();
     }
     const onActivity = () => this.activity();
     window.addEventListener("keydown", onActivity, { passive: true, capture: true });
@@ -104,21 +101,6 @@ class VaultStore {
     return res;
   }
 
-  /** Windows Hello, then the key kept in Credential Manager. */
-  async unlockBiometric(): Promise<Result<null>> {
-    const res = wrap(await commands.vaultUnlockBiometric());
-    if (res.ok) this.#setUnlocked(true);
-    return res;
-  }
-
-  async setBiometric(enabled: boolean): Promise<Result<null>> {
-    const res = wrap(await commands.vaultSetBiometric(enabled));
-    if (res.ok && this.status) {
-      this.status = { ...this.status, biometric: enabled, remembered: enabled };
-    }
-    return res;
-  }
-
   async recover(recoveryKey: string, newPassword: string): Promise<Result<null>> {
     const res = wrap(await commands.vaultRecover(recoveryKey, newPassword));
     if (res.ok) {
@@ -146,7 +128,7 @@ class VaultStore {
 
   async forgetDevice(): Promise<void> {
     await commands.vaultForgetDevice();
-    if (this.status) this.status = { ...this.status, remembered: false, biometric: false };
+    if (this.status) this.status = { ...this.status, remembered: false };
   }
 
   async lock(): Promise<void> {

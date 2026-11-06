@@ -11,15 +11,6 @@ const CLIPBOARD = [
   { value: 0, label: "Never" },
 ];
 
-async function setHello(e: Event) {
-  const input = e.currentTarget as HTMLInputElement;
-  const res = await vault.setBiometric(input.checked);
-  if (!res.ok) {
-    input.checked = !input.checked;
-    message = { ok: false, text: res.error.message };
-  }
-}
-
 async function setClipboard(e: Event) {
   const seconds = Number((e.currentTarget as HTMLSelectElement).value);
   const res = await vault.setClipboardClear(seconds);
@@ -93,12 +84,6 @@ function startChange() {
         {/each}
       </select>
     </label>
-    {#if vault.status?.biometricAvailable || vault.status?.biometric}
-      <label class="check mt-2">
-        <input type="checkbox" checked={vault.status?.biometric ?? false} onchange={setHello} />
-        Unlock with Windows Hello (face, fingerprint or PIN)
-      </label>
-    {/if}
 
     {#if changing}
       <form class="mt-3 flex flex-col gap-2" onsubmit={change}>

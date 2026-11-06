@@ -544,7 +544,7 @@ const leaked = audit.some((e) => /\bhopr\b|hopr-e2e-master/.test(e.detail));
 check("audit entries never contain a secret", !leaked);
 
 // 14. Platform (3e): workspaces, tear-off without reconnecting, quick terminal + global
-//     hotkey, close to tray, backups, Windows Hello gating, signed updates.
+//     hotkey, close to tray, backups, signed updates.
 const invoke = (cmd, args = {}) =>
   evaluate(
     `window.__TAURI_INTERNALS__.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args)}).then(
@@ -757,25 +757,6 @@ check(
   auto && made.ok && !wrongPw.ok && rightPw.ok && pending === true,
   made.v?.name,
 );
-
-// Windows Hello: the stored key never unlocks unless the check passed.
-const st = (await invoke("vault_status")).v;
-let helloOk;
-let helloDetail;
-if (st.biometricAvailable) {
-  const on = await invoke("vault_set_biometric", { enabled: true });
-  await evaluate("__hopr.lock()");
-  const sneaky = await invoke("vault_unlock_remembered");
-  await evaluate(`__hopr.unlock(${JSON.stringify(VAULT_PW)})`);
-  await invoke("vault_set_biometric", { enabled: false });
-  helloOk = on.ok && !sneaky.ok;
-  helloDetail = "available; remembered key refused while Hello is on";
-} else {
-  const on = await invoke("vault_set_biometric", { enabled: true });
-  helloOk = !on.ok && String(on.e?.message ?? "").includes("Windows Hello");
-  helloDetail = "not set up on this machine; enabling explains why";
-}
-check("Windows Hello gates the stored vault key", helloOk, helloDetail);
 
 // Signed updates: a correctly signed payload downloads; a tampered one is rejected.
 const keyPath = `${process.env.USERPROFILE}\\.tauri\\hopr-updater.key`;

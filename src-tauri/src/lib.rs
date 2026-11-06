@@ -1,7 +1,6 @@
 //! Thin Tauri glue: commands validate input, call core crates, map errors to `AppError`.
 
 mod backups;
-mod biometric;
 mod clipboard;
 mod commands;
 mod device;
@@ -47,8 +46,6 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             vault::vault_create,
             vault::vault_unlock,
             vault::vault_unlock_remembered,
-            vault::vault_unlock_biometric,
-            vault::vault_set_biometric,
             vault::vault_recover,
             vault::vault_change_password,
             vault::vault_lock,

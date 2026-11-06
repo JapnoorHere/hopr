@@ -34,10 +34,6 @@ export const commands = {
 	vaultUnlock: (password: string, remember: boolean) => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock", { password, remember })),
 	/**  Unlock with the key remembered in the OS keychain. */
 	vaultUnlockRemembered: () => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock_remembered")),
-	/**  Unlock after a Windows Hello check, using the key kept in Credential Manager. */
-	vaultUnlockBiometric: () => typedError<null, AppError>(__TAURI_INVOKE("vault_unlock_biometric")),
-	/**  Require Windows Hello before the remembered key may unlock (or stop requiring it). */
-	vaultSetBiometric: (enabled: boolean) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_biometric", { enabled })),
 	/**  Reset the master password with the recovery key. */
 	vaultRecover: (recoveryKey: string, newPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("vault_recover", { recoveryKey, newPassword })),
 	/**  Change the master password (data is not re-encrypted). */
@@ -1575,10 +1571,6 @@ export type VaultStatus = {
 	autoLockMinutes: number,
 	/**  Seconds before a copied secret is cleared from the clipboard (0 = never). */
 	clipboardClearSecs: number,
-	/**  Unlock with Windows Hello is on. */
-	biometric: boolean,
-	/**  Windows Hello is set up on this device. */
-	biometricAvailable: boolean,
 };
 
 /**  A saved layout of tabs and splits (R6). `layout_json` is owned by the UI. */

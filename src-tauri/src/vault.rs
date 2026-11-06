@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use hopr_core::{AppError, ErrorCode};
+use hopr_core::AppError;
 use hopr_vault::{KdfParams, VaultError, VaultHeader};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use specta::Type;
 use tauri::State;
 
 use crate::state::{AUTO_LOCK_KEY, AppState, keychain};
-use crate::{backups, biometric, clipboard};
+use crate::{backups, clipboard};
 
 type S<'a> = State<'a, Arc<AppState>>;
 
@@ -29,10 +29,6 @@ pub struct VaultStatus {
     pub auto_lock_minutes: u32,
     /// Seconds before a copied secret is cleared from the clipboard (0 = never).
     pub clipboard_clear_secs: u32,
-    /// Unlock with Windows Hello is on.
-    pub biometric: bool,
-    /// Windows Hello is set up on this device.
-    pub biometric_available: bool,
 }
 
 fn vault_err(e: VaultError) -> AppError {
@@ -81,19 +77,7 @@ pub async fn vault_status(state: S<'_>) -> Result<VaultStatus, AppError> {
         remembered: keychain::exists(),
         auto_lock_minutes: state.auto_lock_minutes(),
         clipboard_clear_secs: state.clipboard_clear_secs(),
-        biometric: biometric_on(&state).await,
-        biometric_available: biometric::available().await,
     })
-}
-
-async fn biometric_on(state: &AppState) -> bool {
-    state
-        .store
-        .setting::<bool>(biometric::BIOMETRIC_KEY)
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or(false)
 }
 
 /// Shared tail of every successful unlock.
@@ -101,66 +85,6 @@ fn unlocked(state: &S<'_>, vault: hopr_vault::UnlockedVault, how: &str) {
     state.set_vault(vault);
     state.audit("vault.unlock", None, how.to_owned());
     backups::spawn_auto_backup(state.inner().clone());
-}
-
-/// Require Windows Hello before the remembered key may unlock (or stop requiring it).
-#[tauri::command]
-#[specta::specta]
-pub async fn vault_set_biometric(state: S<'_>, enabled: bool) -> Result<(), AppError> {
-    let vault = state.vault()?;
-    if enabled {
-        if !biometric::available().await {
-            return Err(AppError::invalid(
-                "Windows Hello isn't set up on this device. Set it up in Windows Settings first.",
-            ));
-        }
-        if !keychain::store(&vault.export_dek()) {
-            return Err(AppError::new(
-                ErrorCode::Internal,
-                "Couldn't store the vault key in Windows Credential Manager",
-            ));
-        }
-    } else {
-        keychain::forget();
-    }
-    state
-        .store
-        .set_setting(biometric::BIOMETRIC_KEY, &enabled)
-        .await?;
-    state.audit(
-        "settings.biometric",
-        None,
-        if enabled {
-            "Unlock with Windows Hello turned on"
-        } else {
-            "Unlock with Windows Hello turned off"
-        },
-    );
-    Ok(())
-}
-
-/// Unlock after a Windows Hello check, using the key kept in Credential Manager.
-#[tauri::command]
-#[specta::specta]
-pub async fn vault_unlock_biometric(state: S<'_>) -> Result<(), AppError> {
-    if !biometric_on(&state).await {
-        return Err(AppError::invalid("Unlock with Windows Hello is off"));
-    }
-    let header = header(&state).await?;
-    let ok = biometric::verify("Unlock Hopr".into())
-        .await
-        .map_err(|e| AppError::new(ErrorCode::Internal, "Windows Hello failed").with_detail(e))?;
-    if !ok {
-        state.audit("vault.unlock_failed", None, "Windows Hello not confirmed");
-        return Err(AppError::invalid("Windows Hello didn't confirm it's you"));
-    }
-    let dek = keychain::load().ok_or_else(|| {
-        AppError::invalid("This device no longer has the vault key; enter your password")
-    })?;
-    let vault = hopr_vault::unlock_with_dek(&header, &dek)
-        .map_err(|_| AppError::invalid("The stored key no longer matches; enter your password"))?;
-    unlocked(&state, vault, "Windows Hello");
-    Ok(())
 }
 
 /// Create the vault. Returns the recovery key, shown to the user exactly once. With `remember`,
@@ -207,8 +131,7 @@ pub async fn vault_unlock(state: S<'_>, password: String, remember: bool) -> Res
         if !keychain::store(&vault.export_dek()) {
             eprintln!("hopr: could not store the vault key in the OS keychain");
         }
-    } else if !biometric_on(&state).await {
-        // Windows Hello unlock keeps using the stored key.
+    } else {
         keychain::forget();
     }
     unlocked(
@@ -227,11 +150,6 @@ pub async fn vault_unlock(state: S<'_>, password: String, remember: bool) -> Res
 #[tauri::command]
 #[specta::specta]
 pub async fn vault_unlock_remembered(state: S<'_>) -> Result<(), AppError> {
-    if biometric_on(&state).await {
-        return Err(AppError::invalid(
-            "Unlock with Windows Hello or your password",
-        ));
-    }
     let header = header(&state).await?;
     let dek = keychain::load()
         .ok_or_else(|| AppError::invalid("This device doesn't remember the vault key"))?;
@@ -270,10 +188,6 @@ pub async fn vault_recover(
     .map_err(vault_err)?;
     state.store.save_vault_header(&new_header).await?;
     keychain::forget();
-    state
-        .store
-        .set_setting(biometric::BIOMETRIC_KEY, &false)
-        .await?;
     state.set_vault(vault);
     state.audit(
         "vault.recover",
@@ -321,10 +235,6 @@ pub fn vault_lock(state: S<'_>) {
 #[specta::specta]
 pub async fn vault_forget_device(state: S<'_>) -> Result<(), AppError> {
     keychain::forget();
-    state
-        .store
-        .set_setting(biometric::BIOMETRIC_KEY, &false)
-        .await?;
     state.audit(
         "vault.forget_device",
         None,

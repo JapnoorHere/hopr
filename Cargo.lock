@@ -2427,7 +2427,6 @@ dependencies = [
  "time",
  "tokio",
  "uuid",
- "windows",
  "winreg 0.55.0",
  "zeroize",
 ]

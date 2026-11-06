@@ -70,7 +70,7 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 - **Fixed:** with a single profile there's nothing to choose, so Hopr opens straight in. "Show profile picker" in the title bar menu still works. Covered by a test in `profiles.rs`.
 
 ### 7. Onboarding "remember me" unlocked twice ✅
-- **Fixed:** `vault_create` takes `remember` and stores the key in the keychain as the vault is created, so the password goes through Argon2 once. Windows Hello setup is unchanged.
+- **Fixed:** `vault_create` takes `remember` and stores the key in the keychain as the vault is created, so the password goes through Argon2 once.
 
 ### 8. Website download link has no release behind it ❓
 - **What:** the site's download button points to `github.com/JapnoorHere/hopr/releases/latest`, and no release is published yet.
@@ -111,7 +111,7 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 - **Fixed:** `* text=auto eol=lf`, with binary rules for images, icons and fonts. Every text file in the index was already LF, so nothing needed renormalising.
 
 ### 17. "No end-to-end tests" ✏️
-- **Correction:** there is a thorough suite, `scripts/e2e-smoke.mjs`, with about 50 checks. It covers SSH, jump hosts, proxies, telnet, SFTP, transfers, edit locally, splits, the palette, menus, backups, Windows Hello, the tray and the quick terminal. It drives a dev build over CDP against `hopr-devsshd`.
+- **Correction:** there is a thorough suite, `scripts/e2e-smoke.mjs`, with about 50 checks. It covers SSH, jump hosts, proxies, telnet, SFTP, transfers, edit locally, splits, the palette, menus, backups, the tray and the quick terminal. It drives a dev build over CDP against `hopr-devsshd`.
 - **Real gaps:**
   - It isn't in CI.
   - The runner needs `HOPR_DEVSSHD_HOME` set too, not only the server.

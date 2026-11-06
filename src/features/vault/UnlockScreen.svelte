@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Fingerprint, LockSimple, LockSimpleOpen } from "phosphor-svelte";
+import { LockSimple, LockSimpleOpen } from "phosphor-svelte";
 import HoprMark from "$lib/icons/HoprMark.svelte";
 import { blurFade, pop } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
@@ -25,25 +25,6 @@ const reason = $derived(
       ? "Locked"
       : "Enter your master password",
 );
-
-let helloBusy = $state(false);
-
-async function hello() {
-  helloBusy = true;
-  try {
-    await helloInner();
-  } finally {
-    helloBusy = false;
-  }
-}
-
-async function helloInner() {
-  errors = {};
-  busy = true;
-  const res = await vault.unlockBiometric();
-  busy = false;
-  if (!res.ok) errors = { form: res.error.message };
-}
 
 async function unlock(e: SubmitEvent) {
   e.preventDefault();
@@ -143,12 +124,6 @@ function switchMode(m: typeof mode) {
         <button type="submit" class="btn-primary" disabled={busy}>
           {busy ? "Unlocking…" : "Unlock"}
         </button>
-        {#if vault.status?.biometric}
-          <button type="button" class="btn-ghost" disabled={busy} onclick={hello}>
-            <Fingerprint size={16} class={helloBusy ? "hello-wait" : ""} />
-            Unlock with Windows Hello
-          </button>
-        {/if}
         <button type="button" class="btn-ghost self-start" onclick={() => switchMode("recover")}>
           Forgot your password?
         </button>
@@ -210,17 +185,3 @@ function switchMode(m: typeof mode) {
   </div>
 </div>
 
-<style>
-  :global(.hello-wait) {
-    animation: hello-pulse 1.1s var(--ease-in-out) infinite;
-  }
-  @keyframes hello-pulse {
-    50% {
-      opacity: 0.4;
-      transform: scale(0.9);
-    }
-  }
-  :global(:root[data-motion="reduced"] .hello-wait) {
-    animation: none;
-  }
-</style>
