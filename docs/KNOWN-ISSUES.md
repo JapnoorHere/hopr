@@ -1,137 +1,130 @@
 # Hopr known issues
 
-Things that are broken, half-wired, or don't behave the way the UI or config suggests. Each item says what's wrong, where, why it matters, how to fix it and how urgent it is. This is a plan: nothing here is fixed yet.
+Things that were broken, half-wired, or didn't behave the way the UI or config suggested. Each item says what was wrong, where, why it mattered, what was done and how urgent it was.
 
 **Priority:** P1 = users lose data, leak resources or hit it often · P2 = visible wrong behaviour or misleading config · P3 = cleanup, hygiene, dev experience.
+
+**Status:** ✅ fixed · ✏️ the original entry was wrong, corrected below · ❓ needs a decision from the owner · ⏳ open.
 
 ---
 
 ## Summary
 
-| # | Issue | Area | Priority |
-|---|---|---|---|
-| 1 | SFTP sessions are never closed | SFTP | P1 |
-| 2 | Remote-edit temp files and watchers are never cleaned up | SFTP | P1 |
-| 3 | Device-wide settings are saved per profile | Settings / Profiles | P2 |
-| 4 | Groups and keys can't be renamed although the backend supports it | Hosts / Keys | P2 |
-| 5 | `transparent: true` and the window-effects permission are left over from Mica | Config | P2 |
-| 6 | The profile picker shows at launch even with one profile | Profiles | P2 |
-| 7 | Onboarding "remember me" unlocks the vault twice | Onboarding | P2 |
-| 8 | The website's download button points to a release that doesn't exist | Site | P2 |
-| 9 | No LICENSE although the site invites contributions | Repo | P2 |
-| 10 | Switching profiles in dev mode kills `tauri dev` | Dev | P3 |
-| 11 | `windowVisible` command has no caller | Backend | P3 |
-| 12 | ~~`TerminalBackground.opacity` is a dead parameter~~ Fixed | Terminal | P3 |
-| 13 | Most UI text is hardcoded English; i18n has 45 keys | i18n | P3 |
-| 14 | Taskbar icon doesn't refresh in dev after icon changes | Dev | P3 |
-| 15 | One unexplained app restart seen in testing | App | P3 |
-| 16 | No `.gitattributes`: line endings depend on each machine | Repo | P3 |
-| 17 | No end-to-end tests | Testing | P3 |
-| 18 | Duplicated helpers and very large files (mostly done) | Code health | P3 |
+| # | Issue | Area | Priority | Status |
+|---|---|---|---|---|
+| 1 | SFTP sessions were never closed | SFTP | P1 | ✅ |
+| 2 | Remote-edit temp files and watchers were never cleaned up | SFTP | P1 | ✅ |
+| 3 | Device-wide settings were saved per profile | Settings / Profiles | P2 | ✅ |
+| 4 | Groups and keys couldn't be renamed although the backend supported it | Hosts / Keys | P2 | ✅ |
+| 5 | `transparent: true` and the window-effects permission were left over from Mica | Config | P2 | ✅ |
+| 6 | The profile picker showed at launch even with one profile | Profiles | P2 | ✅ |
+| 7 | Onboarding "remember me" unlocked the vault twice | Onboarding | P2 | ✅ |
+| 8 | The website's download button points to a release that doesn't exist | Site | P2 | ❓ |
+| 9 | No LICENSE although the site invites contributions | Repo | P2 | ❓ |
+| 10 | Switching profiles in dev mode killed `tauri dev` | Dev | P3 | ✅ |
+| 11 | `windowVisible` command looked unused | Backend | P3 | ✏️ |
+| 12 | `TerminalBackground.opacity` was a dead parameter | Terminal | P3 | ✅ |
+| 13 | Most UI text is hardcoded English; i18n has 45 keys | i18n | P3 | ❓ |
+| 14 | Taskbar icon didn't refresh in dev after icon changes | Dev | P3 | ✅ |
+| 15 | One unexplained app restart seen in testing | App | P3 | ✅ (now traceable) |
+| 16 | No `.gitattributes`: line endings depended on each machine | Repo | P3 | ✅ |
+| 17 | "No end-to-end tests" | Testing | P3 | ✏️ |
+| 18 | Duplicated helpers and very large files | Code health | P3 | ✅ |
+| 19 | The app crate's tests never ran in `just test` or CI | Testing | P2 | ✅ |
+| 20 | Two splits from the refactor broke behaviour, caught by the end-to-end suite | Files | P1 | ✅ |
 
 ---
 
 ## P1: resource leaks
 
-### 1. SFTP sessions are never closed
-- **What:** the backend has `sftp_close` (`sftpClose` in `bindings.ts`), but nothing in `src/` calls it. Closing the Files panel or a tab leaves the SFTP session open in `Files` state.
-- **Where:** `src-tauri/src/sftp.rs` (command), `src/features/sftp/` (no caller).
-- **Impact:** each visit to the Files panel can leave an SSH channel and memory behind until the app quits. Long sessions pile up channels; some servers cap them (`MaxSessions`), so later connections can fail.
-- **Fix:** call `sftpClose(id)` when the Files panel unmounts, its tab closes, or its SSH session ends. On the Rust side, also close SFTP sessions tied to a terminal session when that session closes. Add a test that counts open sessions after open/close.
+### 1. SFTP sessions were never closed ✅
+- **What:** the backend had `sftp_close`, but nothing called it. Each visit to the Files panel left an SSH connection open until the app quit; servers that cap sessions (`MaxSessions`) could then refuse new ones.
+- **Fixed:** closing the last files view (the drawer and the dual pane) releases the host's SFTP connection, and switching to another host releases the previous one. If transfers are still queued or running for that host, the backend waits and closes the connection when the last one ends; browsing again reconnects on demand. (`files.svelte.ts` `release()`, `sftp/browse.rs`, `sftp/transfers.rs` `host_busy` and `release_if_idle`.)
 
-### 2. Remote-edit temp files and watchers are never cleaned up
-- **What:** "Edit remotely" downloads a file to a temp folder and watches it. `sftp_edit_stop` and `sftp_edit_path` exist but have no caller.
-- **Where:** `src-tauri/src/sftp.rs`; `src/features/sftp/`.
-- **Impact:** temp copies of remote files (which may hold secrets) stay on disk, and file watchers keep running for the rest of the app's life.
-- **Fix:** show open edits in the Files panel with a "Stop editing" action that calls `sftpEditStop`; stop all edits for a session when it closes; delete the temp folder on app start and exit. Use `sftpEditPath` to show where the local copy is.
+### 2. Remote-edit temp files and watchers were never cleaned up ✅
+- **What:** "Edit locally" downloads into a temp folder and watches it, and `sftp_edit_stop` had no caller. Copies of remote files (possibly holding secrets) stayed on disk.
+- **Fixed:** the Files drawer lists files being edited, each with a Stop button (`EditsBar.svelte`, which calls `sftpEditStop` and deletes the copy). The whole `hopr-edit` temp folder is deleted at startup (leftovers from a crash) and on exit (`sftp::edit::clear_temp`). `sftp_edit_path` stays: the end-to-end suite uses it.
+
+### 20. Two refactor regressions caught by the end-to-end suite ✅
+- **What:** running `scripts/e2e-smoke.mjs` after the coding-standards refactor found:
+  - **Permissions never applied:** the new `PermissionsCard` closed itself before reading its `entry` prop, which then followed the parent's state (now empty), so `chmod` never ran.
+  - **The delete confirmation lost its accessible name:** it came back with `ConfirmBar`'s new `label` prop.
+- **Fixed:** the card reads everything before closing, and `ConfirmBar` takes a `label`. The same "read props after closing" pattern was checked in every component that was split; no others had it.
 
 ---
 
 ## P2: wrong or misleading behaviour
 
-### 3. Device-wide settings are saved per profile
-- **What:** close-to-tray, the global hotkey and transfer limits are stored in each profile's database, but they describe the machine, not the person.
-- **Impact:** switching profile can silently change whether the window hides to the tray or which hotkey works; the global hotkey can be registered twice or not at all.
-- **Fix:** split prefs into **device** (stored next to `profiles.json` in the data root) and **profile** (stored in the profile DB). Move the three settings, migrate existing values from the default profile once, and label them "This device" in Settings.
+### 3. Device-wide settings were saved per profile ✅
+- **What:** close-to-tray, the global hotkey and transfer limits lived in each profile's database, so switching profile could change whether the window hid to the tray, or which hotkey worked.
+- **Fixed:** they live in `device.json` next to `profiles.json` (`src-tauri/src/device.rs`). On first start, each value is carried over once from the open profile, so nothing is lost. Settings shows "For this computer: the same in every profile" on both cards.
 
-### 4. Groups and keys can't be renamed
-- **What:** `group_rename` and `key_rename` commands exist with no UI.
-- **Impact:** the only way to fix a typo in a group or key name is to delete and recreate it, losing links to hosts.
-- **Fix:** add Rename to the group header menu in Hosts and to the key row in Keys, using the existing commands. Inline edit with Enter to save, Esc to cancel.
+### 4. Groups and keys couldn't be renamed ✅
+- **Fixed:** group headers in Hosts and key names in Keys rename in place: the pencil or a double-click, then Enter to save and Esc to cancel (`InlineRename.svelte`, `library.renameGroup` / `renameKey`).
+- **Still open:** `group_delete` has no UI either. Deleting a group isn't something the UI offers today, so it's left as is.
 
-### 5. Leftover window transparency config
-- **What:** `src-tauri/tauri.conf.json` still sets `"transparent": true`, and the capability file still grants `core:window:allow-set-effects`. Both were for the removed Mica/Acrylic backdrops.
-- **Impact:** a transparent window costs extra compositing, can flash or show through during resize or startup, and grants a permission the app no longer needs (least privilege).
-- **Fix:** set `transparent` to `false`, remove the capability, and check `appearance.svelte.ts` no longer needs `clearEffects` (keep it one release if older installs may have effects applied).
+### 5. Leftover window transparency config ✅
+- **Fixed:** `transparent` is gone from `tauri.conf.json` (the existing `backgroundColor` covers startup), `core:window:allow-set-effects` is gone from the capability, and the `clearEffects()` call is removed. Window effects aren't kept across restarts, so there was nothing left to clear.
 
-### 6. Profile picker shows with only one profile
-- **What:** the Chrome-style picker appears at every launch, even when there is just the default profile.
-- **Impact:** an extra click on every launch for most users.
-- **Fix:** skip the picker when there is a single profile (unless "Ask at launch" is explicitly on); keep the title bar switcher for adding profiles.
+### 6. Profile picker showed with only one profile ✅
+- **Fixed:** with a single profile there's nothing to choose, so Hopr opens straight in. "Show profile picker" in the title bar menu still works. Covered by a test in `profiles.rs`.
 
-### 7. Onboarding "remember me" unlocks twice
-- **What:** in the secure step, choosing Windows Hello or remember re-derives the key with Argon2 a second time after the vault was just created.
-- **Impact:** a noticeable pause (about a second) at the end of setup.
-- **Fix:** have vault creation return or keep the data key in memory and store it in the keychain directly, without a second unlock.
+### 7. Onboarding "remember me" unlocked twice ✅
+- **Fixed:** `vault_create` takes `remember` and stores the key in the keychain as the vault is created, so the password goes through Argon2 once. Windows Hello setup is unchanged.
 
-### 8. Website download link has no release behind it
+### 8. Website download link has no release behind it ❓
 - **What:** the site's download button points to `github.com/JapnoorHere/hopr/releases/latest`, and no release is published yet.
-- **Impact:** visitors land on an empty Releases page or a 404.
-- **Fix:** publish a signed release with the Tauri bundler (a GitHub Actions workflow on tag push), or until then change the button to "Build from source" pointing to the Open source section.
+- **Decision needed:** `.github/workflows/release.yml` already builds and publishes on a `v*` tag, so the fix is a first tag. That needs the signing key secrets in the repo and a version number, which is your call. Until then, the button could point at the Open source section ("Build from source").
 
-### 9. No license
-- **What:** `package.json` says `UNLICENSED` and there is no LICENSE file, but the website invites issues and pull requests.
-- **Impact:** without a license nobody can legally reuse or contribute code, and contributors don't know the terms.
-- **Fix:** choose a license (MIT or Apache-2.0 are typical for desktop tools; GPL-3.0 if derivatives must stay open), add `LICENSE`, update `package.json` and `Cargo.toml`, and add a short `CONTRIBUTING.md` that links to `CODING-STANDARDS.md`.
+### 9. No license ❓
+- **Decision needed:** which license (MIT or Apache-2.0 are typical for desktop tools; GPL-3.0 if derivatives must stay open). After that: add `LICENSE`, update `package.json` and `Cargo.toml`, and add a short `CONTRIBUTING.md` that links to `CODING-STANDARDS.md`.
+
+### 19. The app crate's tests never ran ✅
+- **What:** `src-tauri/Cargo.toml` sets `test = false` (its test binary can't load the webview DLLs), so `cargo test --workspace` skipped its 15 tests (profiles, device settings, keychain naming), in `just test` and in CI.
+- **Fixed:** `just test` and the CI "Rust tests" step also run `cargo test -p hopr --lib`, which does work.
 
 ---
 
 ## P3: cleanup and developer experience
 
-### 10. Profile switch kills `tauri dev`
-- **What:** switching profiles calls `app.restart()`. In dev that ends the process that `tauri dev` is watching, so the dev session stops.
-- **Fix:** in debug builds, reopen the profile in-process instead of restarting: close the vault and DB, open the new profile's storage, reload the webview. Longer term, do that in release too, which also makes switching faster.
+### 10. Profile switch killed `tauri dev` ✅
+- **What:** switching profiles restarts Hopr. In dev, that ended the process `tauri dev` watches, which stopped the dev server.
+- **Fixed:** `pnpm dev:app` (and `just dev`) runs `tauri dev` in a loop (`scripts/dev-loop.mjs`). In a debug build under that loop, a restart leaves a marker and exits instead of relaunching, and the loop starts Hopr again. A release build restarts as before.
+- **Possible later:** reopening a profile in-process would also make switching faster in release, but it means making the store and vault swappable everywhere `AppState` is used.
 
-### 11. `windowVisible` has no caller
-- **What:** the command exists but nothing uses it.
-- **Fix:** either use it (for example to skip notifications while the window is visible) or delete it and regenerate bindings.
+### 11. `windowVisible` looked unused ✏️
+- **Correction:** the UI doesn't call it, but the end-to-end suite does (tray and quick-terminal checks). It was removed once and then restored with a comment saying so. Before deleting any command, also search `scripts/`.
 
-### 12. Dead `opacity` parameter (fixed)
-- **Status:** removed in the coding-standards refactor; `terminalBackground` and `terminalColors` take only the brightness.
-- **What:** `TerminalBackground.opacity` in `themes.ts` is always 100 since see-through terminals were removed.
-- **Fix:** remove the field and its arguments; keep the brightness logic.
+### 12. Dead `opacity` parameter ✅
+- **Fixed:** removed; `terminalBackground` and `terminalColors` take only the brightness.
 
-### 13. i18n coverage
-- **What:** the i18n table has about 45 keys; most strings in components are hardcoded English.
-- **Impact:** a translation would show mixed languages.
-- **Fix:** decide whether translation is a goal. If yes, move strings feature by feature into the table and add a lint that flags raw text in `.svelte` markup. If not, remove the partial i18n layer to keep things simple.
+### 13. i18n coverage ❓
+- **Decision needed:** whether translation is a goal. If it is, move strings into the table feature by feature and add a lint for raw text in markup. If not, remove the partial i18n layer to keep things simple.
 
-### 14. Taskbar icon doesn't refresh in dev
-- **What:** after changing icons, the running dev app keeps the old taskbar icon because the dev watcher doesn't rebuild resources.
-- **Fix:** document it (touch `src-tauri/build.rs` or restart `tauri dev`), or add icons to `build.rs`'s `rerun-if-changed`.
+### 14. Taskbar icon didn't refresh in dev ✅
+- **Fixed:** `build.rs` re-runs when anything in `icons/` changes, so new icons reach the Windows resources on the next dev build.
 
-### 15. One unexplained restart
-- **What:** during testing the app restarted once with no profile switch.
-- **Fix:** log the reason before every `restart()` call (profile switch, update, reset) so the next occurrence can be traced.
+### 15. One unexplained restart ✅ (now traceable)
+- **Fixed:** every restart goes through `platform::restart(app, reason)`, which appends a line with the time and reason to `restarts.log` in the app's log folder. That covers profile switches, installed updates, and restores (the UI now calls `appRestart("restore a backup")` instead of the plugin's `relaunch`). If it happens again, the log shows whether Hopr asked for it.
 
-### 16. No `.gitattributes`
-- **What:** line endings depend on each developer's `core.autocrlf`. A history rewrite already left CRLF files that broke biome.
-- **Fix:** add `.gitattributes` with `* text=auto eol=lf` plus binary rules for icons and fonts, then renormalise once.
+### 16. No `.gitattributes` ✅
+- **Fixed:** `* text=auto eol=lf`, with binary rules for images, icons and fonts. Every text file in the index was already LF, so nothing needed renormalising.
 
-### 17. No end-to-end tests
-- **What:** there are 155 unit tests and Rust tests, but no automated test drives the real app. Onboarding, profile switch, connect and settings search were only checked by hand.
-- **Fix:** add a small suite (WebDriver via `tauri-driver`, or CDP against WebView2) covering first run, unlock, profile switch, connect to a local SSH server in CI, and Settings search.
+### 17. "No end-to-end tests" ✏️
+- **Correction:** there is a thorough suite, `scripts/e2e-smoke.mjs`, with about 50 checks. It covers SSH, jump hosts, proxies, telnet, SFTP, transfers, edit locally, splits, the palette, menus, backups, Windows Hello, the tray and the quick terminal. It drives a dev build over CDP against `hopr-devsshd`.
+- **Real gaps:**
+  - It isn't in CI.
+  - The runner needs `HOPR_DEVSSHD_HOME` set too, not only the server.
+  - In a debug build the throughput check (≥ 50 MB/s) fails by design.
+  - The update check needs a signing key and `HOPR_E2E_UPDATE_PORT`.
+  - Onboarding, the profile picker and Settings search aren't covered (a CDP script for them was used during the refactor and could be added).
 
-### 18. Duplicated helpers and large files
-- **What:** `fn invalid` was copied into 14 Rust files and several files were far over the size guideline. Mostly done: see the refactor log.
-- **Fix:** what remains is under "Next" in the [refactor log](./CODING-STANDARDS.md#9-refactor-log); every file's status is in [CODE-AUDIT.md](./CODE-AUDIT.md).
+### 18. Duplicated helpers and large files ✅
+- **Fixed:** see the refactor log in [CODING-STANDARDS.md](./CODING-STANDARDS.md#9-refactor-log); every file's status is in [CODE-AUDIT.md](./CODE-AUDIT.md).
 
 ---
 
-## Suggested order
+## What's left
 
-1. Fix the leaks (1, 2): small changes, real impact.
-2. Device vs. profile settings (3) and the transparency config (5).
-3. Quick UX wins: rename (4), single-profile picker (6), double unlock (7).
-4. Release readiness: license (9), a first release and the download link (8), `.gitattributes` (16).
-5. Developer experience and code health (10–18).
+1. **Your decisions:** a license (9), the first release tag or a temporary download link (8), and whether to translate the UI (13).
+2. **Open, no decision needed:** a Delete action for groups (in 4), in-process profile reopen (in 10), and running the end-to-end suite in CI with Onboarding and Settings added (17).
