@@ -31,8 +31,10 @@ function typed(e: Event) {
 
 async function onsubmit(e: SubmitEvent) {
   e.preventDefault();
+  // Read everything first: closing unmounts this card, and `entry` follows the parent's state.
+  const change = { path: entry.path, mode, recursive };
   onclose();
-  await files.chmod(entry.path, mode, recursive);
+  await files.chmod(change.path, change.mode, change.recursive);
 }
 </script>
 

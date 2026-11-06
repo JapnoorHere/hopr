@@ -329,6 +329,7 @@ function editPath() {
     {#if confirmDelete}
       <ConfirmBar
         tone="danger"
+        label="Confirm delete"
         confirmLabel="Delete"
         oncancel={() => (confirmDelete = null)}
         onconfirm={() => {

@@ -5,6 +5,8 @@ import { blurFade } from "$lib/motion";
 
 interface Props {
   tone?: "warning" | "danger";
+  /** Accessible name of the question ("Confirm delete"). */
+  label?: string;
   confirmLabel: string;
   onconfirm: () => void;
   oncancel: () => void;
@@ -12,10 +14,10 @@ interface Props {
   children: Snippet;
 }
 
-let { tone = "warning", confirmLabel, onconfirm, oncancel, children }: Props = $props();
+let { tone = "warning", label, confirmLabel, onconfirm, oncancel, children }: Props = $props();
 </script>
 
-<div class="bar" class:danger={tone === "danger"} role="alertdialog" in:blurFade={{ y: -2, duration: 140 }}>
+<div class="bar" class:danger={tone === "danger"} role="alertdialog" aria-label={label} in:blurFade={{ y: -2, duration: 140 }}>
   <span class="msg">{@render children()}</span>
   <span class="actions">
     <button type="button" class="btn-ghost" onclick={oncancel}>Cancel</button>

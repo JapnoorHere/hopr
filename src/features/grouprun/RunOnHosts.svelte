@@ -150,7 +150,7 @@ function stamp() {
         </div>
       {/if}
       {#if confirmProd}
-        <ConfirmBar tone="danger" confirmLabel="Run" onconfirm={start} oncancel={() => (confirmProd = false)}>
+        <ConfirmBar tone="danger" label="Confirm production run" confirmLabel="Run" onconfirm={start} oncancel={() => (confirmProd = false)}>
             This includes {prodChosen.length} production host{prodChosen.length === 1 ? "" : "s"}
             ({prodChosen.map((h) => h.label).join(", ")}). Run anyway?
         </ConfirmBar>
