@@ -48,7 +48,10 @@ jobs:
           git diff --exit-code src/lib/ipc/bindings.ts
 
       - name: Rust tests
-        run: cargo test --workspace
+        # The app crate turns its tests off by default (webview DLLs), so they run with --lib.
+        run: |
+          cargo test --workspace
+          cargo test -p hopr --lib
 
       - name: Frontend lint, typecheck, tests, build
         run: |
