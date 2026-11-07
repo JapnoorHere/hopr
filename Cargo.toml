@@ -26,6 +26,12 @@ await_holding_lock = "deny"
 dbg_macro = "deny"
 todo = "warn"
 
+# Dependencies are optimised in dev builds too: the vault's key derivation (Argon2, 64 MiB),
+# SQLite and SSH crypto run many times slower unoptimised, which made dev slow to open and
+# unlock. Hopr's own crates stay unoptimised, so they still debug and rebuild quickly.
+[profile.dev.package."*"]
+opt-level = 2
+
 [profile.release]
 codegen-units = 1
 lto = true

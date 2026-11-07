@@ -198,6 +198,29 @@ pub fn export_bindings() -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Debug builds keep the TS bindings current at start, but write the file only when it
+/// changed: rewriting it unchanged makes the dev server reload the page a second time.
+#[cfg(debug_assertions)]
+fn refresh_bindings() {
+    let fresh = std::env::temp_dir().join("hopr-bindings.ts");
+    let exported = specta_builder().export(
+        specta_typescript::Typescript::default().header("// @ts-nocheck\n/* eslint-disable */"),
+        &fresh,
+    );
+    if let Err(e) = exported {
+        eprintln!("failed to export TS bindings: {e}");
+        return;
+    }
+    let (Ok(new), current) = (std::fs::read(&fresh), std::fs::read(BINDINGS_PATH)) else {
+        return;
+    };
+    if current.ok().as_deref() != Some(new.as_slice())
+        && let Err(e) = std::fs::write(BINDINGS_PATH, new)
+    {
+        eprintln!("failed to write TS bindings: {e}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // `hopr --export-bindings` (used by `just bindings` and CI) writes the TS file and exits.
@@ -215,9 +238,7 @@ pub fn run() {
     let builder = specta_builder();
 
     #[cfg(debug_assertions)]
-    if let Err(e) = export_bindings() {
-        eprintln!("failed to export TS bindings: {e}");
-    }
+    refresh_bindings();
 
     let result = tauri::Builder::default()
         .manage(sessions::SessionManager::default())
