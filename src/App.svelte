@@ -18,6 +18,7 @@ import Palette from "$features/palette/Palette.svelte";
 import { palette } from "$features/palette/palette-state.svelte";
 import ProfilePicker from "$features/profiles/ProfilePicker.svelte";
 import { profiles } from "$features/profiles/profiles.svelte";
+import SwitchCover from "$features/profiles/SwitchCover.svelte";
 import AuditDrawer from "$features/settings/AuditDrawer.svelte";
 import UpdateToast from "$features/settings/UpdateToast.svelte";
 import { updates } from "$features/settings/updates.svelte";
@@ -250,6 +251,7 @@ function onkeydown(e: KeyboardEvent) {
   <TitleBar />
   <div class="relative flex min-h-0 flex-1">
     {#if profiles.picking}<ProfilePicker dismissible={profiles.fromMenu} />{/if}
+    {#if profiles.switching}<SwitchCover />{/if}
     {#if onboarding}
       <Onboarding />
     {:else if vault.status}

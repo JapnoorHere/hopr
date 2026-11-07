@@ -6,7 +6,7 @@
 import { wrap } from "$features/vault/vault.svelte";
 import type { ThemeSpec } from "$lib/design/themes";
 import { commands, inTauri, type Profile } from "$lib/ipc";
-import { setStorageScope } from "$lib/storage";
+import { SWITCHED_KEY, safeSessionStorage, setStorageScope, writeText } from "$lib/storage";
 
 class ProfilesStore {
   list = $state<Profile[]>([]);
@@ -68,13 +68,17 @@ class ProfilesStore {
       this.picking = false;
       return { ok: true as const, data: null };
     }
+    // The cover (SwitchCover) fades in first, so the reload behind it never shows.
     this.switching = id;
+    await new Promise((r) => setTimeout(r, 140));
     const r = wrap(await commands.profileSwitch(id));
     if (!r.ok) {
       this.switching = null;
       return r;
     }
-    // Every store (hosts, tabs, theme, saved layout) starts again for the new profile.
+    // Every store (hosts, tabs, theme, saved layout) starts again for the new profile; the
+    // note tells the new page to skip its start-up animation.
+    writeText(SWITCHED_KEY, id, safeSessionStorage());
     location.reload();
     return r;
   }

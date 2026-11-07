@@ -10,7 +10,14 @@ import { profiles } from "./features/profiles/profiles.svelte";
 import QuickTerminal from "./features/shell/QuickTerminal.svelte";
 import { initSessionEvents } from "./features/terminal/terminal-session.svelte";
 import { vault } from "./features/vault/vault.svelte";
+import { readText, removeKey, SWITCHED_KEY, safeSessionStorage } from "./lib/storage";
 import { isQuickWindow } from "./lib/window";
+
+// Just switched profile: appear at once, without the start-up animation.
+if (readText(SWITCHED_KEY, safeSessionStorage())) {
+  document.documentElement.dataset.switched = "";
+  removeKey(SWITCHED_KEY, safeSessionStorage());
+}
 
 // Which profile is open decides whose theme and saved layout load, so it comes first.
 await profiles.load().catch(() => undefined);

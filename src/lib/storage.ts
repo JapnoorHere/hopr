@@ -26,6 +26,18 @@ export function safeStorage(): Storage | null {
   }
 }
 
+/** Session storage: kept across a reload, gone when the window closes. */
+export function safeSessionStorage(): Storage | null {
+  try {
+    return globalThis.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set just before the page reloads into another profile (session storage). */
+export const SWITCHED_KEY = "hopr.switched";
+
 export function readText(key: string, storage = safeStorage()): string | null {
   try {
     return storage?.getItem(key) ?? null;

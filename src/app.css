@@ -429,6 +429,10 @@
 #app {
   animation: hopr-app-in 360ms var(--ease-out) 1 backwards;
 }
+/* After switching profile the page reloads behind a cover: no second start-up animation. */
+:root[data-switched] #app {
+  animation: none;
+}
 @keyframes hopr-app-in {
   from {
     opacity: 0;
