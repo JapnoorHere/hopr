@@ -282,6 +282,11 @@ impl Profiles {
         }
     }
 
+    /// Don't show the profile picker this run (`hopr --quick` opens the last profile).
+    pub fn skip_ask(&self) {
+        self.ask_now.store(false, Ordering::Relaxed);
+    }
+
     pub fn current(&self) -> String {
         self.current.lock().map(|c| c.clone()).unwrap_or_default()
     }

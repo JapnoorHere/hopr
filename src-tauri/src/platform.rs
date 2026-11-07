@@ -29,6 +29,16 @@ pub const HOTKEY_KEY: &str = "app.quick_hotkey";
 pub const HOTKEY_DEFAULT: &str = "Ctrl+`";
 
 const QUICK: &str = "quick";
+/// `hopr --quick` opens only the quick terminal; Hopr itself opens from its "Open Hopr" button.
+pub const QUICK_ARG: &str = "--quick";
+/// The quick terminal's taskbar identity: its own button, pinnable apart from Hopr.
+#[cfg(windows)]
+const QUICK_APP_ID: &str = "app.hopr.desktop.quick";
+
+/// Whether this run was started as the quick terminal alone.
+pub fn quick_mode() -> bool {
+    std::env::args().any(|a| a == QUICK_ARG)
+}
 const TRAY_ID: &str = "hopr";
 
 /// Window-integration state.
@@ -129,9 +139,16 @@ pub fn toggle_quick(app: &AppHandle) {
             && w.is_focused().unwrap_or(false);
         if in_front {
             let _ = w.hide();
-        } else {
-            show_quick(&w);
+            return;
         }
+    }
+    open_quick(app);
+}
+
+/// Bring the quick terminal to the front, opening it if it isn't open.
+pub fn open_quick(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(QUICK) {
+        show_quick(&w);
         return;
     }
     // Built off the event-loop thread: the hotkey handler runs on it, and creating a
@@ -147,18 +164,113 @@ pub fn toggle_quick(app: &AppHandle) {
             .visible(false)
             .build();
         match built {
-            Ok(w) => show_quick(&w),
+            Ok(w) => {
+                #[cfg(windows)]
+                {
+                    let tagged = w.clone();
+                    let _ = w.run_on_main_thread(move || set_quick_taskbar_identity(&tagged));
+                }
+                show_quick(&w);
+            }
             Err(e) => eprintln!("hopr: quick terminal window failed: {e}"),
         }
     });
 }
 
-/// Bring the main window back (from the tray or the quick terminal).
+/// Give the quick terminal its own taskbar button: pinning it relaunches `hopr --quick`,
+/// which opens only the terminal. Runs on the main thread (the property store needs COM).
+#[cfg(windows)]
+#[allow(unsafe_code)] // Win32 property store: the one place Hopr needs unsafe (CODING-STANDARDS).
+fn set_quick_taskbar_identity(w: &WebviewWindow) {
+    use windows::Win32::Foundation::{HWND, PROPERTYKEY};
+    use windows::Win32::Storage::EnhancedStorage::{
+        PKEY_AppUserModel_ID, PKEY_AppUserModel_RelaunchCommand,
+        PKEY_AppUserModel_RelaunchDisplayNameResource, PKEY_AppUserModel_RelaunchIconResource,
+    };
+    use windows::Win32::System::Com::StructuredStorage::{PROPVARIANT, PropVariantClear};
+    use windows::Win32::System::Variant::VT_LPWSTR;
+    use windows::Win32::UI::Shell::PropertiesSystem::{
+        IPropertyStore, SHGetPropertyStoreForWindow,
+    };
+    use windows::Win32::UI::Shell::SHStrDupW;
+    use windows::core::HSTRING;
+
+    let (Ok(hwnd), Ok(exe)) = (w.hwnd(), std::env::current_exe()) else {
+        return;
+    };
+    let exe = exe.display().to_string();
+    // The relaunch details first: the taskbar reads them when the id is set.
+    let props: [(PROPERTYKEY, String); 4] = [
+        (
+            PKEY_AppUserModel_RelaunchCommand,
+            format!("\"{exe}\" {QUICK_ARG}"),
+        ),
+        (
+            PKEY_AppUserModel_RelaunchDisplayNameResource,
+            "Hopr quick terminal".to_owned(),
+        ),
+        (PKEY_AppUserModel_RelaunchIconResource, format!("{exe},0")),
+        (PKEY_AppUserModel_ID, QUICK_APP_ID.to_owned()),
+    ];
+    // SAFETY: the window handle is live (we're on its thread); each PROPVARIANT owns a
+    // CoTaskMem string from SHStrDupW and is cleared after the store has copied it.
+    unsafe {
+        let Ok(store) = SHGetPropertyStoreForWindow::<IPropertyStore>(HWND(hwnd.0)) else {
+            return;
+        };
+        for (key, value) in props {
+            let Ok(text) = SHStrDupW(&HSTRING::from(value)) else {
+                return;
+            };
+            let mut pv = PROPVARIANT::default();
+            (*pv.Anonymous.Anonymous).vt = VT_LPWSTR;
+            (*pv.Anonymous.Anonymous).Anonymous.pwszVal = text;
+            if let Err(e) = store.SetValue(&key, &pv) {
+                eprintln!("hopr: quick terminal taskbar identity: {e}");
+            }
+            let _ = PropVariantClear(&mut pv);
+        }
+        let _ = store.Commit();
+    }
+}
+
+/// Bring the main window back (from the tray or the quick terminal), opening it if this run
+/// started as the quick terminal alone.
 pub fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
+        return;
+    }
+    let Some(config) = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == "main")
+        .cloned()
+    else {
+        return;
+    };
+    // Built off the event-loop thread, like the quick terminal.
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match WebviewWindowBuilder::from_config(&app, &config).and_then(|b| b.build()) {
+            Ok(w) => {
+                let _ = w.set_focus();
+            }
+            Err(e) => eprintln!("hopr: main window failed: {e}"),
+        }
+    });
+}
+
+/// Hopr was launched again while running: bring up what that launch asked for, here.
+pub fn on_second_instance(app: &AppHandle, args: &[String]) {
+    if args.iter().any(|a| a == QUICK_ARG) {
+        open_quick(app);
+    } else {
+        show_main(app);
     }
 }
 

@@ -43,9 +43,20 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-single-instance = "2"
 
 [target."cfg(windows)".dependencies]
 winreg = "0.55"
+# The quick terminal's own taskbar identity (pinnable, relaunches `hopr --quick`).
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+] }
 
 [lints]
 workspace = true

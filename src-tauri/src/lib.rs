@@ -240,7 +240,16 @@ pub fn run() {
     #[cfg(debug_assertions)]
     refresh_bindings();
 
-    let result = tauri::Builder::default()
+    let quick_mode = platform::quick_mode();
+    let mut app_builder = tauri::Builder::default();
+    // One Hopr at a time: launching it again (or the pinned quick terminal) hands over to the
+    // running copy. Dev builds and HOPR_DATA_DIR runs (tests, portable) stay independent.
+    if cfg!(not(debug_assertions)) && std::env::var_os("HOPR_DATA_DIR").is_none() {
+        app_builder = app_builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            platform::on_second_instance(app, &args);
+        }));
+    }
+    let result = app_builder
         .manage(sessions::SessionManager::default())
         .manage(updates::Pending::default())
         .manage(sftp::Files::default())
@@ -276,6 +285,9 @@ pub fn run() {
             let device = device::Device::open(root.clone());
             // Each profile is its own data folder; open the last used one.
             let profiles = profiles::Profiles::open(root);
+            if quick_mode {
+                profiles.skip_ask();
+            }
             let data_dir = profiles.data_dir();
             std::fs::create_dir_all(&data_dir)?;
             state::keychain::set_profile(&profiles.current());
@@ -357,6 +369,12 @@ pub fn run() {
             app.manage(platform::Platform::new(close_to_tray, hotkey));
             platform::init_tray(app.handle())?;
             platform::init_hotkey(app.handle());
+            // `hopr --quick` opens only the quick terminal; Hopr opens from its button.
+            if quick_mode {
+                platform::open_quick(app.handle());
+            } else {
+                platform::show_main(app.handle());
+            }
             Ok(())
         })
         .build(tauri::generate_context!());

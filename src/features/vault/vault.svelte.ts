@@ -3,7 +3,7 @@
  * Activity pings keep the backend's auto-lock timer fresh while the user works.
  */
 import { type AppError, commands, events, inTauri, type VaultStatus } from "$lib/ipc";
-import { isMainWindow } from "$lib/window";
+import { isMainWindow, isQuickWindow } from "$lib/window";
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AppError };
 
@@ -48,9 +48,10 @@ class VaultStore {
       this.lockReason = e.payload.reason;
     });
     await this.refresh();
-    // Every window runs this; only the main window prompts at startup.
+    // Every window runs this; the main window (or the quick terminal opened on its own)
+    // unlocks with the remembered key at startup.
 
-    if (isMainWindow && this.status?.exists && !this.status.unlocked) {
+    if ((isMainWindow || isQuickWindow) && this.status?.exists && !this.status.unlocked) {
       if (this.status.remembered) await this.unlockRemembered();
     }
     const onActivity = () => this.activity();
