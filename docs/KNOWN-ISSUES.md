@@ -90,7 +90,7 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 ### 10. Profile switch killed `tauri dev` ✅
 - **What:** switching profiles restarts Hopr. In dev, that ended the process `tauri dev` watches, which stopped the dev server.
 - **Fixed:** `pnpm dev:app` (and `just dev`) runs `tauri dev` in a loop (`scripts/dev-loop.mjs`). In a debug build under that loop, a restart leaves a marker and exits instead of relaunching, and the loop starts Hopr again. A release build restarts as before.
-- **Possible later:** reopening a profile in-process would also make switching faster in release, but it means making the store and vault swappable everywhere `AppState` is used.
+- **Since then:** switching no longer restarts at all, in dev or release. The open profile's tabs, tunnels and transfers close, the database (`Store::reopen`) and remembered key move to the other profile, and only the page reloads. It takes about 25 ms on the backend, and the window stays. The dev loop still covers restoring a backup.
 
 ### 11. `windowVisible` looked unused ✏️
 - **Correction:** the UI doesn't call it, but the end-to-end suite does (tray and quick-terminal checks). It was removed once and then restored with a comment saying so. Before deleting any command, also search `scripts/`.
@@ -127,4 +127,4 @@ Things that were broken, half-wired, or didn't behave the way the UI or config s
 ## What's left
 
 1. **Your decisions:** the first release tag or a temporary download link (8), and whether to translate the UI (13).
-2. **Open, no decision needed:** a Delete action for groups (in 4), in-process profile reopen (in 10), and running the end-to-end suite in CI with Onboarding and Settings added (17).
+2. **Open, no decision needed:** a Delete action for groups (in 4), and running the end-to-end suite in CI with Onboarding and Settings added (17).
