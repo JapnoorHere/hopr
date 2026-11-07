@@ -70,8 +70,28 @@ pub fn parse_wsl_list(raw: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Shells available on this machine, best first.
+/// Shells available on this machine, best first. Found once per run: listing WSL distros starts
+/// `wsl.exe`, which is slow, and the list is asked for on every hosts screen and palette open.
 pub fn detect_shells() -> Vec<ShellProfile> {
+    static SHELLS: std::sync::OnceLock<Vec<ShellProfile>> = std::sync::OnceLock::new();
+    SHELLS.get_or_init(find_shells).clone()
+}
+
+/// A console program (`wsl.exe`) started without its own window: a GUI app would otherwise
+/// flash a console on screen for a moment.
+fn hidden(program: &Path) -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut cmd = std::process::Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
+fn find_shells() -> Vec<ShellProfile> {
     let mut out = Vec::new();
     if cfg!(windows) {
         if let Some(p) = find_in_path("pwsh.exe") {
@@ -96,7 +116,7 @@ pub fn detect_shells() -> Vec<ShellProfile> {
             }
         }
         if let Some(wsl) = find_in_path("wsl.exe")
-            && let Ok(o) = std::process::Command::new(&wsl).args(["-l", "-q"]).output()
+            && let Ok(o) = hidden(&wsl).args(["-l", "-q"]).output()
             && o.status.success()
         {
             for distro in parse_wsl_list(&o.stdout) {
