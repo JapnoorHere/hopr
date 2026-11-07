@@ -17,9 +17,26 @@ function ringing(node: HTMLElement, _at: number) {
   };
 }
 
+import type { Snippet } from "svelte";
 import IconButton from "$lib/ui/IconButton.svelte";
 import { sessions } from "./session.svelte";
 import { describeState } from "./state";
+
+interface Props {
+  /** Offer "Move to a new window" on each tab. */
+  tearOff?: boolean;
+  /** Replaces the new-tab button (the quick terminal opens shells, not the hosts screen). */
+  newTab?: Snippet;
+}
+
+let { tearOff = true, newTab }: Props = $props();
+
+/** Middle-click closes a tab, as in a browser. */
+function middleClose(e: MouseEvent, tab: (typeof sessions.tabs)[number]) {
+  if (e.button !== 1) return;
+  e.preventDefault();
+  void sessions.closeTab(tab);
+}
 
 // Tabs with a session to show, so each tab is a direct child of the keyed list (flip).
 const rows = $derived(
@@ -67,6 +84,8 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
         aria-selected={active}
         class="flex min-w-0 items-center gap-1.5 py-1.5 pr-1 pl-3"
         onclick={() => sessions.activate(tab.key)}
+        onmousedown={(e) => e.button === 1 && e.preventDefault()}
+        onauxclick={(e) => middleClose(e, tab)}
       >
         <TerminalWindow size={14} weight="light" class="shrink-0 text-faint" />
         <span class="truncate text-xs">
@@ -84,7 +103,7 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
           <span class="rec" title="Recording (output only)" aria-label="Recording">REC</span>
         {/if}
       </button>
-      {#if inTauri}
+      {#if inTauri && tearOff}
         <button
           type="button"
           class="close"
@@ -100,11 +119,15 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
       </button>
     </div>
   {/each}
-  <div class="mb-1 ml-1">
-    <IconButton label="New tab" shortcut="Ctrl+Shift+T" size={26} tip="bottom-start" onclick={() => sessions.showHome()}>
-      <Plus size={14} />
-    </IconButton>
-  </div>
+  {#if newTab}
+    {@render newTab()}
+  {:else}
+    <div class="mb-1 ml-1">
+      <IconButton label="New tab" shortcut="Ctrl+Shift+T" size={26} tip="bottom-start" onclick={() => sessions.showHome()}>
+        <Plus size={14} />
+      </IconButton>
+    </div>
+  {/if}
 </div>
 
 <style>

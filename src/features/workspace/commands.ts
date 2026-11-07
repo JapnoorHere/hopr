@@ -18,20 +18,33 @@ import { THEMES } from "$lib/design/theme";
 import { saveText } from "$lib/download";
 import { inTauri, commands as ipc, type ShellProfile } from "$lib/ipc";
 import { type Command, shortcuts } from "$lib/shortcuts";
-import { isMainWindow } from "$lib/window";
+import { readText, writeText } from "$lib/storage";
+import { isMainWindow, isQuickWindow } from "$lib/window";
 import { workspaces } from "./workspaces.svelte";
 
 let shellCache: ShellProfile[] | null = null;
 
-async function openLocalShell() {
-  if (!inTauri) return;
+/** Local shells on this machine, best first (asked for once). */
+export async function localShells(): Promise<ShellProfile[]> {
+  if (!inTauri) return [];
   if (!shellCache) {
     const r = await ipc.shellsList();
     shellCache = r.status === "ok" ? r.data : [];
   }
-  const s = shellCache[0];
-  if (s) sessions.open({ kind: "local", shellId: s.id, label: s.name });
+  return shellCache;
 }
+
+/** Open a local shell in a new tab: `id`, or the best one. False when there is none. */
+export async function openLocalShell(id?: string): Promise<boolean> {
+  const shells = await localShells();
+  const s = shells.find((x) => x.id === id) ?? shells[0];
+  if (s) sessions.open({ kind: "local", shellId: s.id, label: s.name });
+  return !!s;
+}
+
+/** The quick terminal keeps its tabs, panes and terminal keys (no hosts, drawers or palette). */
+const QUICK_COMMANDS =
+  /^(local|tab\.(new|duplicate|close|reopen|next|prev|goto\.\d)|pane\.|term\.|font\.)/;
 
 const hasTab = () => sessions.activeTab !== null;
 const hasSplit = () =>
@@ -466,5 +479,24 @@ export function registerAppCommands(): () => void {
       run: () => appearance.update({ theme: t.id }),
     })),
   ];
-  return shortcuts.register(list);
+  if (!isQuickWindow) return shortcuts.register(list);
+  // In the quick terminal a new tab is a new local shell (there is no hosts screen).
+  return shortcuts.register(
+    list
+      .filter((c) => QUICK_COMMANDS.test(c.id))
+      .map((c) =>
+        c.id === "tab.new" ? { ...c, run: () => void openLocalShell(quickShell()) } : c,
+      ),
+  );
+}
+
+const QUICK_SHELL_KEY = "hopr.quick.shell";
+
+/** The shell the quick terminal's new tabs open: the one picked last. */
+export function quickShell(): string | undefined {
+  return readText(QUICK_SHELL_KEY) ?? undefined;
+}
+
+export function setQuickShell(id: string) {
+  writeText(QUICK_SHELL_KEY, id);
 }
