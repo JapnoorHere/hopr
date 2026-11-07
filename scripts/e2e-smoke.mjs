@@ -721,7 +721,7 @@ for (let attempt = 0; attempt < 2 && !quickHidden; attempt++) {
 }
 quick?.ws.close();
 check(
-  "Ctrl+` (global hotkey) slides the quick terminal down with a local shell, and back",
+  "Ctrl+` (global hotkey) opens the quick terminal window with a local shell, and hides it again",
   !quickBefore && quickShown && quickShell && quickHidden,
   `was hidden ${!quickBefore}, shown ${quickShown}, shell ${quickShell}, hidden again ${quickHidden}`,
 );

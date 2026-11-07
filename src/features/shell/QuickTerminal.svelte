@@ -3,8 +3,10 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { sessions } from "$features/terminal/session.svelte";
 import { vault } from "$features/vault/vault.svelte";
 import Workspace from "$features/workspace/Workspace.svelte";
+import HoprMark from "$lib/icons/HoprMark.svelte";
 import { commands, inTauri } from "$lib/ipc";
 import Kbd from "$lib/ui/Kbd.svelte";
+import WindowControls from "./WindowControls.svelte";
 
 let error = $state<string | null>(null);
 let hotkey = $state("Ctrl+`");
@@ -15,15 +17,22 @@ $effect(() => {
   void commands.desktopPrefs().then((r) => {
     if (r.quickHotkey) hotkey = r.quickHotkey;
   });
-  let unlisten: (() => void) | undefined;
-  void getCurrentWindow()
+  const win = getCurrentWindow();
+  const unlisten: (() => void)[] = [];
+  void win
     .onFocusChanged(({ payload: focused }) => {
       if (focused) void vault.refresh();
     })
-    .then((u) => {
-      unlisten = u;
-    });
-  return () => unlisten?.();
+    .then((u) => unlisten.push(u));
+  // Closing the window ends its shell (hiding with the hotkey keeps it).
+  void win
+    .onCloseRequested(async () => {
+      await Promise.all(sessions.tabs.map((t) => sessions.closeTab(t)));
+    })
+    .then((u) => unlisten.push(u));
+  return () => {
+    for (const u of unlisten) u();
+  };
 });
 
 // One local shell, opened once the vault is unlocked and kept across show/hide.
@@ -49,12 +58,19 @@ $effect(() => {
 
 <div class="quick flex h-full flex-col bg-bg text-fg">
   <header
-    class="flex h-7 shrink-0 items-center gap-2 border-b border-border bg-surface-1 px-3 text-xs text-faint"
+    class="flex h-10 shrink-0 items-stretch border-b border-border bg-surface-1 text-xs text-faint"
+    data-tauri-drag-region
   >
-    <span class="text-muted">Quick terminal</span>
-    <span class="flex-1"></span>
-    <span><Kbd keys={hotkey} /> to hide</span>
-    <button type="button" class="link" onclick={() => commands.mainShow()}>Open Hopr</button>
+    <div class="grid w-12 shrink-0 place-items-center text-accent" data-tauri-drag-region>
+      <HoprMark size={20} />
+    </div>
+    <span class="flex items-center text-sm text-muted" data-tauri-drag-region>Quick terminal</span>
+    <div class="min-w-0 flex-1" data-tauri-drag-region></div>
+    <span class="flex items-center gap-1 px-3" data-tauri-drag-region>
+      <Kbd keys={hotkey} /> to hide
+    </span>
+    <button type="button" class="link px-3" onclick={() => commands.mainShow()}>Open Hopr</button>
+    <WindowControls />
   </header>
   <main class="relative flex min-h-0 flex-1">
     {#if !vault.unlocked}
@@ -75,10 +91,6 @@ $effect(() => {
 </div>
 
 <style>
-  .quick {
-    border: 1px solid var(--border-strong);
-    border-top: 0;
-  }
   .link {
     color: var(--text-muted);
   }

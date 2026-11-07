@@ -1,10 +1,9 @@
 //! Desktop integration (U5, T18): tray menu, close-to-tray, the global quick-terminal
-//! hotkey and its drop-down window, and torn-off tab windows.
+//! hotkey and its window, and torn-off tab windows.
 
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use hopr_core::AppError;
 use hopr_core::hotkey::to_accelerator;
@@ -13,8 +12,8 @@ use specta::Type;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{
-    AppHandle, Manager, PhysicalPosition, PhysicalSize, State, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, Window, WindowEvent, Wry,
+    AppHandle, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window,
+    WindowEvent, Wry,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_specta::Event;
@@ -36,12 +35,6 @@ const TRAY_ID: &str = "hopr";
 pub struct Platform {
     close_to_tray: AtomicBool,
     hotkey: Mutex<String>,
-    /// The quick terminal has had focus since it was last shown (only then does losing
-    /// focus hide it: Windows may refuse the focus when another app is in front).
-    quick_had_focus: AtomicBool,
-    /// When the quick terminal was last shown: focus can flicker while a window is created
-    /// or raised, so losing it right after showing doesn't count.
-    quick_shown_at: Mutex<Option<Instant>>,
 }
 
 impl Platform {
@@ -49,30 +42,12 @@ impl Platform {
         Self {
             close_to_tray: AtomicBool::new(close_to_tray),
             hotkey: Mutex::new(hotkey),
-            quick_had_focus: AtomicBool::new(false),
-            quick_shown_at: Mutex::new(None),
         }
-    }
-
-    /// Whether losing focus now should hide the quick terminal.
-    fn quick_blur_hides(&self) -> bool {
-        let settled = self
-            .quick_shown_at
-            .lock()
-            .ok()
-            .and_then(|t| *t)
-            .is_none_or(|t| t.elapsed() >= Duration::from_secs(1));
-        settled && self.quick_had_focus.swap(false, Ordering::Relaxed)
     }
 }
 
-fn show_quick(app: &AppHandle, w: &WebviewWindow) {
-    let platform = app.state::<Platform>();
-    platform.quick_had_focus.store(false, Ordering::Relaxed);
-    if let Ok(mut t) = platform.quick_shown_at.lock() {
-        *t = Some(Instant::now());
-    }
-    place_quick(app, w);
+fn show_quick(w: &WebviewWindow) {
+    let _ = w.unminimize();
     let _ = w.show();
     let _ = w.set_focus();
 }
@@ -145,29 +120,17 @@ pub fn on_shortcut(app: &AppHandle, state: ShortcutState) {
     }
 }
 
-fn place_quick(app: &AppHandle, w: &WebviewWindow) {
-    let monitor = app
-        .get_webview_window("main")
-        .and_then(|m| m.current_monitor().ok().flatten())
-        .or_else(|| app.primary_monitor().ok().flatten());
-    if let Some(m) = monitor {
-        let size = m.size();
-        let pos = m.position();
-        let width = size.width * 7 / 10;
-        let height = size.height * 4 / 10;
-        let _ = w.set_size(PhysicalSize { width, height });
-        let x = pos.x + i32::try_from((size.width - width) / 2).unwrap_or(0);
-        let _ = w.set_position(PhysicalPosition { x, y: pos.y });
-    }
-}
-
-/// Show the quick terminal (creating it on first use), or hide it if it has focus.
+/// Bring the quick terminal to the front (opening it on first use), or hide it when it is
+/// already in front. It is an ordinary window: it stays open when another window is clicked.
 pub fn toggle_quick(app: &AppHandle) {
     if let Some(w) = app.get_webview_window(QUICK) {
-        if w.is_visible().unwrap_or(false) {
+        let in_front = w.is_visible().unwrap_or(false)
+            && !w.is_minimized().unwrap_or(false)
+            && w.is_focused().unwrap_or(false);
+        if in_front {
             let _ = w.hide();
         } else {
-            show_quick(app, &w);
+            show_quick(&w);
         }
         return;
     }
@@ -177,14 +140,14 @@ pub fn toggle_quick(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         let built = WebviewWindowBuilder::new(&app, QUICK, WebviewUrl::App("index.html".into()))
             .title("Hopr quick terminal")
+            .inner_size(900.0, 520.0)
+            .min_inner_size(480.0, 280.0)
+            .center()
             .decorations(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .resizable(false)
             .visible(false)
             .build();
         match built {
-            Ok(w) => show_quick(&app, &w),
+            Ok(w) => show_quick(&w),
             Err(e) => eprintln!("hopr: quick terminal window failed: {e}"),
         }
     });
@@ -275,29 +238,17 @@ pub fn init_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Window events: main closes to the tray; the quick terminal hides when it loses focus.
+/// Window events: main closes to the tray.
 pub fn on_window_event(window: &Window, event: &WindowEvent) {
-    match (window.label(), event) {
-        ("main", WindowEvent::CloseRequested { api, .. }) => {
-            let platform = window.state::<Platform>();
-            if platform.close_to_tray.load(Ordering::Relaxed) {
-                api.prevent_close();
-                let _ = window.hide();
-            } else {
-                // Main closing means quitting: take the other windows with it.
-                window.app_handle().exit(0);
-            }
-        }
-        (QUICK, WindowEvent::Focused(true)) => {
-            window
-                .state::<Platform>()
-                .quick_had_focus
-                .store(true, Ordering::Relaxed);
-        }
-        (QUICK, WindowEvent::Focused(false)) if window.state::<Platform>().quick_blur_hides() => {
+    if let ("main", WindowEvent::CloseRequested { api, .. }) = (window.label(), event) {
+        let platform = window.state::<Platform>();
+        if platform.close_to_tray.load(Ordering::Relaxed) {
+            api.prevent_close();
             let _ = window.hide();
+        } else {
+            // Main closing means quitting: take the other windows with it.
+            window.app_handle().exit(0);
         }
-        _ => {}
     }
 }
 
