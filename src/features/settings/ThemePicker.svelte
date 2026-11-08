@@ -29,6 +29,8 @@ const cur = $derived(appearance.current);
 const startId = $derived<ThemeId>(isThemeId(cur.theme) ? cur.theme : "ember");
 const custom = $derived<CustomTheme>(cur.custom ?? customFrom(startId));
 const editing = $derived(cur.theme === "custom");
+/** A theme card can be the chosen one (not while the profile follows Hopr's: that card is). */
+const chosen = $derived(appearance.editsApp || appearance.own);
 
 const INTERFACE = [
   { key: "bg", label: "Background" },
@@ -113,11 +115,24 @@ const dots = (s: ThemeSpec) => [
   <h3 class="label-caps mb-1 text-faint">Theme</h3>
   <p class="mb-3 text-xs text-muted">Colours the whole app and every terminal.</p>
   <div role="radiogroup" aria-label="Theme" class="flex flex-col gap-3">
+    {#if !appearance.editsApp}
+      <!-- The profile's theme: following Hopr's is a choice like any other. -->
+      <div>
+        <p class="sub">Follow Hopr</p>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {@render card(
+            { ...appearance.appSpec, name: "Same as Hopr", feel: appearance.appSpec.name },
+            !appearance.own,
+            () => appearance.followApp(),
+          )}
+        </div>
+      </div>
+    {/if}
     <div>
       <p class="sub">Dark</p>
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {#each DARK as th (th.id)}
-          {@render card(th, cur.theme === th.id, () => appearance.update({ theme: th.id }))}
+          {@render card(th, chosen && cur.theme === th.id, () => appearance.update({ theme: th.id }))}
         {/each}
       </div>
     </div>
@@ -125,7 +140,7 @@ const dots = (s: ThemeSpec) => [
       <p class="sub">Light</p>
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {#each LIGHT as th (th.id)}
-          {@render card(th, cur.theme === th.id, () => appearance.update({ theme: th.id }))}
+          {@render card(th, chosen && cur.theme === th.id, () => appearance.update({ theme: th.id }))}
         {/each}
       </div>
     </div>
@@ -133,7 +148,7 @@ const dots = (s: ThemeSpec) => [
       <p class="sub">Your own</p>
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {#if cur.custom}
-          {@render card(customSpec(cur.custom), editing, useCustom)}
+          {@render card(customSpec(cur.custom), chosen && editing, useCustom)}
         {:else}
           <button type="button" role="radio" aria-checked="false" class="card new" onclick={useCustom}>
             <PaintBrush size={18} class="text-accent" />

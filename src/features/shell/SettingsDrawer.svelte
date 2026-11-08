@@ -92,7 +92,11 @@ function onSearchKey(e: KeyboardEvent) {
   }
 }
 
-onDestroy(() => finder.clear());
+onDestroy(() => {
+  finder.clear();
+  // Settings may have been previewing Hopr's theme: show the profile's again.
+  appearance.resetEditing();
+});
 
 /**
  * A jump from the list is under way: the clicked item stays lit while the page scrolls past
