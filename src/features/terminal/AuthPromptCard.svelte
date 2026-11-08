@@ -2,6 +2,7 @@
 import { Key } from "phosphor-svelte";
 import type { AuthPrompt } from "$lib/ipc";
 import { shake } from "$lib/motion";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 
 let {
   prompt,
@@ -42,15 +43,12 @@ function submit(e: SubmitEvent) {
   {#each prompt.fields as field, i (i)}
     <label class="field">
       <span class="text-xs text-muted">{field.label.replace(/:\s*$/, "")}</span>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
-        class="input"
-        type={field.echo ? "text" : "password"}
-        bind:value={values[i]}
-        autocomplete="off"
-        spellcheck="false"
-        autofocus={i === 0}
-      />
+      {#if field.echo}
+        <!-- svelte-ignore a11y_autofocus -->
+        <input class="input" type="text" bind:value={values[i]} autocomplete="off" spellcheck="false" autofocus={i === 0} />
+      {:else}
+        <PasswordInput bind:value={values[i]} autocomplete="off" autofocus={i === 0} />
+      {/if}
     </label>
   {/each}
   {#if prompt.canRemember}

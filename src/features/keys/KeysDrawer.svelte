@@ -18,6 +18,7 @@ import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors } from "$lib/ui/form";
 import InlineRename from "$lib/ui/InlineRename.svelte";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 
 // Opened from the host editor's "Generate key" / "Import key": start on that panel.
@@ -362,9 +363,8 @@ function knownName(k: KnownHost): string {
       {#if needsPassphrase}
         <label class="field">
           <span class="label-caps text-faint">Passphrase</span>
-          <input
-            class="input"
-            type="password"
+          <PasswordInput
+            icon="key"
             bind:value={impPassphrase}
             aria-invalid={!!errors.impPassphrase}
             oninput={() => (errors.impPassphrase = undefined)}

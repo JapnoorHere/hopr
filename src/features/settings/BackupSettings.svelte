@@ -7,6 +7,7 @@ import { parseAppearance } from "$lib/design/theme";
 import { saveText } from "$lib/download";
 import { type BackupInfo, commands, inTauri } from "$lib/ipc";
 import { shortcuts } from "$lib/shortcuts";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 
 /** Results show as toasts. */
@@ -143,10 +144,7 @@ function size(bytes: number): string {
     {#if restoring}
       <form class="flex flex-col gap-2 rounded-md border border-border p-3" onsubmit={restore}>
         <span class="text-xs text-fg">Restore {restoring.label}? Your current data is kept as a copy next to it.</span>
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          class="input"
-          type="password"
+        <PasswordInput
           bind:value={password}
           placeholder="Master password of that backup"
           aria-label="Backup master password"

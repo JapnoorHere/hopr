@@ -5,6 +5,7 @@ import type { RunMode, Snippet } from "$lib/ipc";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { snippets } from "./snippets.svelte";
 import { secretsIn } from "./template";
 
@@ -265,9 +266,9 @@ const missing = $derived(secretsIn(body).filter((n) => !snippets.secrets.include
             aria-invalid={!!secretErrors.name}
             oninput={() => (secretErrors.name = undefined)}
           />
-          <input
-            class="input min-w-0 flex-1"
-            type="password"
+          <PasswordInput
+            class="min-w-0 flex-1"
+            icon="key"
             bind:value={secretValue}
             placeholder="value"
             aria-label="Secret value"

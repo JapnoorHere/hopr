@@ -17,6 +17,7 @@ import { blurFade, expand } from "$lib/motion";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors, parsePort } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import Segmented, { type SegmentOption } from "$lib/ui/Segmented.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import { jumpCandidates } from "./chain";
@@ -363,9 +364,7 @@ function onsubmit(e: SubmitEvent) {
       <div class="field" in:blurFade={{ y: 4, blur: 0, duration: 180 }}>
         <label class="field">
           <span class="label-caps text-faint">Password</span>
-          <input
-            class="input"
-            type="password"
+          <PasswordInput
             bind:value={password}
             placeholder={existing?.hasPassword && !clearPassword ? "Saved (leave blank to keep)" : "Ask when connecting"}
           />

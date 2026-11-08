@@ -1,6 +1,11 @@
 /** Rough master-password strength, for a hint only (the vault accepts any 8+ chars). */
 export type Strength = { score: 0 | 1 | 2 | 3; label: string };
 
+/** The strength as PasswordInput's meter (three steps). */
+export function strengthMeter(pw: string): Strength & { max: number } {
+  return { ...passwordStrength(pw), max: 3 };
+}
+
 export function passwordStrength(pw: string): Strength {
   if (pw.length < 8) return { score: 0, label: "Too short" };
   if (/^(.)\1+$/.test(pw) || /^(password|12345678|qwerty)/i.test(pw)) {

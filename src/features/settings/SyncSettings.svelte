@@ -6,6 +6,7 @@ import { inTauri } from "$lib/ipc";
 import { pop } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid, hasErrors } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 
 let folder = $state("");
@@ -141,9 +142,8 @@ function ago(iso: string | null): string {
           oninput={() => (errors.deviceName = undefined)}
         />
         <FieldError message={errors.deviceName} />
-        <input
-          class="input"
-          type="password"
+        <PasswordInput
+          icon="key"
           bind:value={passphrase}
           placeholder="Sync passphrase"
           aria-label="Sync passphrase"
@@ -151,14 +151,14 @@ function ago(iso: string | null): string {
           oninput={() => (errors.passphrase = undefined)}
         />
         <FieldError message={errors.passphrase} />
-        <input
-          class="input"
-          type="password"
+        <PasswordInput
+          icon="key"
           bind:value={confirmText}
           placeholder="Repeat it (first computer only)"
           aria-label="Repeat sync passphrase"
           aria-invalid={!!errors.confirm}
           oninput={() => (errors.confirm = undefined)}
+          matches={confirmText === passphrase}
         />
         <FieldError message={errors.confirm} />
         <p class="text-xs text-faint">

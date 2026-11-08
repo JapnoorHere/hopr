@@ -1,6 +1,8 @@
 <script lang="ts">
 import { shell } from "$features/shell/shell.state.svelte";
 import { inTauri } from "$lib/ipc";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
+import { strengthMeter } from "./strength";
 import { vault } from "./vault.svelte";
 
 const CLIPBOARD = [
@@ -87,14 +89,20 @@ function startChange() {
 
     {#if changing}
       <form class="mt-3 flex flex-col gap-2" onsubmit={change}>
-        <input class="input" type="password" bind:value={current} placeholder="Current password" aria-label="Current password" />
-        <input class="input" type="password" bind:value={next} placeholder="New password" aria-label="New password" />
-        <input
-          class="input"
-          type="password"
+        <PasswordInput bind:value={current} placeholder="Current password" aria-label="Current password" autocomplete="current-password" />
+        <PasswordInput
+          bind:value={next}
+          placeholder="New password"
+          aria-label="New password"
+          autocomplete="new-password"
+          meter={strengthMeter(next)}
+        />
+        <PasswordInput
           bind:value={confirm}
           placeholder="Confirm new password"
           aria-label="Confirm new password"
+          autocomplete="new-password"
+          matches={confirm === next}
         />
         <div class="flex justify-end gap-2">
           <button type="button" class="btn-ghost" onclick={() => (changing = false)}>Cancel</button>

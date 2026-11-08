@@ -4,6 +4,8 @@ import HoprMark from "$lib/icons/HoprMark.svelte";
 import { blurFade, pop } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { type FieldErrors, focusFirstInvalid } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
+import { strengthMeter } from "./strength";
 import { vault } from "./vault.svelte";
 
 let mode = $state<"password" | "recover">("password");
@@ -104,11 +106,9 @@ function switchMode(m: typeof mode) {
         </div>
         <label class="field">
           <span class="label-caps text-faint">Master password</span>
-          <!-- svelte-ignore a11y_autofocus -->
-          <input
-            class="input"
-            type="password"
+          <PasswordInput
             bind:value={password}
+            aria-label="Master password"
             autocomplete="current-password"
             autofocus
             aria-invalid={!!errors.password}
@@ -151,25 +151,25 @@ function switchMode(m: typeof mode) {
         </label>
         <label class="field">
           <span class="label-caps text-faint">New master password</span>
-          <input
-            class="input"
-            type="password"
+          <PasswordInput
             bind:value={newPassword}
+            aria-label="New master password"
             autocomplete="new-password"
             aria-invalid={!!errors.newPassword}
             oninput={() => (errors.newPassword = undefined)}
+            meter={strengthMeter(newPassword)}
           />
           <FieldError message={errors.newPassword} />
         </label>
         <label class="field">
           <span class="label-caps text-faint">Confirm</span>
-          <input
-            class="input"
-            type="password"
+          <PasswordInput
             bind:value={confirm}
+            aria-label="Confirm new master password"
             autocomplete="new-password"
             aria-invalid={!!errors.confirm}
             oninput={() => (errors.confirm = undefined)}
+            matches={confirm === newPassword}
           />
           <FieldError message={errors.confirm} />
         </label>

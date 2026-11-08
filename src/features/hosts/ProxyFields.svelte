@@ -4,6 +4,7 @@ import type { ProxyProtocol } from "$lib/ipc";
 import { expand } from "$lib/motion";
 import FieldError from "$lib/ui/FieldError.svelte";
 import type { FieldErrors } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 
 type Field = "proxyHost" | "proxyPort" | "proxyUser";
 
@@ -78,9 +79,7 @@ let {
           aria-invalid={!!errors.proxyUser}
           oninput={fix("proxyUser")}
         />
-        <input
-          class="input"
-          type="password"
+        <PasswordInput
           bind:value={password}
           aria-label="Proxy password"
           placeholder={savedPassword && !forgetPassword ? "Saved" : "Password"}

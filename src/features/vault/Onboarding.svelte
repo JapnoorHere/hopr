@@ -28,8 +28,9 @@ import ColorSwatches from "$lib/ui/ColorSwatches.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { focusFirstInvalid } from "$lib/ui/form";
 import Kbd from "$lib/ui/Kbd.svelte";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { toast } from "$lib/ui/toast.svelte";
-import { passwordStrength } from "./strength";
+import { strengthMeter } from "./strength";
 import { vault, wrap } from "./vault.svelte";
 
 type Step = "welcome" | "look" | "profile" | "secure" | "recovery" | "hosts" | "ready";
@@ -119,7 +120,6 @@ let busy = $state(false);
 let errors = $state<{ password?: string; confirm?: string; form?: string }>({});
 let form = $state<HTMLFormElement>();
 let recoveryKey = $state("");
-const strength = $derived(passwordStrength(password));
 
 async function create() {
   errors = {};
@@ -299,21 +299,27 @@ const nextLabel = $derived(
             <header><ShieldCheck size={20} /><div><h2>Lock it with a master password</h2><p>It encrypts your hosts, passwords and keys. Hopr never sees it or sends it anywhere.</p></div></header>
             <label class="field">
               <span class="label-caps text-faint">Master password</span>
-              <!-- svelte-ignore a11y_autofocus -->
-              <input class="input" type="password" bind:value={password} autocomplete="new-password" autofocus aria-invalid={!!errors.password} oninput={() => (errors.password = undefined)} />
+              <PasswordInput
+                bind:value={password}
+                aria-label="Master password"
+                autocomplete="new-password"
+                autofocus
+                aria-invalid={!!errors.password}
+                oninput={() => (errors.password = undefined)}
+                meter={strengthMeter(password)}
+              />
               <FieldError message={errors.password} />
             </label>
-            {#if password}
-              <div class="flex items-center gap-2" aria-live="polite">
-                <div class="flex flex-1 gap-1">
-                  {#each [1, 2, 3] as n (n)}<span class="meter" class:on={strength.score >= n} data-score={strength.score}></span>{/each}
-                </div>
-                <span class="text-xs text-muted">{strength.label}</span>
-              </div>
-            {/if}
             <label class="field">
               <span class="label-caps text-faint">Confirm</span>
-              <input class="input" type="password" bind:value={confirm} autocomplete="new-password" aria-invalid={!!errors.confirm} oninput={() => (errors.confirm = undefined)} />
+              <PasswordInput
+                bind:value={confirm}
+                aria-label="Confirm master password"
+                autocomplete="new-password"
+                aria-invalid={!!errors.confirm}
+                oninput={() => (errors.confirm = undefined)}
+                matches={confirm === password}
+              />
               <FieldError message={errors.confirm} />
             </label>
             <label class="check">
@@ -551,22 +557,6 @@ const nextLabel = $derived(
     display: flex;
     align-items: center;
     gap: 16px;
-  }
-  .meter {
-    height: 4px;
-    flex: 1;
-    border-radius: 2px;
-    background: var(--surface-3);
-    transition: background var(--dur-slow) var(--ease-out);
-  }
-  .meter.on[data-score="1"] {
-    background: var(--danger);
-  }
-  .meter.on[data-score="2"] {
-    background: var(--warning);
-  }
-  .meter.on[data-score="3"] {
-    background: var(--success);
   }
   .key {
     display: flex;

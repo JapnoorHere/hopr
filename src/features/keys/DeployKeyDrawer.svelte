@@ -7,6 +7,7 @@ import { commands } from "$lib/ipc";
 import Drawer from "$lib/ui/Drawer.svelte";
 import FieldError from "$lib/ui/FieldError.svelte";
 import { focusFirstInvalid } from "$lib/ui/form";
+import PasswordInput from "$lib/ui/PasswordInput.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 
 let { hostId: initialHost, keyId: initialKey }: { hostId: string | null; keyId: string | null } =
@@ -107,9 +108,7 @@ async function deploy(e: SubmitEvent) {
     {#if needsPassword}
       <label class="field">
         <span class="label-caps text-faint">Password for {host?.username}@{host?.hostname}</span>
-        <input
-          class="input"
-          type="password"
+        <PasswordInput
           bind:value={password}
           aria-label="Host password"
           aria-invalid={!!passwordError}
