@@ -42,8 +42,9 @@ pub async fn session_open(
     // "telnet" / "serial" for those hosts (history shows the kind).
     let mut plain_kind: Option<&'static str> = None;
     let handle = match target {
+        // A local shell runs as the user on this computer and uses nothing from the vault, so
+        // it opens while Hopr is locked (the quick terminal keeps working through auto-lock).
         ConnectTarget::Local { shell_id } => {
-            state.require_unlocked()?;
             let shells = tokio::task::spawn_blocking(hopr_term::detect_shells)
                 .await
                 .map_err(|e| AppError::internal("Shell detection failed", e))?;

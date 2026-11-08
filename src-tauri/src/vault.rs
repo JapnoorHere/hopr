@@ -8,9 +8,10 @@ use hopr_vault::{KdfParams, VaultError, VaultHeader};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_specta::Event;
 
-use crate::state::{AUTO_LOCK_KEY, AppState, keychain};
+use crate::state::{AUTO_LOCK_KEY, AppState, VaultLockedEvent, keychain};
 use crate::{backups, clipboard};
 
 type S<'a> = State<'a, Arc<AppState>>;
@@ -223,11 +224,16 @@ pub async fn vault_change_password(
 /// Lock now (Ctrl+Shift+L). Sessions keep running behind the lock screen.
 #[tauri::command]
 #[specta::specta]
-pub fn vault_lock(state: S<'_>) {
+pub fn vault_lock(app: AppHandle, state: S<'_>) {
     if state.is_unlocked() {
         state.audit("vault.lock", None, "Locked manually");
     }
     state.lock();
+    // Every window hears it (the quick terminal, torn-off tabs), not only the one that locked.
+    let _ = VaultLockedEvent {
+        reason: "manual".into(),
+    }
+    .emit(&app);
 }
 
 /// Forget the remembered key on this device.

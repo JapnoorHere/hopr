@@ -1,6 +1,6 @@
 <script lang="ts">
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CaretDown, GearSix, Plus } from "phosphor-svelte";
+import { CaretDown, GearSix, LockSimple, Plus } from "phosphor-svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import TabStrip from "$features/terminal/TabStrip.svelte";
 import { vault } from "$features/vault/vault.svelte";
@@ -61,9 +61,14 @@ $effect(() => {
   };
 });
 
-// The first tab opens once the vault is unlocked; closing the last one closes the window.
+// Settings closes when Hopr locks (and can't open while it's locked).
 $effect(() => {
-  if (!vault.unlocked) return;
+  if (!vault.unlocked && shell.drawer === "settings") shell.closeTop();
+});
+
+// The first tab opens straight away (local shells don't need Hopr unlocked); closing the last
+// one closes the window.
+$effect(() => {
   if (sessions.tabs.length > 0) {
     started = true;
     return;
@@ -143,32 +148,32 @@ const preferred = $derived(shells.find((s) => s.id === chosen) ?? shells[0]);
     <div class="grid w-12 shrink-0 place-items-center text-accent" data-tauri-drag-region title="Hopr quick terminal">
       <HoprMark size={20} />
     </div>
-    {#if vault.unlocked}
-      <TabStrip tearOff={false} {newTab} />
-    {:else}
-      <span class="flex items-center text-sm text-muted" data-tauri-drag-region>Quick terminal</span>
-    {/if}
+    <TabStrip tearOff={false} {newTab} />
     <div class="min-w-0 flex-1" data-tauri-drag-region></div>
     <span class="flex shrink-0 items-center gap-1 px-3" data-tauri-drag-region>
       <Kbd keys={hotkey} /> to hide
     </span>
-    <button type="button" class="link shrink-0 px-3" onclick={() => commands.mainShow()}>Open Hopr</button>
-    <div class="flex shrink-0 items-center pr-1">
-      <IconButton label="Settings" shortcut="Ctrl+," size={28} tip="bottom-end" onclick={() => shell.toggle("settings")}>
-        <GearSix size={15} />
-      </IconButton>
-    </div>
+    <button
+      type="button"
+      class="link flex shrink-0 items-center gap-1.5 px-3"
+      title={vault.unlocked ? undefined : "Hopr is locked; these shells keep running"}
+      onclick={() => commands.mainShow()}
+    >
+      {#if vault.unlocked}Open Hopr{:else}<LockSimple size={13} /> Unlock Hopr{/if}
+    </button>
+    <!-- Some settings need the vault: Settings is there while Hopr is unlocked. -->
+    {#if vault.unlocked}
+      <div class="flex shrink-0 items-center pr-1">
+        <IconButton label="Settings" shortcut="Ctrl+," size={28} tip="bottom-end" onclick={() => shell.toggle("settings")}>
+          <GearSix size={15} />
+        </IconButton>
+      </div>
+    {/if}
     <WindowControls />
   </header>
+  <!-- Locking Hopr never touches the shells here: they stay mounted and keep running. -->
   <main class="relative flex min-h-0 flex-1">
-    {#if !vault.unlocked}
-      <div class="m-auto flex flex-col items-center gap-3 text-center">
-        <p class="text-sm text-muted">Hopr is locked.</p>
-        <button type="button" class="btn-primary" onclick={() => commands.mainShow()}>
-          Unlock in Hopr
-        </button>
-      </div>
-    {:else if error}
+    {#if error}
       <p class="m-auto text-sm text-danger">{error}</p>
     {:else}
       {#each sessions.tabs as tab (tab.key)}
