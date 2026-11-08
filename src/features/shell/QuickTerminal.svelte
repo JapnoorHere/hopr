@@ -1,6 +1,6 @@
 <script lang="ts">
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CaretDown, Plus } from "phosphor-svelte";
+import { CaretDown, GearSix, Plus } from "phosphor-svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import TabStrip from "$features/terminal/TabStrip.svelte";
 import { vault } from "$features/vault/vault.svelte";
@@ -18,6 +18,8 @@ import { shortcuts } from "$lib/shortcuts";
 import IconButton from "$lib/ui/IconButton.svelte";
 import Kbd from "$lib/ui/Kbd.svelte";
 import Menu from "$lib/ui/Menu.svelte";
+import SettingsDrawer from "./SettingsDrawer.svelte";
+import { shell } from "./shell.state.svelte";
 import WindowControls from "./WindowControls.svelte";
 
 let error = $state<string | null>(null);
@@ -151,6 +153,11 @@ const preferred = $derived(shells.find((s) => s.id === chosen) ?? shells[0]);
       <Kbd keys={hotkey} /> to hide
     </span>
     <button type="button" class="link shrink-0 px-3" onclick={() => commands.mainShow()}>Open Hopr</button>
+    <div class="flex shrink-0 items-center pr-1">
+      <IconButton label="Settings" shortcut="Ctrl+," size={28} tip="bottom-end" onclick={() => shell.toggle("settings")}>
+        <GearSix size={15} />
+      </IconButton>
+    </div>
     <WindowControls />
   </header>
   <main class="relative flex min-h-0 flex-1">
@@ -170,6 +177,8 @@ const preferred = $derived(shells.find((s) => s.id === chosen) ?? shells[0]);
     {/if}
   </main>
 </div>
+
+{#if shell.drawer === "settings"}<SettingsDrawer />{/if}
 
 <style>
   .link {

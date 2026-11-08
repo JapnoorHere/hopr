@@ -3,8 +3,10 @@
 import { ArrowRight, PencilSimple, Plus } from "phosphor-svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import type { Profile } from "$lib/ipc";
+import { commands } from "$lib/ipc";
 import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import { toast } from "$lib/ui/toast.svelte";
+import { isQuickWindow } from "$lib/window";
 import ProfileAvatar from "./ProfileAvatar.svelte";
 import ProfileDialog from "./ProfileDialog.svelte";
 import { profileName, profiles } from "./profiles.svelte";
@@ -36,6 +38,12 @@ async function open(p: Profile) {
     Each profile is separate: its own hosts, keys, snippets, history, backups and master password. Switching
     closes the open tabs and opens the other profile in the same window.
   </p>
+  {#if isQuickWindow}
+    <p class="-mt-1 flex items-center gap-2 text-xs text-muted">
+      Switch profiles from Hopr itself: switching closes this window.
+      <button type="button" class="btn-ghost" onclick={() => commands.mainShow()}>Open Hopr</button>
+    </p>
+  {/if}
   <ul class="list">
     {#each profiles.list as p (p.id)}
       <li class="row">
@@ -49,7 +57,7 @@ async function open(p: Profile) {
         <button type="button" class="btn-ghost" aria-label="Edit {profileName(p)}" onclick={() => (editing = p)}>
           <PencilSimple size={14} /> Edit
         </button>
-        {#if p.id !== profiles.current}
+        {#if p.id !== profiles.current && !isQuickWindow}
           <button type="button" class="btn-ghost" onclick={() => open(p)}>
             {profiles.switching === p.id ? "Opening…" : "Open"}
             <ArrowRight size={13} />

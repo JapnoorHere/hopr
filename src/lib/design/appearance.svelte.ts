@@ -11,9 +11,7 @@ class AppearanceStore {
 
   init() {
     // Read again: the open profile's storage scope is set by now.
-    this.current = loadAppearance();
-    applyAppearance(this.current);
-    void this.#windowTheme();
+    this.reload();
     // "System" motion follows Windows' animation setting live.
     try {
       globalThis
@@ -22,6 +20,13 @@ class AppearanceStore {
     } catch {
       // No matchMedia (tests): the setting is read once.
     }
+  }
+
+  /** Read the saved appearance and apply it (at start, and when another window changed it). */
+  reload() {
+    this.current = loadAppearance();
+    applyAppearance(this.current);
+    void this.#windowTheme();
   }
 
   update(patch: Partial<Appearance>) {

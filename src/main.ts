@@ -8,8 +8,11 @@ import { appearance } from "$lib/design/appearance.svelte";
 import App from "./App.svelte";
 import { profiles } from "./features/profiles/profiles.svelte";
 import QuickTerminal from "./features/shell/QuickTerminal.svelte";
+import { prefs } from "./features/terminal/prefs.svelte";
 import { initSessionEvents } from "./features/terminal/terminal-session.svelte";
 import { vault } from "./features/vault/vault.svelte";
+import { i18n } from "./lib/i18n/i18n.svelte";
+import { shortcuts } from "./lib/shortcuts";
 import { readText, removeKey, SWITCHED_KEY, safeSessionStorage } from "./lib/storage";
 import { isQuickWindow } from "./lib/window";
 
@@ -23,6 +26,14 @@ if (readText(SWITCHED_KEY, safeSessionStorage())) {
 await profiles.load().catch(() => undefined);
 appearance.init();
 void initSessionEvents();
+// Another Hopr window (quick terminal, main, torn-off tabs) changed a setting: follow it here.
+window.addEventListener("storage", (e) => {
+  if (e.key !== null && !e.key.startsWith("hopr.")) return;
+  appearance.reload();
+  prefs.reload();
+  i18n.reload();
+  shortcuts.reload();
+});
 void vault.init();
 if (import.meta.env.DEV) {
   void import("./features/terminal/debug").then((m) => m.installDebugHooks());

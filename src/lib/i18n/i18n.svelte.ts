@@ -53,6 +53,12 @@ class I18n {
     return resolveLocale("system", systemLanguages());
   }
 
+  /** Read the saved language again (another window changed it). */
+  reload() {
+    this.pref = loadPref();
+    document.documentElement.lang = this.locale;
+  }
+
   set(pref: LocalePref) {
     this.pref = pref;
     writeText(STORAGE_KEY, pref);

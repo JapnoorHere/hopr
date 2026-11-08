@@ -42,9 +42,10 @@ export async function openLocalShell(id?: string): Promise<boolean> {
   return !!s;
 }
 
-/** The quick terminal keeps its tabs, panes and terminal keys (no hosts, drawers or palette). */
+/** The quick terminal keeps Settings and its tabs, panes and terminal keys (no hosts, other
+ * drawers or palette). */
 const QUICK_COMMANDS =
-  /^(local|tab\.(new|duplicate|close|reopen|next|prev|goto\.\d)|pane\.|term\.|font\.)/;
+  /^(settings|local|tab\.(new|duplicate|close|reopen|next|prev|goto\.\d)|pane\.|term\.|font\.)/;
 
 const hasTab = () => sessions.activeTab !== null;
 const hasSplit = () =>

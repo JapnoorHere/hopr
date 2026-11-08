@@ -80,6 +80,11 @@ export class Registry {
     return this.#overrides[c.id] ?? c.keys ?? [];
   }
 
+  /** Read the saved bindings again (another window changed them). */
+  reload() {
+    this.#overrides = readJson(BINDINGS_KEY, parseOverrides, {}, this.#storage);
+  }
+
   isCustom(id: string): boolean {
     return id in this.#overrides;
   }

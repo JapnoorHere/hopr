@@ -7,6 +7,11 @@ const KEY = "hopr.terminal";
 class PrefsStore {
   current = $state<TerminalPrefs>(readJson(KEY, parsePrefs, parsePrefs(null)));
 
+  /** Read the saved preferences again (another window changed them). */
+  reload() {
+    this.current = readJson(KEY, parsePrefs, parsePrefs(null));
+  }
+
   update(patch: Partial<TerminalPrefs>) {
     this.current = parsePrefs({ ...this.current, ...patch });
     writeJson(KEY, this.current);
