@@ -24,7 +24,8 @@ if (readText(SWITCHED_KEY, safeSessionStorage())) {
 
 // Which profile is open decides whose theme and saved layout load, so it comes first.
 await profiles.load().catch(() => undefined);
-appearance.init();
+// The quick terminal and the start-up profile picker show Hopr's own look.
+appearance.init(isQuickWindow || profiles.picking);
 void initSessionEvents();
 // Another Hopr window (quick terminal, main, torn-off tabs) changed a setting: follow it here.
 window.addEventListener("storage", (e) => {

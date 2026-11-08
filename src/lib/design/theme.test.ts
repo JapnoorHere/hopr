@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { setStorageScope } from "$lib/storage";
 import {
   applyAppearance,
   DEFAULT_APPEARANCE,
+  loadAppAppearance,
   loadAppearance,
   parseAppearance,
+  profileHasOwn,
   resolveMotion,
+  saveAppAppearance,
   saveAppearance,
+  setProfileOwn,
 } from "./theme";
 import { customFrom } from "./themes";
 
@@ -68,6 +73,32 @@ describe("storage round trip", () => {
     } as const;
     saveAppearance(a, s);
     expect(loadAppearance(s)).toEqual(a);
+  });
+
+  it("starts Hopr's look from the original profile's, so nothing changes", () => {
+    const s = memoryStorage();
+    const a = { theme: "paper", custom: null, density: "compact", motion: "off" } as const;
+    setStorageScope("default");
+    saveAppearance(a, s);
+    expect(loadAppAppearance(s)).toEqual(a);
+    // The original profile follows Hopr's look.
+    expect(profileHasOwn(s)).toBe(false);
+  });
+
+  it("keeps a profile's own look when it differs from Hopr's", () => {
+    const s = memoryStorage();
+    saveAppAppearance({ ...DEFAULT_APPEARANCE }, s);
+    setStorageScope("work");
+    saveAppearance({ ...DEFAULT_APPEARANCE, theme: "paper" }, s);
+    expect(profileHasOwn(s)).toBe(true);
+    setStorageScope("same");
+    saveAppearance({ ...DEFAULT_APPEARANCE }, s);
+    expect(profileHasOwn(s)).toBe(false);
+    setStorageScope("fresh");
+    expect(profileHasOwn(s)).toBe(false);
+    setProfileOwn(true, s);
+    expect(profileHasOwn(s)).toBe(true);
+    setStorageScope("default");
   });
 
   it("survives corrupt or missing storage", () => {

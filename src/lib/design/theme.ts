@@ -1,6 +1,6 @@
 /** Appearance model: theme, density and motion. Pure functions so they test without a DOM framework. */
 
-import { readJson, safeStorage, scoped, writeJson } from "$lib/storage";
+import { readJson, readText, safeStorage, scoped, writeJson, writeText } from "$lib/storage";
 import {
   type CustomTheme,
   isThemeId,
@@ -39,6 +39,11 @@ export const DEFAULT_APPEARANCE: Appearance = {
 };
 
 const STORAGE_KEY = "hopr.appearance";
+/** Hopr's own look (device-wide): the profile picker, the quick terminal, and every profile
+ * that doesn't have its own. */
+const APP_KEY = "hopr.appearance.app";
+/** Per profile: "1" when it has its own look, "0" when it follows Hopr's. */
+const OWN_KEY = "hopr.appearance.own";
 
 function isDensity(v: unknown): v is Density {
   return typeof v === "string" && Object.hasOwn(DENSITIES, v);
@@ -86,7 +91,41 @@ export function applyAppearance(a: Appearance, root: HTMLElement = document.docu
   root.dataset.motion = resolveMotion(a.motion, systemPrefersReduced());
 }
 
-/** The open profile's appearance (a profile-scoped key). */
+/** Hopr's look. The first time, it starts as the original profile's, so nothing changes. */
+export function loadAppAppearance(storage = safeStorage()): Appearance {
+  if (readText(APP_KEY, storage) !== null) {
+    return readJson(APP_KEY, parseAppearance, { ...DEFAULT_APPEARANCE }, storage);
+  }
+  const first = readJson(STORAGE_KEY, parseAppearance, { ...DEFAULT_APPEARANCE }, storage);
+  writeJson(APP_KEY, first, storage);
+  return first;
+}
+
+export function saveAppAppearance(a: Appearance, storage = safeStorage()) {
+  writeJson(APP_KEY, a, storage);
+}
+
+/**
+ * Whether the open profile has its own look. Decided once for profiles from before Hopr had
+ * an app look: one whose saved look differs from Hopr's keeps it.
+ */
+export function profileHasOwn(storage = safeStorage()): boolean {
+  const flag = readText(scoped(OWN_KEY), storage);
+  if (flag !== null) return flag === "1";
+  const key = scoped(STORAGE_KEY);
+  const own =
+    key !== STORAGE_KEY &&
+    readText(key, storage) !== null &&
+    JSON.stringify(loadAppearance(storage)) !== JSON.stringify(loadAppAppearance(storage));
+  setProfileOwn(own, storage);
+  return own;
+}
+
+export function setProfileOwn(own: boolean, storage = safeStorage()) {
+  writeText(scoped(OWN_KEY), own ? "1" : "0", storage);
+}
+
+/** The open profile's own appearance (a profile-scoped key). */
 export function loadAppearance(storage = safeStorage()): Appearance {
   return readJson(scoped(STORAGE_KEY), parseAppearance, { ...DEFAULT_APPEARANCE }, storage);
 }

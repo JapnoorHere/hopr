@@ -17,6 +17,7 @@ import {
 import { library } from "$features/hosts/library.svelte";
 import ProfileAvatar from "$features/profiles/ProfileAvatar.svelte";
 import { profiles } from "$features/profiles/profiles.svelte";
+import ThemeScope from "$features/settings/ThemeScope.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { builtIn, PROFILE_COLORS, type ThemeId, themeStyle } from "$lib/design/themes";
 import HoprMark from "$lib/icons/HoprMark.svelte";
@@ -277,6 +278,7 @@ const nextLabel = $derived(
                 </button>
               {/each}
             </div>
+            <div class="mt-4"><ThemeScope onboarding /></div>
           {:else if step === "profile"}
             <header><UserCircle size={20} /><div><h2>Name this profile</h2><p>Profiles keep separate hosts, keys and passwords. You can add more later.</p></div></header>
             <div class="profile">

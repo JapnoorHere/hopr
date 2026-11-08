@@ -70,7 +70,12 @@ $effect(() => {
 });
 // The profile picker draws each profile in its own theme: keep this one's colours saved.
 $effect(() => {
-  if (isMainWindow) profiles.syncLook(appearance.spec);
+  if (isMainWindow) profiles.syncLook(appearance.profileSpec);
+});
+// The profile picker is outside any profile: it shows Hopr's own look.
+$effect(() => {
+  const picking = profiles.picking;
+  untrack(() => appearance.setAppOnly(picking));
 });
 // Sync on unlock and every few minutes; stop when locked (main window only).
 $effect(() => {

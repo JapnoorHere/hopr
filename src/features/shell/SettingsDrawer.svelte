@@ -13,6 +13,7 @@ import KeyboardSettings from "$features/settings/KeyboardSettings.svelte";
 import SyncSettings from "$features/settings/SyncSettings.svelte";
 import TerminalSettings from "$features/settings/TerminalSettings.svelte";
 import ThemePicker from "$features/settings/ThemePicker.svelte";
+import ThemeScope from "$features/settings/ThemeScope.svelte";
 import TransfersSettings from "$features/settings/TransfersSettings.svelte";
 import WorkspacesSettings from "$features/settings/WorkspacesSettings.svelte";
 import SecuritySettings from "$features/vault/SecuritySettings.svelte";
@@ -222,6 +223,7 @@ $effect(() => {
       <section data-section="appearance" hidden={hiddenSections.appearance}>
         <h2 class="title">Appearance</h2>
         <p class="lead">How Hopr looks and moves.</p>
+        <div class="group"><ThemeScope /></div>
         <ThemePicker />
         <div class="group">
           <h3 class="label-caps mb-2 text-faint">{t("settings.density")}</h3>

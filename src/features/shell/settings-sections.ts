@@ -19,7 +19,7 @@ export const SECTIONS = [
     label: "Appearance",
     icon: Palette,
     keywords:
-      "theme dark light colour color custom terminal palette ansi density motion animation language",
+      "theme dark light colour color custom terminal palette ansi density motion animation language app default own profile",
   },
   {
     id: "profiles",
