@@ -19,6 +19,7 @@ mod sync;
 mod tunnels;
 mod updates;
 mod vault;
+mod winmgr;
 mod workspaces;
 
 use std::sync::Arc;
@@ -112,6 +113,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             platform::app_restart,
             platform::window_tear_off,
             platform::window_handoff_take,
+            winmgr::window_tab_drop,
             updates::update_check,
             updates::update_download,
             updates::update_install,
@@ -179,6 +181,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         ])
         .events(collect_events![
             sessions::SessionStateEvent,
+            winmgr::TabsArrivedEvent,
             state::VaultLockedEvent,
             platform::TrayConnectEvent,
             sftp::Transfer,

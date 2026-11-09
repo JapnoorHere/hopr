@@ -168,13 +168,31 @@ $effect(() => {
   return () => unlisten?.();
 });
 
+/** Take every tab handed to this window (torn off into it, or dropped on its tab bar). */
+async function takeHandoffs() {
+  for (let h = await commands.windowHandoffTake(); h; h = await commands.windowHandoffTake()) {
+    sessions.adopt(h);
+  }
+}
+
+// Tabs dragged onto this window from another one.
+$effect(() => {
+  if (!inTauri) return;
+  let unlisten: (() => void) | undefined;
+  void events.tabsArrivedEvent
+    .listen(() => void takeHandoffs())
+    .then((u) => {
+      unlisten = u;
+    });
+  return () => unlisten?.();
+});
+
 // Torn-off window: take over the tab handed to it; closing the window closes its tabs,
 // and the window goes away with its last tab.
 let adopted = $state(false);
 $effect(() => {
   if (!isTornOffWindow || !inTauri) return;
-  void commands.windowHandoffTake().then((h) => {
-    if (h) sessions.adopt(h);
+  void takeHandoffs().then(() => {
     adopted = true;
   });
   let unlisten: (() => void) | undefined;

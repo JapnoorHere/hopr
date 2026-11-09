@@ -60,7 +60,7 @@ Rules:
 - Long work runs on the async runtime; never block the main thread. Use `tokio::sync` primitives, keep locks short, never hold a lock across `.await`.
 
 ### 3.4 Style and tests
-- `cargo fmt` and `cargo clippy --all-targets` clean (workspace lints: `unsafe_code = "deny"`, allowed only in `platform::set_quick_taskbar_identity` (the Win32 property store has no safe API), `unwrap_used = "deny"`). Consider enabling selected `clippy::pedantic` lints.
+- `cargo fmt` and `cargo clippy --all-targets` clean (workspace lints: `unsafe_code = "deny"`, allowed only in `platform::set_quick_taskbar_identity` (the Win32 property store has no safe API) and `winmgr::on_this_desktop` (IVirtualDesktopManager, likewise), `unwrap_used = "deny"`). Consider enabling selected `clippy::pedantic` lints.
 - Unit tests sit next to the code (`#[cfg(test)] mod tests`, at the **end** of the module). Integration tests in `crates/*/tests`.
 - Test the rules, not the plumbing: validation, parsing, crypto round-trips, path safety, migrations.
 

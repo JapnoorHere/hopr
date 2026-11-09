@@ -20,6 +20,7 @@ use tauri_specta::Event;
 
 use crate::device::Device;
 use crate::state::{AppState, VaultLockedEvent};
+use crate::winmgr;
 
 /// Settings key: closing the main window keeps Hopr in the tray.
 pub const CLOSE_TO_TRAY_KEY: &str = "app.close_to_tray";
@@ -133,7 +134,7 @@ pub fn on_shortcut(app: &AppHandle, state: ShortcutState) {
 /// Bring the quick terminal to the front (opening it on first use), or hide it when it is
 /// already in front. It is an ordinary window: it stays open when another window is clicked.
 pub fn toggle_quick(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window(QUICK) {
+    if let Some(w) = winmgr::window_here(app, winmgr::is_quick) {
         let in_front = w.is_visible().unwrap_or(false)
             && !w.is_minimized().unwrap_or(false)
             && w.is_focused().unwrap_or(false);
@@ -145,17 +146,26 @@ pub fn toggle_quick(app: &AppHandle) {
     open_quick(app);
 }
 
-/// Bring the quick terminal to the front, opening it if it isn't open.
+/// Bring the quick terminal to the front, opening it if it isn't open. With quick
+/// terminals open only on other virtual desktops, a new one opens on this desktop.
 pub fn open_quick(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window(QUICK) {
+    if let Some(w) = winmgr::window_here(app, winmgr::is_quick) {
         show_quick(&w);
         return;
     }
+    let label = if app.get_webview_window(QUICK).is_some() {
+        format!(
+            "{QUICK}-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        )
+    } else {
+        QUICK.to_owned()
+    };
     // Built off the event-loop thread: the hotkey handler runs on it, and creating a
     // window there would wait on itself.
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let built = WebviewWindowBuilder::new(&app, QUICK, WebviewUrl::App("index.html".into()))
+        let built = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
             .title("Hopr quick terminal")
             .inner_size(900.0, 520.0)
             .min_inner_size(480.0, 280.0)
@@ -237,10 +247,14 @@ fn set_quick_taskbar_identity(w: &WebviewWindow) {
 /// Bring the main window back (from the tray or the quick terminal), opening it if this run
 /// started as the quick terminal alone.
 pub fn show_main(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.unminimize();
-        let _ = w.show();
-        let _ = w.set_focus();
+    // A Hopr window on the desktop in front; with Hopr open only on other desktops, a new
+    // window here instead of switching desktops.
+    if let Some(w) = winmgr::window_here(app, winmgr::is_app) {
+        winmgr::bring_up(&w);
+        return;
+    }
+    if app.get_webview_window("main").is_some() {
+        winmgr::open_app_window(app);
         return;
     }
     let Some(config) = app
@@ -503,28 +517,24 @@ pub async fn window_tear_off(
     let id = uuid::Uuid::new_v4().simple().to_string();
     let label = format!("tab-{}", &id[..12]);
     if let Ok(mut h) = state.handoffs.lock() {
-        h.insert(label.clone(), handoff);
+        h.entry(label.clone()).or_default().push(handoff);
     }
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-        .title("Hopr")
-        .inner_size(1000.0, 680.0)
-        .min_inner_size(720.0, 460.0)
-        .decorations(false)
-        .build()
-        .map_err(internal)?;
+    winmgr::build_window(&app, &label, None);
     Ok(label)
 }
 
-/// The tabs handed to this window, once.
+/// The next tabs handed to this window (a tear-off, or tabs dropped on it), once each.
 #[tauri::command]
 #[specta::specta]
 pub fn window_handoff_take(
     window: WebviewWindow,
     state: State<'_, Arc<AppState>>,
 ) -> Option<String> {
-    state
-        .handoffs
-        .lock()
-        .ok()
-        .and_then(|mut h| h.remove(window.label()))
+    let mut all = state.handoffs.lock().ok()?;
+    let queue = all.get_mut(window.label())?;
+    let next = (!queue.is_empty()).then(|| queue.remove(0));
+    if queue.is_empty() {
+        all.remove(window.label());
+    }
+    next
 }

@@ -35,8 +35,9 @@ pub struct AppState {
     clipboard_clear_secs: AtomicU32,
     /// Where `hopr.db` and `backups/` live (changes when another profile is opened).
     data_dir: RwLock<PathBuf>,
-    /// Tabs handed to a new window, by window label, until it picks them up.
-    pub handoffs: Mutex<HashMap<String, String>>,
+    /// Tabs handed to a window (torn off, or dropped on it), by window label, in order,
+    /// until it picks them up.
+    pub handoffs: Mutex<HashMap<String, Vec<String>>>,
 }
 
 /// A host named in an audit entry: `(id, label)`.

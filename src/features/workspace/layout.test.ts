@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { dividers, neighbor, pane, panes, ratioFor, rects, remove, replace, split } from "./layout";
+import {
+  dividers,
+  insert,
+  neighbor,
+  pane,
+  panes,
+  ratioFor,
+  rects,
+  remove,
+  replace,
+  sideAt,
+  split,
+} from "./layout";
 
 describe("layout", () => {
   it("splits, lists and removes panes", () => {
@@ -30,5 +42,28 @@ describe("layout", () => {
     expect(d?.at).toBe(0.5);
     expect(d && ratioFor(d, 0.3)).toBeCloseTo(0.3);
     expect(d && ratioFor(d, 0.99)).toBe(0.9);
+  });
+});
+
+describe("dropping a tab beside a pane", () => {
+  it("puts the dropped layout on the chosen side", () => {
+    const base = split(pane("a"), "a", "row", "b");
+    const dropped = split(pane("x"), "x", "column", "y");
+    const left = insert(base, "b", "left", dropped);
+    expect(panes(left)).toEqual(["a", "x", "y", "b"]);
+    const below = insert(pane("a"), "a", "bottom", pane("z"));
+    expect(below).toMatchObject({ kind: "split", dir: "column", a: { id: "a" }, b: { id: "z" } });
+    expect(rects(below).get("z")).toEqual({ x: 0, y: 0.5, w: 1, h: 0.5 });
+  });
+
+  it("leaves other panes alone", () => {
+    expect(insert(pane("a"), "missing", "right", pane("z"))).toEqual(pane("a"));
+  });
+
+  it("finds the nearest side", () => {
+    expect(sideAt(0.05, 0.5)).toBe("left");
+    expect(sideAt(0.9, 0.4)).toBe("right");
+    expect(sideAt(0.5, 0.1)).toBe("top");
+    expect(sideAt(0.4, 0.97)).toBe("bottom");
   });
 });

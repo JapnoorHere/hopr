@@ -328,12 +328,20 @@ export class TerminalSession {
   attach(sink: TerminalSink) {
     this.#sink = sink;
     // Replayed scrollback is drawn first and never acknowledged (the backend sent it long ago).
-    const replay = this.#adopted?.scrollback;
-    if (replay && this.#adopted) {
-      this.#adopted.scrollback = "";
-      sink.write(new TextEncoder().encode(replay), () => {});
-    }
+    const replay = this.#carried ?? this.#adopted?.scrollback;
+    this.#carried = null;
+    if (this.#adopted) this.#adopted.scrollback = "";
+    if (replay) sink.write(new TextEncoder().encode(replay), () => {});
     for (const chunk of this.#pending.splice(0)) this.#render(chunk);
+  }
+
+  /** The screen and scrollback, kept for the next terminal to attach. */
+  #carried: string | null = null;
+
+  /** About to be shown by another terminal (moved into another tab): keep the screen so
+   *  the new terminal starts where this one was. */
+  carryScreen() {
+    this.#carried = this.#sink?.serialize() ?? null;
   }
 
   serialize(): string {

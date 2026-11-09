@@ -31,6 +31,26 @@ export function split(root: Layout, id: string, dir: "row" | "column", newId: st
   return { ...root, a: split(root.a, id, dir, newId), b: split(root.b, id, dir, newId) };
 }
 
+/** A side of a pane something can be dropped on. */
+export type Side = "left" | "right" | "top" | "bottom";
+
+/** Put a whole layout (another tab's panes) beside pane `id`, splitting its space in half. */
+export function insert(root: Layout, id: string, side: Side, sub: Layout): Layout {
+  if (root.kind === "pane") {
+    if (root.id !== id) return root;
+    const dir = side === "left" || side === "right" ? "row" : "column";
+    const first = side === "left" || side === "top";
+    return { kind: "split", dir, ratio: 0.5, a: first ? sub : root, b: first ? root : sub };
+  }
+  return { ...root, a: insert(root.a, id, side, sub), b: insert(root.b, id, side, sub) };
+}
+
+/** Which side of a pane a point is nearest, as fractions of the pane (0..1 each way). */
+export function sideAt(x: number, y: number): Side {
+  const d = { left: x, right: 1 - x, top: y, bottom: 1 - y };
+  return (Object.keys(d) as Side[]).reduce((a, b) => (d[b] < d[a] ? b : a));
+}
+
 /** Remove pane `id`; its sibling takes the space. Returns null when nothing is left. */
 export function remove(root: Layout, id: string): Layout | null {
   if (root.kind === "pane") return root.id === id ? null : root;

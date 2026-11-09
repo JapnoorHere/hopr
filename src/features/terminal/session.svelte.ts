@@ -2,12 +2,14 @@
 import { SvelteMap } from "svelte/reactivity";
 import {
   type Direction,
+  insert,
   type Layout,
   neighbor,
   pane,
   panes,
   remove,
   replace,
+  type Side,
   split,
 } from "$features/workspace/layout";
 import { loadTab, type SavedTab, type SavedWorkspace, saveTab } from "$features/workspace/snapshot";
@@ -243,7 +245,44 @@ class SessionsStore {
 
   /** Move a tab, live, to a new window: output is held while the window opens, then the
    *  new window replays the scrollback and takes over the sessions. */
-  async tearOff(tab: Tab): Promise<boolean> {
+  tearOff(tab: Tab): Promise<boolean> {
+    return this.#handOff(tab, (h) => commands.windowTearOff(h));
+  }
+
+  /** A tab dragged out of this window and dropped at a screen point (CSS pixels): it joins
+   *  the Hopr window whose tab bar is there, or opens in a new window at that spot. */
+  dropOutside(tab: Tab, x: number, y: number): Promise<boolean> {
+    return this.#handOff(tab, (h) => commands.windowTabDrop(h, x, y));
+  }
+
+  /** Move a tab to position `to` in the strip. */
+  moveTab(tab: Tab, to: number) {
+    const from = this.tabs.indexOf(tab);
+    const at = Math.max(0, Math.min(this.tabs.length - 1, to));
+    if (from === -1 || from === at) return;
+    this.tabs.splice(from, 1);
+    this.tabs.splice(at, 0, tab);
+  }
+
+  /** Drop a whole tab beside a pane of another tab: its panes join that tab as a split. */
+  mergeInto(tab: Tab, target: TerminalSession, side: Side) {
+    const into = this.tabOf(target);
+    if (!into || into === tab) return;
+    // Its panes are drawn by the other tab's terminals from now on.
+    for (const s of this.panesOf(tab)) s.carryScreen();
+    into.layout = insert(into.layout, target.key, side, tab.layout);
+    into.zoomed = null;
+    into.focused = tab.focused;
+    this.tabs.splice(this.tabs.indexOf(tab), 1);
+    this.activeKey = into.key;
+  }
+
+  /** Hold a tab's output, package it (targets, live ids, scrollback) and give it to `send`;
+   *  once another window has it, it leaves this one. */
+  async #handOff(
+    tab: Tab,
+    send: (handoff: string) => Promise<{ status: "ok" } | { status: "error" }>,
+  ): Promise<boolean> {
     const members = this.panesOf(tab);
     const live = members.filter((s) => s.id);
     for (const s of live) s.flushAcks();
@@ -259,7 +298,7 @@ class SessionsStore {
       const s = byKey.get(k);
       return s?.id ? { id: s.id, state: s.state, scrollback: s.serialize() } : null;
     });
-    const res = await commands.windowTearOff(JSON.stringify({ tab: saved, adopted }));
+    const res = await send(JSON.stringify({ tab: saved, adopted }));
     if (res.status === "error") {
       // Nothing moved: send the output back here.
       for (const s of live) void s.reattach();

@@ -1,8 +1,15 @@
 <script lang="ts">
-import { ArrowSquareOut, Plus, TerminalWindow, X } from "phosphor-svelte";
+import {
+  ArrowSquareOut,
+  Plus,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
+  TerminalWindow,
+  X,
+} from "phosphor-svelte";
 import { flip } from "svelte/animate";
 import { cubicOut } from "svelte/easing";
-import type { TransitionConfig } from "svelte/transition";
+import { fade, type TransitionConfig } from "svelte/transition";
 import { crumbs } from "$features/hosts/chain";
 import { inTauri } from "$lib/ipc";
 import { wiggle } from "$lib/motion";
@@ -19,8 +26,10 @@ function ringing(node: HTMLElement, _at: number) {
 
 import type { Snippet } from "svelte";
 import IconButton from "$lib/ui/IconButton.svelte";
-import { sessions } from "./session.svelte";
+import { sessions, type Tab } from "./session.svelte";
 import { describeState } from "./state";
+import TabDragLayer from "./TabDragLayer.svelte";
+import { START_PX, stripIndex, tabDrag } from "./tabdrag.svelte";
 
 interface Props {
   /** Offer "Move to a new window" on each tab. */
@@ -46,6 +55,51 @@ const rows = $derived(
   }),
 );
 
+let strip: HTMLDivElement | undefined = $state();
+
+/** Press on a tab: past a few pixels it becomes a drag (reorder, split, or move out). */
+function press(e: PointerEvent, tab: Tab, label: string) {
+  if (e.button !== 0 || (e.target as HTMLElement).closest(".close") || !strip) return;
+  const el = e.currentTarget as HTMLElement;
+  const start = { x: e.clientX, y: e.clientY };
+  let dragging = false;
+  const move = (m: PointerEvent) => {
+    if (!dragging) {
+      if (Math.hypot(m.clientX - start.x, m.clientY - start.y) < START_PX || !strip) return;
+      dragging = true;
+      // Captured, the pointer keeps reporting outside the window too.
+      el.setPointerCapture(m.pointerId);
+      tabDrag.begin(tab, label);
+    }
+    if (!strip) return;
+    tabDrag.update(m, strip.getBoundingClientRect(), inTauri && tearOff);
+    if (tabDrag.target.kind === "strip") reorder(tab, m.clientX);
+  };
+  const end = (u: PointerEvent) => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", end);
+    el.removeEventListener("pointercancel", end);
+    if (!dragging) return;
+    if (u.type === "pointercancel") tabDrag.cancel();
+    else void tabDrag.drop({ x: u.screenX, y: u.screenY });
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+
+/** Move the dragged tab to where the pointer is among the others. */
+function reorder(tab: Tab, x: number) {
+  const others = [...(strip?.querySelectorAll<HTMLElement>("[data-tab]") ?? [])].filter(
+    (el) => el.dataset.tab !== tab.key,
+  );
+  const centres = others.map((el) => {
+    const r = el.getBoundingClientRect();
+    return r.left + r.width / 2;
+  });
+  sessions.moveTab(tab, stripIndex(x, centres));
+}
+
 /** A tab grows to its width when it opens and collapses when it closes. */
 function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
   const level = motionLevel();
@@ -60,7 +114,7 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
 }
 </script>
 
-<div class="flex min-w-0 items-center gap-1 pl-1" role="tablist" aria-label="Sessions">
+<div class="flex min-w-0 items-center gap-1 pl-1" role="tablist" aria-label="Sessions" bind:this={strip}>
   {#each rows as { tab, s } (tab.key)}
     {@const count = sessions.panesOf(tab).length}
     {@const info = describeState(s.state)}
@@ -69,10 +123,14 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
     <div
       class="tab"
       class:active
+      class:dragging={tabDrag.tab === tab}
+      class:away={tabDrag.tab === tab && tabDrag.target.kind !== "strip"}
       class:prod={s.environment === "prod"}
       data-tone={info.tone}
+      data-tab={tab.key}
       role="presentation"
       title={info.label}
+      onpointerdown={(e) => press(e, tab, s.label)}
       in:grow
       out:grow={{ out: true }}
       animate:flip={{ duration: motion(200) }}
@@ -128,7 +186,18 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
       </IconButton>
     </div>
   {/if}
+  {#if sessions.active}
+    <div class="mb-1 flex" transition:fade={{ duration: motion(120) }}>
+      <IconButton label="Split right" shortcut="Ctrl+Shift+D" size={26} tip="bottom-start" onclick={() => sessions.split("row")}>
+        <SquareSplitHorizontal size={14} />
+      </IconButton>
+      <IconButton label="Split down" shortcut="Ctrl+Shift+E" size={26} tip="bottom-start" onclick={() => sessions.split("column")}>
+        <SquareSplitVertical size={14} />
+      </IconButton>
+    </div>
+  {/if}
 </div>
+<TabDragLayer />
 
 <style>
   .rec {
@@ -150,12 +219,29 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
     /* Tabs are pills (terminal revamp T2). */
     border-radius: var(--radius);
     border: 1px solid transparent;
+    touch-action: none;
     transition:
       background var(--dur-fast) var(--ease-out),
-      border-color var(--dur-fast) var(--ease-out);
+      border-color var(--dur-fast) var(--ease-out),
+      opacity var(--dur-fast) var(--ease-out),
+      scale var(--dur-fast) var(--ease-out);
   }
   .tab:hover {
     background: var(--surface-2);
+  }
+  /* Picked up: the tab lifts while the others slide around it. */
+  .tab.dragging {
+    z-index: 2;
+    cursor: grabbing;
+    scale: 1.04;
+    background: var(--surface-3);
+    border-color: color-mix(in oklab, var(--accent) 50%, var(--border));
+    box-shadow: var(--shadow-pop);
+  }
+  /* Dragged off the strip: it waits, faded, for the drop. */
+  .tab.away {
+    opacity: 0.4;
+    scale: 0.96;
   }
   .tab.active {
     background: var(--bg);

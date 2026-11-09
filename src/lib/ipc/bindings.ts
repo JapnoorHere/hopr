@@ -217,8 +217,15 @@ export const commands = {
 	 *  session ids and scrollback, as JSON) waits until the new window takes it.
 	 */
 	windowTearOff: (handoff: string) => typedError<string, AppError>(__TAURI_INVOKE("window_tear_off", { handoff })),
-	/**  The tabs handed to this window, once. */
+	/**  The next tabs handed to this window (a tear-off, or tabs dropped on it), once each. */
 	windowHandoffTake: () => __TAURI_INVOKE<string | null>("window_handoff_take"),
+	/**
+	 *  Tabs dragged out of their window and dropped at screen point (x, y), logical pixels:
+	 *  into the tab bar of the Hopr window there, or a new window at that spot. `handoff` is
+	 *  the tabs with their live session ids and scrollback (JSON), as for a tear-off.
+	 *  Returns the label of the window that takes them.
+	 */
+	windowTabDrop: (handoff: string, x: number | null, y: number | null) => typedError<string, AppError>(__TAURI_INVOKE("window_tab_drop", { handoff, x, y })),
 	/**  Look for a newer version. `None` = up to date. */
 	updateCheck: () => typedError<{
 	/**  New version. */
@@ -390,6 +397,7 @@ export const events = {
 	editEvent: makeEvent<EditEvent>("edit-event"),
 	groupRunEvent: makeEvent<GroupRunEvent>("group-run-event"),
 	sessionStateEvent: makeEvent<SessionStateEvent>("session-state-event"),
+	tabsArrivedEvent: makeEvent<TabsArrivedEvent>("tabs-arrived-event"),
 	transfer: makeEvent<Transfer>("transfer"),
 	trayConnectEvent: makeEvent<TrayConnectEvent>("tray-connect-event"),
 	tunnelStatsEvent: makeEvent<TunnelStatsEvent>("tunnel-stats-event"),
@@ -1381,6 +1389,9 @@ export type SyncStatus = {
 	/**  Other devices seen last time. */
 	devices: SyncDevice[],
 };
+
+/**  Tabs arrived in this window (merged by a drag): take them with `window_handoff_take`. */
+export type TabsArrivedEvent = null;
 
 /**  One transfer as the UI sees it (also the progress event). */
 export type Transfer = {

@@ -6,7 +6,7 @@ export const windowLabel: string = inTauri ? getCurrentWindow().label : "main";
 
 /** The main window (owns workspaces, tray hooks, startup unlock). */
 export const isMainWindow = windowLabel === "main";
-/** The global-hotkey drop-down terminal. */
-export const isQuickWindow = windowLabel === "quick";
-/** A window holding tabs torn off another window. */
+/** A quick terminal (one per virtual desktop: `quick`, then `quick-*`). */
+export const isQuickWindow = windowLabel === "quick" || windowLabel.startsWith("quick-");
+/** A window holding tabs torn off another window: it closes with its last tab. */
 export const isTornOffWindow = windowLabel.startsWith("tab-");

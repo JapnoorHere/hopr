@@ -104,6 +104,7 @@ function drag(e: PointerEvent, d: Divider) {
       style={style(s.key)}
       onfocusin={() => sessions.focus(s)}
       onpointerdown={() => sessions.focus(s)}
+      data-pane-key={s.key}
       in:blurFade={{ scale: 0.98, y: 0, blur: 3, duration: 220 }}
       use:track={s.key}
     >
