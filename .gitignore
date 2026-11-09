@@ -8,3 +8,7 @@ src-tauri/gen/
 .env.*
 !.env.example
 vite.config.ts.timestamp-*
+
+# Claude Code config/login folders (CLAUDE_CONFIG_DIR): never commit
+account*/
+.credentials.json
