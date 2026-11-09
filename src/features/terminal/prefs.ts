@@ -17,6 +17,8 @@ export interface TerminalPrefs {
   smartCopyPaste: boolean;
   /** Right-click copies the selection, or pastes when nothing is selected. */
   rightClickCopyPaste: boolean;
+  /** Ask before pasting several lines or a very long text (off: paste straight away). */
+  confirmPaste: boolean;
   bell: "none" | "visual" | "sound";
   /** Background brightness over the theme's, 0..100 (0 = the theme's own). */
   bgLift: number;
@@ -37,6 +39,7 @@ export const DEFAULT_PREFS: TerminalPrefs = {
   copyOnSelect: false,
   smartCopyPaste: true,
   rightClickCopyPaste: true,
+  confirmPaste: false,
   bell: "visual",
   osc52: "ask",
   blocks: "full",
@@ -67,6 +70,7 @@ export function parsePrefs(raw: unknown): TerminalPrefs {
     copyOnSelect: bool(r.copyOnSelect, d.copyOnSelect),
     smartCopyPaste: bool(r.smartCopyPaste, d.smartCopyPaste),
     rightClickCopyPaste: bool(r.rightClickCopyPaste, d.rightClickCopyPaste),
+    confirmPaste: bool(r.confirmPaste, d.confirmPaste),
     bell: oneOf(r.bell, ["none", "visual", "sound"] as const, d.bell),
     osc52: oneOf(r.osc52, ["deny", "ask", "allow"] as const, d.osc52),
     blocks: oneOf(r.blocks, ["off", "separators", "full"] as const, d.blocks),

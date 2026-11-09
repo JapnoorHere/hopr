@@ -70,7 +70,7 @@ function xtermTheme(p: TerminalPrefs) {
 function onPaste(e: ClipboardEvent) {
   const text = e.clipboardData?.getData("text/plain") ?? "";
   const check = checkPaste(text);
-  if (!check.confirm) return;
+  if (!check.confirm || !prefs.current.confirmPaste) return;
   e.preventDefault();
   e.stopPropagation();
   pendingPaste = { text, lines: check.lines };
@@ -80,7 +80,7 @@ async function pasteFromClipboard() {
   const text = await navigator.clipboard.readText().catch(() => "");
   if (!text) return;
   const check = checkPaste(text);
-  if (check.confirm) pendingPaste = { text, lines: check.lines };
+  if (check.confirm && prefs.current.confirmPaste) pendingPaste = { text, lines: check.lines };
   else term?.paste(text);
 }
 

@@ -119,6 +119,13 @@ function on(e: Event): boolean {
     <input type="checkbox" checked={p.rightClickCopyPaste} onchange={(e) => prefs.update({ rightClickCopyPaste: on(e) })} />
     Right-click copies or pastes
   </label>
+  <label class="check">
+    <input type="checkbox" checked={p.confirmPaste} onchange={(e) => prefs.update({ confirmPaste: on(e) })} />
+    Ask before pasting several lines
+  </label>
+  <p class="-mt-1 pl-6 text-xs text-faint">
+    A pasted line break runs the command. When on, multi-line or very long pastes wait for you to confirm.
+  </p>
   <label class="field">
       <span class="text-xs text-muted">Server clipboard writes (OSC 52)</span>
       <select class="input" value={p.osc52} onchange={(e) => prefs.update({ osc52: str(e) })}>
