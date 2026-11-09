@@ -158,6 +158,100 @@ pub fn window_tab_drop(
     Ok(label)
 }
 
+/// Another Hopr window a tab can move to (tab menu, "Move to window").
+#[derive(Serialize, Deserialize, Clone, Type)]
+pub struct WindowEntry {
+    pub label: String,
+    /// The window's title: Hopr, then the tab in front.
+    pub title: String,
+}
+
+/// The other app windows (not quick terminals), main first.
+#[tauri::command]
+#[specta::specta]
+pub fn window_list(app: AppHandle, window: WebviewWindow) -> Vec<WindowEntry> {
+    let mut out: Vec<WindowEntry> = app
+        .webview_windows()
+        .into_iter()
+        .filter(|(label, w)| {
+            label != window.label() && is_app(label) && w.is_visible().unwrap_or(false)
+        })
+        .map(|(label, w)| WindowEntry {
+            title: w.title().unwrap_or_else(|_| "Hopr".to_owned()),
+            label,
+        })
+        .collect();
+    out.sort_by_key(|e| (e.label != "main", e.label.clone()));
+    out
+}
+
+/// Move tabs (a handoff, as for a tear-off) into another open window, and bring it up.
+#[tauri::command]
+#[specta::specta]
+pub fn window_tab_send(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    handoff: String,
+    to: String,
+) -> Result<(), AppError> {
+    if handoff.len() > MAX_HANDOFF {
+        return Err(AppError::invalid("Too much to move to another window"));
+    }
+    let Some(w) = app.get_webview_window(&to).filter(|_| is_app(&to)) else {
+        return Err(AppError::invalid("That window has closed"));
+    };
+    if let Ok(mut h) = state.handoffs.lock() {
+        h.entry(to.clone()).or_default().push(handoff);
+    }
+    let _ = TabsArrivedEvent.emit_to(&app, &to);
+    bring_up(&w);
+    Ok(())
+}
+
+/// A new window's size (logical pixels).
+const SIZE: (f64, f64) = (1000.0, 680.0);
+
+/// A rectangle: x, y, width, height (logical pixels).
+type Rect = (f64, f64, f64, f64);
+
+/// The usable area (screen minus taskbar) of the monitor showing a screen point, or the
+/// nearest monitor's when the point is on none (e.g. past the taskbar edge).
+fn work_area_at(app: &AppHandle, x: f64, y: f64) -> Option<Rect> {
+    let areas: Vec<Rect> = app
+        .available_monitors()
+        .ok()?
+        .iter()
+        .map(|m| {
+            let s = m.scale_factor();
+            let a = m.work_area();
+            (
+                f64::from(a.position.x) / s,
+                f64::from(a.position.y) / s,
+                f64::from(a.size.width) / s,
+                f64::from(a.size.height) / s,
+            )
+        })
+        .collect();
+    let gap = |r: &Rect| {
+        let dx = (r.0 - x).max(0.0).max(x - (r.0 + r.2));
+        let dy = (r.1 - y).max(0.0).max(y - (r.1 + r.3));
+        dx.hypot(dy)
+    };
+    areas.into_iter().min_by(|a, b| gap(a).total_cmp(&gap(b)))
+}
+
+/// Place a window of `size` at `at`, moved (and shrunk if need be) to lie inside `area`.
+fn fit(at: (f64, f64), size: (f64, f64), area: Option<Rect>) -> Rect {
+    let Some((ax, ay, aw, ah)) = area else {
+        return (at.0.max(0.0), at.1.max(0.0), size.0, size.1);
+    };
+    let w = size.0.min(aw);
+    let h = size.1.min(ah);
+    let x = at.0.clamp(ax, ax + aw - w);
+    let y = at.1.clamp(ay, ay + ah - h);
+    (x, y, w, h)
+}
+
 /// A full Hopr window (any handoff for it is already stored), centred or at a screen point.
 /// Built off the event-loop thread: callers may run on it, and creating a window there
 /// would wait on itself.
@@ -167,12 +261,15 @@ pub fn build_window(app: &AppHandle, label: &str, at: Option<(f64, f64)>) {
     tauri::async_runtime::spawn(async move {
         let mut b = WebviewWindowBuilder::new(&app, &name, WebviewUrl::App("index.html".into()))
             .title("Hopr")
-            .inner_size(1000.0, 680.0)
             .min_inner_size(720.0, 460.0)
             .decorations(false);
         b = match at {
-            Some((x, y)) => b.position(x.max(0.0), y.max(0.0)),
-            None => b.center(),
+            // Dropped on the taskbar or a screen edge: the window still opens fully on screen.
+            Some((x, y)) => {
+                let r = fit((x, y), SIZE, work_area_at(&app, x + 120.0, y + 18.0));
+                b.position(r.0, r.1).inner_size(r.2, r.3)
+            }
+            None => b.center().inner_size(SIZE.0, SIZE.1),
         };
         match b.build() {
             Ok(w) => {
@@ -181,6 +278,41 @@ pub fn build_window(app: &AppHandle, label: &str, at: Option<(f64, f64)>) {
             Err(e) => eprintln!("hopr: window failed: {e}"),
         }
     });
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::fit;
+
+    const SCREEN: Option<(f64, f64, f64, f64)> = Some((0.0, 0.0, 1920.0, 1150.0));
+
+    #[test]
+    fn dropped_on_the_taskbar_opens_above_it() {
+        assert_eq!(
+            fit((800.0, 1170.0), (1000.0, 680.0), SCREEN),
+            (800.0, 470.0, 1000.0, 680.0)
+        );
+    }
+
+    #[test]
+    fn off_the_left_or_right_edge_comes_back_on_screen() {
+        assert_eq!(fit((-300.0, 100.0), (1000.0, 680.0), SCREEN).0, 0.0);
+        assert_eq!(fit((1800.0, 100.0), (1000.0, 680.0), SCREEN).0, 920.0);
+    }
+
+    #[test]
+    fn a_small_screen_shrinks_the_window() {
+        let r = fit((0.0, 0.0), (1000.0, 680.0), Some((0.0, 0.0, 800.0, 600.0)));
+        assert_eq!(r, (0.0, 0.0, 800.0, 600.0));
+    }
+
+    #[test]
+    fn inside_the_screen_stays_where_dropped() {
+        assert_eq!(
+            fit((200.0, 150.0), (1000.0, 680.0), SCREEN),
+            (200.0, 150.0, 1000.0, 680.0)
+        );
+    }
 }
 
 #[cfg(test)]

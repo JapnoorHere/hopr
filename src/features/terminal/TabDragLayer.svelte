@@ -29,7 +29,7 @@ const away = $derived(tabDrag.tab !== null && tabDrag.target.kind !== "strip");
     >
       <TerminalWindow size={13} weight="light" />
       <span class="truncate">{tabDrag.label}</span>
-      {#if zone}<span class="hint">Split</span>{/if}
+      {#if zone}<span class="hint">Split</span>{:else if tabDrag.target.kind === "outside"}<span class="hint">New window</span>{/if}
     </div>
   {/if}
 {/if}

@@ -255,6 +255,66 @@ class SessionsStore {
     return this.#handOff(tab, (h) => commands.windowTabDrop(h, x, y));
   }
 
+  /** Move tabs to another open window (tab menu, "Move to window"). */
+  sendTo(tab: Tab, window: string): Promise<boolean> {
+    return this.#handOff(tab, (h) => commands.windowTabSend(h, window));
+  }
+
+  /** Split a tab's focused pane (tab menu): the tab comes to the front first. */
+  splitTab(tab: Tab, dir: "row" | "column") {
+    this.activeKey = tab.key;
+    this.split(dir);
+  }
+
+  /** A new tab on the same target as a tab's focused pane, right after it. */
+  duplicate(tab: Tab) {
+    const from = this.session(tab.focused);
+    if (!from) return;
+    this.open(from.target);
+    const made = this.tabs.at(-1);
+    if (made) this.moveTab(made, this.tabs.indexOf(tab) + 1);
+  }
+
+  /** Take one pane out of its split into a tab of its own, right after the tab it was in. */
+  paneToTab(session: TerminalSession) {
+    const from = this.tabOf(session);
+    if (!from) return;
+    const layout = remove(from.layout, session.key);
+    if (!layout) return; // already alone
+    from.layout = layout;
+    if (from.zoomed) from.zoomed = null;
+    if (from.focused === session.key) from.focused = panes(layout)[0] ?? "";
+    // Drawn by its new tab's terminal from now on.
+    session.carryScreen();
+    const tab = new Tab(session.key);
+    this.tabs.splice(this.tabs.indexOf(from) + 1, 0, tab);
+    this.activeKey = tab.key;
+  }
+
+  /** Every pane of a split tab back into a tab of its own. */
+  separate(tab: Tab) {
+    const keys = panes(tab.layout);
+    const keep = keys.includes(tab.focused) ? tab.focused : keys[0];
+    // Reverse: each new tab goes right after this one, so they end up in pane order.
+    for (const k of [...keys].reverse()) {
+      const s = this.session(k);
+      if (s && k !== keep) this.paneToTab(s);
+    }
+    this.activeKey = tab.key;
+  }
+
+  /** Close every tab but this one. */
+  async closeOthers(tab: Tab) {
+    await Promise.all(this.tabs.filter((t) => t !== tab).map((t) => this.closeTab(t)));
+    this.activeKey = tab.key;
+  }
+
+  /** Close the tabs after this one. */
+  async closeRight(tab: Tab) {
+    const i = this.tabs.indexOf(tab);
+    await Promise.all(this.tabs.slice(i + 1).map((t) => this.closeTab(t)));
+  }
+
   /** Move a tab to position `to` in the strip. */
   moveTab(tab: Tab, to: number) {
     const from = this.tabs.indexOf(tab);

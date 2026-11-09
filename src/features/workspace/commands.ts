@@ -233,6 +233,26 @@ export function registerAppCommands(): () => void {
       },
     },
     {
+      id: "pane.totab",
+      title: "Move pane to new tab",
+      group: "Panes",
+      when: hasSplit,
+      run: () => {
+        const s = sessions.active;
+        if (s) sessions.paneToTab(s);
+      },
+    },
+    {
+      id: "tab.separate",
+      title: "Separate panes into tabs",
+      group: "Panes",
+      when: hasSplit,
+      run: () => {
+        const t = sessions.activeTab;
+        if (t) sessions.separate(t);
+      },
+    },
+    {
       id: "pane.close",
       title: "Close pane",
       group: "Tabs",

@@ -5,7 +5,9 @@
   "windows": [
     "main",
     "quick",
-    "tab-*"
+    "tab-*",
+    "win-*",
+    "quick-*"
   ],
   "permissions": [
     "core:event:default",
@@ -31,6 +33,7 @@
     "core:window:allow-set-focus",
     "core:window:allow-destroy",
     "core:window:allow-set-theme",
+    "core:window:allow-set-title",
     "opener:allow-reveal-item-in-dir",
     "process:allow-restart",
     "dialog:allow-open"

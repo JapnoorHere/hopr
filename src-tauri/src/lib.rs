@@ -114,6 +114,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             platform::window_tear_off,
             platform::window_handoff_take,
             winmgr::window_tab_drop,
+            winmgr::window_list,
+            winmgr::window_tab_send,
             updates::update_check,
             updates::update_download,
             updates::update_install,

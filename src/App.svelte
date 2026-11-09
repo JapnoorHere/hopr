@@ -168,6 +168,13 @@ $effect(() => {
   return () => unlisten?.();
 });
 
+// The window's title names the tab in front (taskbar, and "Move to another window").
+$effect(() => {
+  if (!inTauri) return;
+  const label = sessions.active?.label;
+  void getCurrentWindow().setTitle(label ? `Hopr — ${label}` : "Hopr");
+});
+
 /** Take every tab handed to this window (torn off into it, or dropped on its tab bar). */
 async function takeHandoffs() {
   for (let h = await commands.windowHandoffTake(); h; h = await commands.windowHandoffTake()) {

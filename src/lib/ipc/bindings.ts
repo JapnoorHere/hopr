@@ -226,6 +226,10 @@ export const commands = {
 	 *  Returns the label of the window that takes them.
 	 */
 	windowTabDrop: (handoff: string, x: number | null, y: number | null) => typedError<string, AppError>(__TAURI_INVOKE("window_tab_drop", { handoff, x, y })),
+	/**  The other app windows (not quick terminals), main first. */
+	windowList: () => __TAURI_INVOKE<WindowEntry[]>("window_list"),
+	/**  Move tabs (a handoff, as for a tear-off) into another open window, and bring it up. */
+	windowTabSend: (handoff: string, to: string) => typedError<null, AppError>(__TAURI_INVOKE("window_tab_send", { handoff, to })),
 	/**  Look for a newer version. `None` = up to date. */
 	updateCheck: () => typedError<{
 	/**  New version. */
@@ -1586,6 +1590,13 @@ export type VaultStatus = {
 	autoLockMinutes: number,
 	/**  Seconds before a copied secret is cleared from the clipboard (0 = never). */
 	clipboardClearSecs: number,
+};
+
+/**  Another Hopr window a tab can move to (tab menu, "Move to window"). */
+export type WindowEntry = {
+	label: string,
+	/**  The window's title: Hopr, then the tab in front. */
+	title: string,
 };
 
 /**  A saved layout of tabs and splits (R6). `layout_json` is owned by the UI. */

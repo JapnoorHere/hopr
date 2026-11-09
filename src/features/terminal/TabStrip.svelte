@@ -29,6 +29,7 @@ import IconButton from "$lib/ui/IconButton.svelte";
 import { sessions, type Tab } from "./session.svelte";
 import { describeState } from "./state";
 import TabDragLayer from "./TabDragLayer.svelte";
+import TabMenu from "./TabMenu.svelte";
 import { START_PX, stripIndex, tabDrag } from "./tabdrag.svelte";
 
 interface Props {
@@ -57,6 +58,9 @@ const rows = $derived(
 
 let strip: HTMLDivElement | undefined = $state();
 
+/** The tab right-clicked, and where. */
+let menu = $state<{ tab: Tab; x: number; y: number } | null>(null);
+
 /** Press on a tab: past a few pixels it becomes a drag (reorder, split, or move out). */
 function press(e: PointerEvent, tab: Tab, label: string) {
   if (e.button !== 0 || (e.target as HTMLElement).closest(".close") || !strip) return;
@@ -64,6 +68,7 @@ function press(e: PointerEvent, tab: Tab, label: string) {
   const start = { x: e.clientX, y: e.clientY };
   let dragging = false;
   const move = (m: PointerEvent) => {
+    if (m.pointerId !== e.pointerId) return;
     if (!dragging) {
       if (Math.hypot(m.clientX - start.x, m.clientY - start.y) < START_PX || !strip) return;
       dragging = true;
@@ -75,17 +80,44 @@ function press(e: PointerEvent, tab: Tab, label: string) {
     tabDrag.update(m, strip.getBoundingClientRect(), inTauri && tearOff);
     if (tabDrag.target.kind === "strip") reorder(tab, m.clientX);
   };
+  const stop = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+    window.removeEventListener("keydown", onEscape, true);
+    window.removeEventListener("blur", windowBlur);
+    el.removeEventListener("lostpointercapture", abandon);
+    const was = dragging;
+    dragging = false;
+    return was;
+  };
   const end = (u: PointerEvent) => {
-    el.removeEventListener("pointermove", move);
-    el.removeEventListener("pointerup", end);
-    el.removeEventListener("pointercancel", end);
-    if (!dragging) return;
+    if (u.pointerId !== e.pointerId || !stop()) return;
     if (u.type === "pointercancel") tabDrag.cancel();
     else void tabDrag.drop({ x: u.screenX, y: u.screenY });
   };
-  el.addEventListener("pointermove", move);
-  el.addEventListener("pointerup", end);
-  el.addEventListener("pointercancel", end);
+  // Windows took the mouse away (focus moved, Alt+Tab) without a release: put the tab back
+  // rather than leave the drag hanging. A normal release reaches `end` first.
+  const abandon = () => {
+    if (stop()) tabDrag.cancel();
+  };
+  const windowBlur = (b: FocusEvent) => {
+    if (b.target === window) abandon();
+  };
+  const onEscape = (k: KeyboardEvent) => {
+    if (k.key !== "Escape" || !dragging) return;
+    k.preventDefault();
+    k.stopPropagation();
+    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    abandon();
+  };
+  // On the window: a quick real-mouse flick leaves the tab before the drag starts.
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  window.addEventListener("keydown", onEscape, true);
+  window.addEventListener("blur", windowBlur);
+  el.addEventListener("lostpointercapture", abandon);
 }
 
 /** Move the dragged tab to where the pointer is among the others. */
@@ -131,6 +163,10 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
       role="presentation"
       title={info.label}
       onpointerdown={(e) => press(e, tab, s.label)}
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        menu = { tab, x: e.clientX, y: e.clientY };
+      }}
       in:grow
       out:grow={{ out: true }}
       animate:flip={{ duration: motion(200) }}
@@ -198,6 +234,9 @@ function grow(node: HTMLElement, { out = false } = {}): TransitionConfig {
   {/if}
 </div>
 <TabDragLayer />
+{#if menu && sessions.tabs.includes(menu.tab)}
+  <TabMenu tab={menu.tab} x={menu.x} y={menu.y} canMove={tearOff} onclose={() => (menu = null)} />
+{/if}
 
 <style>
   .rec {
