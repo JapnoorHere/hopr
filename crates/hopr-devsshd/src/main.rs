@@ -9,7 +9,10 @@
 //! HOPR_DEVSSHD_BENCH=1 replaces the shell with a tiny line shell for client throughput
 //! tests: `flood <MiB>` streams text lines straight into the channel (no ConPTY, whose
 //! own rendering caps Windows output at roughly a thousand lines per second), then prints
-//! `FLOODDONE`.
+//! `FLOODDONE`. `logs <secs> <lines/s>` streams coloured log lines ending in `T=<epoch ms>`
+//! (0 lines/s = as fast as the channel takes them) until the time is up or Ctrl+C, then
+//! prints `LOGSTOP`: a client can measure how far behind its screen runs, and how quickly
+//! Ctrl+C takes effect.
 //!
 //! Exec requests run under `sh -c` (HOPR_DEVSSHD_SH, default `sh`) with HOME set to a
 //! sandbox (HOPR_DEVSSHD_HOME, default a temp folder), never your real home. Public keys
@@ -29,7 +32,8 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{ChildStdin, Command, Stdio};
 use std::sync::Arc;
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use russh::keys::PublicKeyBase64;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -274,6 +278,7 @@ impl server::Server for DevServer {
             size: PtySize::default(),
             pty: None,
             bench: self.bench,
+            stop: Arc::new(AtomicBool::new(false)),
             line: Vec::new(),
             shell: None,
             home: self.home.clone(),
@@ -302,12 +307,92 @@ fn flood_chunk() -> Vec<u8> {
     out
 }
 
-fn run_bench_command(cmd: &str, channel: ChannelId, session: &mut Session) -> Result<(), BoxError> {
+fn epoch_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis())
+}
+
+/// One realistic coloured log line, stamped with the time it was sent.
+fn log_line(i: u64) -> String {
+    const LEVELS: [&str; 4] = [
+        "\x1b[32mINFO \x1b[0m",
+        "\x1b[36mDEBUG\x1b[0m",
+        "\x1b[33mWARN \x1b[0m",
+        "\x1b[31mERROR\x1b[0m",
+    ];
+    let level = LEVELS[usize::try_from(i % 7).unwrap_or(0).min(3)];
+    format!(
+        "\x1b[90m{i:>9}\x1b[0m {level} \x1b[35mapi.handler\x1b[0m request id={i:x} path=/api/v1/items/{i} status=200 took={}ms T={}\r\n",
+        i % 97,
+        epoch_ms()
+    )
+}
+
+/// Log lines per send (about 26 KiB, under one SSH packet).
+const LOG_CHUNK_LINES: u64 = 200;
+
+/// `logs <secs> <lines/s>`: stream log lines until the time is up or `stop` is set.
+fn spawn_logs(secs: u64, rate: u64, channel: ChannelId, session: &Session, stop: Arc<AtomicBool>) {
+    let handle = session.handle();
+    stop.store(false, Ordering::Relaxed);
+    tokio::spawn(async move {
+        let start = tokio::time::Instant::now();
+        let end = start + Duration::from_secs(secs);
+        let mut i = 0u64;
+        while tokio::time::Instant::now() < end && !stop.load(Ordering::Relaxed) {
+            // The lines due by now at `rate` (all of them when unthrottled), sent in chunks
+            // that fit one SSH packet, like a program writing to a PTY. Much bigger sends
+            // from a producer that never pauses can wedge russh's server session when input
+            // arrives mid-send (seen with OpenSSH as the client too).
+            let due = if rate == 0 {
+                i + LOG_CHUNK_LINES
+            } else {
+                (u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX) * rate / 1000)
+                    .min(i + LOG_CHUNK_LINES)
+            };
+            let mut out = String::new();
+            while i < due {
+                out.push_str(&log_line(i));
+                i += 1;
+            }
+            if !out.is_empty() && handle.data(channel, out.into_bytes()).await.is_err() {
+                return;
+            }
+            if rate == 0 {
+                tokio::task::yield_now().await;
+            } else {
+                tokio::time::sleep(Duration::from_millis(4)).await;
+            }
+        }
+        // Split so the command's own echo can't contain the marker.
+        let done = format!(
+            "LOG{}STOP {i}\r\n{}",
+            "",
+            String::from_utf8_lossy(BENCH_PROMPT)
+        );
+        let _ = handle.data(channel, done.into_bytes()).await;
+    });
+}
+
+fn run_bench_command(
+    cmd: &str,
+    channel: ChannelId,
+    session: &mut Session,
+    stop: &Arc<AtomicBool>,
+) -> Result<(), BoxError> {
+    let args: Vec<&str> = cmd.split_whitespace().collect();
+    if let ["logs", secs, rate] = args.as_slice()
+        && let (Ok(secs), Ok(rate)) = (secs.parse::<u64>(), rate.parse::<u64>())
+    {
+        spawn_logs(secs, rate, channel, session, stop.clone());
+        return Ok(());
+    }
     let mib = cmd
         .strip_prefix("flood ")
         .and_then(|n| n.trim().parse::<usize>().ok());
     let Some(mib) = mib else {
-        let mut msg = b"commands: flood <MiB>\r\n".to_vec();
+        let mut msg = b"commands: flood <MiB> | logs <secs> <lines/s>\r\n".to_vec();
         msg.extend_from_slice(BENCH_PROMPT);
         session.data(channel, msg)?;
         return Ok(());
@@ -339,6 +424,8 @@ struct Conn {
     size: PtySize,
     pty: Option<LivePty>,
     bench: bool,
+    /// Set by Ctrl+C in the bench shell: stops a running `logs`.
+    stop: Arc<AtomicBool>,
     line: Vec<u8>,
     /// The shell channel. `data()` also sees jump-host tunnel traffic, which must not reach the PTY.
     shell: Option<ChannelId>,
@@ -738,11 +825,14 @@ impl server::Handler for Conn {
         }
         if self.bench {
             for &b in data {
-                if b == b'\r' {
+                if b == 0x03 {
+                    self.stop.store(true, Ordering::Relaxed);
+                    self.line.clear();
+                } else if b == b'\r' {
                     session.data(channel, b"\r\n".to_vec())?;
                     let cmd = String::from_utf8_lossy(&self.line).into_owned();
                     self.line.clear();
-                    run_bench_command(cmd.trim(), channel, session)?;
+                    run_bench_command(cmd.trim(), channel, session, &self.stop)?;
                 } else {
                     self.line.push(b);
                     session.data(channel, vec![b])?; // echo

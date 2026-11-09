@@ -11,7 +11,8 @@ import { type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { untrack } from "svelte";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
-import { INVISIBLE, resolveCssColor, terminalTheme } from "$lib/design/palettes";
+import { searchHighlight } from "$lib/design/highlight";
+import { INVISIBLE, terminalTheme } from "$lib/design/palettes";
 import { terminalColors } from "$lib/design/themes";
 import { inTauri } from "$lib/ipc";
 import { isMac, motionLevel } from "$lib/platform";
@@ -33,6 +34,12 @@ let term = $state.raw<Terminal | null>(null);
 let fitter = $state.raw<FitAddon | null>(null);
 let search = $state.raw<SearchAddon | null>(null);
 let searching = $state(false);
+let searchKey = $state(0);
+let searchInitial = $state("");
+/** The last search in this terminal, offered again on the next open. */
+let lastQuery = "";
+/** Most matches highlighted at once (the count still covers the whole scrollback). */
+const HIGHLIGHT_LIMIT = 2000;
 let pendingPaste = $state<{ text: string; lines: number } | null>(null);
 let pendingClipboard = $state<string | null>(null);
 let flash = $state(false);
@@ -148,7 +155,7 @@ $effect(() => {
     });
     instance = t;
     const fit = new FitAddon();
-    const finder = new SearchAddon();
+    const finder = new SearchAddon({ highlightLimit: HIGHLIGHT_LIMIT });
     const serializer = new SerializeAddon();
     t.loadAddon(fit);
     t.loadAddon(finder);
@@ -225,9 +232,7 @@ $effect(() => {
     session.attach({
       write: (data, done) => t.write(data, done),
       snapshot: (maxLines) => lastLines(t, maxLines),
-      find: () => {
-        searching = true;
-      },
+      find: openSearch,
       copy: () => {
         const text = t.getSelection();
         if (text) void navigator.clipboard.writeText(text);
@@ -323,15 +328,19 @@ $effect(() => {
   if (active && term && !searching) term.focus();
 });
 
-const matchColors = $derived.by(() => {
-  const tk = appearance.tokens;
-  return {
-    matchBackground: resolveCssColor(tk.warning, 0.35),
-    activeMatchBackground: resolveCssColor(tk.accent, 0.7),
-    matchOverviewRuler: resolveCssColor(tk.warning),
-    activeMatchColorOverviewRuler: resolveCssColor(tk.accent),
-  };
-});
+// Highlights worked out from this terminal's own colours, so every theme reads well.
+const highlight = $derived(
+  searchHighlight(terminalColors(appearance.spec, prefs.current.bgLift), appearance.spec.accent),
+);
+
+/** What the search bar starts with: the selection when it is a short phrase, else the last search. */
+function openSearch() {
+  const selected = term?.getSelection() ?? "";
+  searchInitial =
+    selected && selected.length <= 200 && !selected.includes("\n") ? selected : lastQuery;
+  searchKey++; // reopening (Ctrl+F again) restarts the bar with the new text
+  searching = true;
+}
 
 function closeSearch() {
   searching = false;
@@ -340,10 +349,19 @@ function closeSearch() {
 }
 </script>
 
-<div class="relative h-full w-full" class:flash>
+<div class="relative h-full w-full" class:flash style:--find-glow={highlight.activeMatchBorder}>
   <div class="h-full w-full" bind:this={host} onpastecapture={onPaste}></div>
   {#if searching && search}
-    <SearchBar addon={search} decorations={matchColors} onclose={closeSearch} />
+    {#key searchKey}
+      <SearchBar
+        addon={search}
+        decorations={highlight}
+        limit={HIGHLIGHT_LIMIT}
+        initial={searchInitial}
+        onquery={(q) => (lastQuery = q)}
+        onclose={closeSearch}
+      />
+    {/key}
   {/if}
   {#if pendingPaste}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -417,6 +435,33 @@ function closeSearch() {
     transition:
       transform 80ms cubic-bezier(0.2, 0.8, 0.2, 1),
       opacity 120ms ease-out;
+  }
+  /* Find highlights: the addon sets the fill and a 1px outline; round them, and give the
+     current match a brighter ring with a soft glow so it is the first thing the eye finds. */
+  :global(.xterm-find-result-decoration) {
+    border-radius: 2px;
+  }
+  :global(.xterm-find-active-result-decoration) {
+    z-index: 1;
+    outline-width: 2px !important;
+    outline-offset: 0;
+    border-radius: 3px;
+    box-shadow: 0 0 12px 1px color-mix(in oklab, var(--find-glow) 55%, transparent);
+    animation: find-pulse 420ms var(--ease-out);
+  }
+  @keyframes find-pulse {
+    from {
+      outline-offset: 4px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(.xterm-find-active-result-decoration) {
+      animation: none;
+    }
+  }
+  /* Streaming output: the cursor keeps up with the text instead of sliding behind it. */
+  :global(.glide-cursor.jump) {
+    transition: opacity 120ms ease-out;
   }
   :global(.glide-cursor)::before {
     content: "";

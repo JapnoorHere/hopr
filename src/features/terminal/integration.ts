@@ -129,7 +129,15 @@ export function attachShellIntegration(
       : null;
     if (next?.line !== session.sticky?.line) session.sticky = next;
   };
-  t.onScroll(updateSticky);
+  // Output scrolls the buffer once per line: work out the pinned command once per frame.
+  let stickyFrame = 0;
+  t.onScroll(() => {
+    if (stickyFrame) return;
+    stickyFrame = requestAnimationFrame(() => {
+      stickyFrame = 0;
+      updateSticky();
+    });
+  });
 
   // Click on the line being typed to move the cursor there (arrow keys are sent). Only
   // at a prompt that shell integration recognised, never in full-screen programs.

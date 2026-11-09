@@ -35,6 +35,7 @@ use russh::keys::PrivateKey;
 use russh::{ChannelMsg, Disconnect};
 use secrecy::SecretString;
 use tokio::sync::{mpsc, watch};
+use tokio::task::JoinHandle;
 use tracing::{Instrument, info, warn};
 
 use crate::connect::Connection;
@@ -289,6 +290,17 @@ async fn wait_or_close(delay: Duration, commands: &mut mpsc::Receiver<SessionCom
     }
 }
 
+/// Writes queued for the writer task (keystrokes, paste chunks, resizes).
+const WRITE_CAPACITY: usize = 256;
+
+/// What the writer task sends to the remote shell.
+enum WriteOp {
+    Data(Vec<u8>),
+    Resize(u32, u32),
+    /// Send EOF and close the channel, then stop.
+    Close,
+}
+
 async fn pump(
     conn: Connection,
     commands: &mut mpsc::Receiver<SessionCommand>,
@@ -297,38 +309,96 @@ async fn pump(
 ) -> PumpEnd {
     let Connection { handles, channel } = conn;
     let (mut reader, writer) = channel.split();
+    // Writes run on their own task, in order. Awaiting one here would deadlock under a flood:
+    // sending needs russh's session loop, which may itself be waiting for this loop to read.
+    let (ops, mut queued) = mpsc::channel::<WriteOp>(WRITE_CAPACITY);
+    let writer_task: JoinHandle<()> = tokio::spawn(async move {
+        while let Some(op) = queued.recv().await {
+            match op {
+                WriteOp::Data(data) => {
+                    if writer.data_bytes(data).await.is_err() {
+                        return;
+                    }
+                }
+                WriteOp::Resize(cols, rows) => {
+                    let _ = writer.window_change(cols, rows, 0, 0).await;
+                }
+                WriteOp::Close => {
+                    let _ = writer.eof().await;
+                    let _ = writer.close().await;
+                    return;
+                }
+            }
+        }
+    });
     let mut exited = false;
+    // Output read but not yet taken by the batcher. While it waits, the channel isn't read
+    // (backpressure), but commands are still handled, so Ctrl+C goes out at once.
+    let mut held: Option<Vec<u8>> = None;
+    // A write the writer had no room for. Until it goes, new commands wait in their own
+    // queue (the remote isn't taking input), but output keeps flowing.
+    let mut pending: Option<WriteOp> = None;
     let disconnect_all = || async {
         for h in handles.iter().rev() {
             let _ = h.disconnect(Disconnect::ByApplication, "", "en").await;
         }
     };
+    // Ask the writer to send EOF and close, and give it a moment to finish.
+    let close_writer = |ops: &mpsc::Sender<WriteOp>, task: JoinHandle<()>| {
+        let _ = ops.try_send(WriteOp::Close);
+        async move {
+            let _ = tokio::time::timeout(Duration::from_secs(2), task).await;
+        }
+    };
     loop {
         tokio::select! {
-            cmd = commands.recv() => match cmd {
-                Some(SessionCommand::Write(data)) => {
-                    if writer.data_bytes(data).await.is_err() {
-                        return PumpEnd::Lost;
+            biased;
+            cmd = commands.recv(), if pending.is_none() => {
+                let op = match cmd {
+                    Some(SessionCommand::Write(data)) => WriteOp::Data(data),
+                    Some(SessionCommand::Resize { cols, rows }) => {
+                        *size = (cols, rows);
+                        WriteOp::Resize(cols, rows)
                     }
+                    Some(SessionCommand::HostKeyDecision(_) | SessionCommand::PromptResponse(_)) => {
+                        continue;
+                    }
+                    Some(SessionCommand::Close) | None => {
+                        close_writer(&ops, writer_task).await;
+                        disconnect_all().await;
+                        return PumpEnd::Done(closed(CloseReason::UserClosed));
+                    }
+                };
+                match ops.try_send(op) {
+                    Ok(()) => {}
+                    Err(mpsc::error::TrySendError::Full(op)) => pending = Some(op),
+                    Err(mpsc::error::TrySendError::Closed(_)) => return PumpEnd::Lost,
                 }
-                Some(SessionCommand::Resize { cols, rows }) => {
-                    *size = (cols, rows);
-                    let _ = writer.window_change(cols, rows, 0, 0).await;
-                }
-                Some(SessionCommand::HostKeyDecision(_) | SessionCommand::PromptResponse(_)) => {}
-                Some(SessionCommand::Close) | None => {
-                    let _ = writer.eof().await;
-                    let _ = writer.close().await;
+            },
+            permit = ops.reserve(), if pending.is_some() => match (permit, pending.take()) {
+                (Ok(permit), Some(op)) => permit.send(op),
+                (Ok(_), None) => {}
+                (Err(_), _) => return PumpEnd::Lost,
+            },
+            permit = output.reserve(), if held.is_some() => match permit {
+                Ok(permit) => permit.send(held.take().unwrap_or_default()),
+                Err(_) => {
+                    // Nobody is rendering this session any more.
+                    close_writer(&ops, writer_task).await;
                     disconnect_all().await;
                     return PumpEnd::Done(closed(CloseReason::UserClosed));
                 }
             },
-            msg = reader.wait() => match msg {
+            msg = reader.wait(), if held.is_none() => match msg {
                 Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
-                    if output.send(data.to_vec()).await.is_err() {
-                        // Nobody is rendering this session any more.
-                        disconnect_all().await;
-                        return PumpEnd::Done(closed(CloseReason::UserClosed));
+                    match output.try_send(data.to_vec()) {
+                        Ok(()) => {}
+                        Err(mpsc::error::TrySendError::Full(chunk)) => held = Some(chunk),
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            close_writer(&ops, writer_task).await;
+                            disconnect_all().await;
+                            return PumpEnd::Done(closed(CloseReason::UserClosed));
+                        }
                     }
                 }
                 Some(ChannelMsg::ExitStatus { .. }) | Some(ChannelMsg::ExitSignal { .. }) => {

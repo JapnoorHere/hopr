@@ -68,21 +68,6 @@ export function ansi(c: string[]): Ansi16 {
 /** Fully transparent, for hiding xterm's own cursor under the glide cursor. */
 export const INVISIBLE = "#00000000";
 
-let ctx: CanvasRenderingContext2D | null | undefined;
-
-/** Resolve any CSS color (oklch, color-mix…) to #rrggbb[aa], which xterm's renderers need. */
-export function resolveCssColor(css: string, alpha = 1): string {
-  ctx ??= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-  if (!ctx) return css;
-  ctx.clearRect(0, 0, 1, 1);
-  ctx.fillStyle = css.trim();
-  ctx.fillRect(0, 0, 1, 1);
-  const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
-  const hex = (n: number) => n.toString(16).padStart(2, "0");
-  const a = alpha < 1 ? hex(Math.round(alpha * 255)) : "";
-  return `#${hex(r)}${hex(g)}${hex(b)}${a}`;
-}
-
 // ── Colour maths (OKLab/OKLCH, Björn Ottosson; WCAG 2 contrast) ──────────────────────
 
 type Rgb = [number, number, number];

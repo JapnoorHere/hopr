@@ -17,6 +17,8 @@ import { tunnels } from "$features/tunnels/tunnels.svelte";
 import { vault } from "$features/vault/vault.svelte";
 import { workspaces } from "$features/workspace/workspaces.svelte";
 import { commands, type ExportFormat, type HostInput, type HostKeyDecision } from "$lib/ipc";
+import { appearance } from "$lib/design/appearance.svelte";
+import type { ThemeId } from "$lib/design/themes";
 import { windowLabel } from "$lib/window";
 import { prefs } from "./prefs.svelte";
 import { sessions } from "./session.svelte";
@@ -130,6 +132,9 @@ export function installDebugHooks() {
       zoomed: () => sessions.activeTab?.zoomed ?? null,
       paletteOpen: () => palette.open,
       fontSize: () => prefs.current.fontSize,
+      /** Open the search bar on the active terminal (the selection or last search prefills it). */
+      find: () => sessions.active?.find(),
+      setTheme: (theme: ThemeId) => appearance.update({ theme }),
       hops: () => [...(sessions.active?.hops ?? [])],
       closeActive: () => (sessions.active ? sessions.close(sessions.active) : undefined),
       // Shell integration, history and recordings (4c).
