@@ -132,6 +132,7 @@ export function installDebugHooks() {
       zoomed: () => sessions.activeTab?.zoomed ?? null,
       paletteOpen: () => palette.open,
       fontSize: () => prefs.current.fontSize,
+      setPrefs: (patch: Partial<typeof prefs.current>) => prefs.update(patch),
       /** Open the search bar on the active terminal (the selection or last search prefills it). */
       find: () => sessions.active?.find(),
       /** Drop the active tab outside this window at a screen point (as a drag would). */

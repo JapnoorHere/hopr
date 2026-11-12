@@ -120,6 +120,13 @@ function on(e: Event): boolean {
     Right-click copies or pastes
   </label>
   <label class="check">
+    <input type="checkbox" checked={p.wheelZoom} onchange={(e) => prefs.update({ wheelZoom: on(e) })} />
+    Zoom with Ctrl + mouse wheel or pinch
+  </label>
+  <p class="-mt-1 pl-6 text-xs text-faint">
+    Changes the terminal text size only. Ctrl + = and Ctrl + − (or the numpad + and −) always work; Ctrl + 0 resets.
+  </p>
+  <label class="check">
     <input type="checkbox" checked={p.confirmPaste} onchange={(e) => prefs.update({ confirmPaste: on(e) })} />
     Ask before pasting several lines
   </label>

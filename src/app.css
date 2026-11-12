@@ -46,6 +46,8 @@
 
   html {
     color-scheme: var(--scheme);
+    /* A touchscreen pinch never zooms the whole app (scrolling still works). */
+    touch-action: pan-x pan-y;
   }
 
   body {

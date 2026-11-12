@@ -105,6 +105,34 @@ function onStripKey(e: KeyboardEvent, cancel: () => void) {
   }
 }
 
+/** A mouse wheel notch is one font step. A touchpad pinch sends many small deltas: they
+ *  add up, one step per this much travel, so a pinch moves a few steps, not dozens. */
+const PINCH_STEP_DELTA = 40;
+/** Deltas this big come from a wheel notch, not a pinch. */
+const NOTCH_DELTA = 50;
+let zoomAcc = 0;
+let zoomAt = 0;
+function onZoomWheel(e: WheelEvent) {
+  if (!e.ctrlKey || !prefs.current.wheelZoom) return;
+  e.preventDefault();
+  e.stopPropagation();
+  // A pause starts a fresh gesture: leftovers from the last one don't carry over.
+  if (e.timeStamp - zoomAt > 300) zoomAcc = 0;
+  zoomAt = e.timeStamp;
+  const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+  if (Math.abs(px) >= NOTCH_DELTA) {
+    zoomAcc = 0;
+    prefs.zoom(px < 0 ? 1 : -1);
+    return;
+  }
+  zoomAcc += px;
+  while (Math.abs(zoomAcc) >= PINCH_STEP_DELTA) {
+    const dir = zoomAcc < 0 ? 1 : -1;
+    prefs.zoom(dir);
+    zoomAcc += dir * PINCH_STEP_DELTA;
+  }
+}
+
 function openLink(event: MouseEvent, uri: string) {
   // Links open on Ctrl/Cmd+click only, so plain clicks still select text.
   if (!(isMac ? event.metaKey : event.ctrlKey)) return;
@@ -205,6 +233,8 @@ $effect(() => {
       return !(e.type === "keydown" && shortcuts.find(e));
     });
     // Right-click: copy the selection, or paste when there is none (classic Windows console).
+    // Ctrl + wheel, and a touchpad pinch (which arrives as Ctrl + wheel), zoom this text.
+    host.addEventListener("wheel", onZoomWheel, { capture: true, passive: false });
     host.addEventListener("contextmenu", (e) => {
       if (!prefs.current.rightClickCopyPaste) return;
       e.preventDefault();

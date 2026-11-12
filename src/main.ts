@@ -56,6 +56,15 @@ const fillRange = (el: Element) => {
   const pct = max > min ? ((Number(el.value) - min) / (max - min)) * 100 : 0;
   el.style.setProperty("--fill", `${pct}%`);
 };
+// A touchpad pinch (Ctrl + wheel) never zooms the whole app; the terminal handles its own.
+window.addEventListener(
+  "wheel",
+  (e) => {
+    if (e.ctrlKey) e.preventDefault();
+  },
+  { passive: false },
+);
+
 document.addEventListener("input", (e) => e.target && fillRange(e.target as Element), true);
 new MutationObserver(() => {
   for (const el of document.querySelectorAll('input[type="range"]')) fillRange(el);

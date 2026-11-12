@@ -51,7 +51,8 @@ export function parseChord(spec: string): Chord {
 function eventKey(e: KeyboardEvent): string {
   if (e.code === "Backquote") return "backquote";
   if (e.code === "Equal") return "=";
-  if (e.code === "Minus") return "-";
+  if (e.code === "Minus" || e.code === "NumpadSubtract") return "-";
+  if (e.code === "NumpadAdd") return "=";
   // With Shift held, e.key is the shifted symbol; use the physical digit/letter instead.
   if (/^Digit\d$/.test(e.code)) return e.code.slice(5);
   if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
