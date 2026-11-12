@@ -208,6 +208,20 @@ pub fn window_tab_send(
     Ok(())
 }
 
+/// Longest a new window stays hidden waiting for its first frame.
+const SHOW_FALLBACK: std::time::Duration = std::time::Duration::from_secs(4);
+
+/// A new window opens hidden and the page shows it once it has painted (no black frame
+/// while WebView2 starts). If the page never says so, it is shown anyway.
+pub fn show_when_painted(w: WebviewWindow) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(SHOW_FALLBACK).await;
+        if !w.is_visible().unwrap_or(true) {
+            bring_up(&w);
+        }
+    });
+}
+
 /// A new window's size (logical pixels).
 const SIZE: (f64, f64) = (1000.0, 680.0);
 
@@ -262,7 +276,8 @@ pub fn build_window(app: &AppHandle, label: &str, at: Option<(f64, f64)>) {
         let mut b = WebviewWindowBuilder::new(&app, &name, WebviewUrl::App("index.html".into()))
             .title("Hopr")
             .min_inner_size(720.0, 460.0)
-            .decorations(false);
+            .decorations(false)
+            .visible(false);
         b = match at {
             // Dropped on the taskbar or a screen edge: the window still opens fully on screen.
             Some((x, y)) => {
@@ -272,9 +287,7 @@ pub fn build_window(app: &AppHandle, label: &str, at: Option<(f64, f64)>) {
             None => b.center().inner_size(SIZE.0, SIZE.1),
         };
         match b.build() {
-            Ok(w) => {
-                let _ = w.set_focus();
-            }
+            Ok(w) => show_when_painted(w),
             Err(e) => eprintln!("hopr: window failed: {e}"),
         }
     });

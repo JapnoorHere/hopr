@@ -271,9 +271,7 @@ pub fn show_main(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         match WebviewWindowBuilder::from_config(&app, &config).and_then(|b| b.build()) {
-            Ok(w) => {
-                let _ = w.set_focus();
-            }
+            Ok(w) => winmgr::show_when_painted(w),
             Err(e) => eprintln!("hopr: main window failed: {e}"),
         }
     });

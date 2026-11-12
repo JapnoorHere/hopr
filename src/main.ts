@@ -3,6 +3,7 @@ import "@fontsource-variable/geist-mono";
 import "@fontsource/commit-mono";
 import "@fontsource-variable/jetbrains-mono";
 import "./app.css";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { mount } from "svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import App from "./App.svelte";
@@ -12,9 +13,13 @@ import { prefs } from "./features/terminal/prefs.svelte";
 import { initSessionEvents } from "./features/terminal/terminal-session.svelte";
 import { vault } from "./features/vault/vault.svelte";
 import { i18n } from "./lib/i18n/i18n.svelte";
+import { inTauri } from "./lib/ipc";
 import { shortcuts } from "./lib/shortcuts";
-import { readText, removeKey, SWITCHED_KEY, safeSessionStorage } from "./lib/storage";
+import { readText, removeKey, SWITCHED_KEY, safeSessionStorage, writeText } from "./lib/storage";
 import { isQuickWindow } from "./lib/window";
+
+/** Set once this window has been shown at start-up (survives reloads, not restarts). */
+const SHOWN_KEY = "hopr.shown";
 
 // Just switched profile: appear at once, without the start-up animation.
 if (readText(SWITCHED_KEY, safeSessionStorage())) {
@@ -62,3 +67,16 @@ new MutationObserver(() => {
 });
 
 mount(isQuickWindow ? QuickTerminal : App, { target });
+
+// App windows open hidden: show this one once its first frame is on screen, so it never
+// flashes black while starting. Once per window: a reload while it sits in the tray must
+// not bring it back. The quick terminal shows itself.
+if (inTauri && !isQuickWindow && !readText(SHOWN_KEY, safeSessionStorage())) {
+  writeText(SHOWN_KEY, "1", safeSessionStorage());
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const w = getCurrentWindow();
+      void w.show().then(() => w.setFocus());
+    }),
+  );
+}
