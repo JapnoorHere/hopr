@@ -109,7 +109,7 @@ function drag(e: PointerEvent, d: Divider) {
       use:track={s.key}
     >
       <div class="card">
-        <TerminalPane session={s} active={visible && tab.focused === s.key} />
+        <TerminalPane session={s} active={visible && tab.focused === s.key} shown={visible && !hidden} />
       </div>
     </div>
   {/each}

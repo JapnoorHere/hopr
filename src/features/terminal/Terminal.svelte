@@ -27,7 +27,16 @@ import { prefs } from "./prefs.svelte";
 import SearchBar from "./SearchBar.svelte";
 import type { TerminalSession } from "./terminal-session.svelte";
 
-let { session, active }: { session: TerminalSession; active: boolean } = $props();
+let {
+  session,
+  active,
+  shown = true,
+}: {
+  session: TerminalSession;
+  active: boolean;
+  /** On screen (its tab in front, not behind a zoomed pane). */
+  shown?: boolean;
+} = $props();
 
 let host: HTMLDivElement;
 let term = $state.raw<Terminal | null>(null);
@@ -65,6 +74,43 @@ function options(p: TerminalPrefs): ITerminalOptions {
 function xtermTheme(p: TerminalPrefs) {
   return terminalTheme(terminalColors(appearance.spec, p.bgLift));
 }
+
+/** The GPU renderer, while this terminal has one. Each costs graphics memory (a WebGL
+ *  context and its glyph atlas), so a terminal hidden for a while gives it back. */
+let webgl: WebglAddon | null = null;
+/** How long a terminal stays hidden before it drops the GPU renderer. */
+const GPU_RELEASE_MS = 15_000;
+
+function useGpu(t: Terminal) {
+  if (webgl) return;
+  try {
+    const addon = new WebglAddon();
+    addon.onContextLoss(() => dropGpu()); // falls back to the DOM renderer
+    t.loadAddon(addon);
+    webgl = addon;
+  } catch {
+    // No WebGL2: the DOM renderer keeps working.
+  }
+}
+
+function dropGpu() {
+  const addon = webgl;
+  webgl = null;
+  addon?.dispose();
+}
+
+// Hidden (another tab in front): after a while, give the GPU renderer back; shown again,
+// take it back at once.
+$effect(() => {
+  const t = term;
+  if (!t) return;
+  if (shown) {
+    untrack(() => useGpu(t));
+    return;
+  }
+  const timer = setTimeout(dropGpu, GPU_RELEASE_MS);
+  return () => clearTimeout(timer);
+});
 
 /** Capture-phase paste guard: runs before xterm's own textarea handler. */
 function onPaste(e: ClipboardEvent) {
@@ -245,13 +291,7 @@ $effect(() => {
       t.textarea?.dispatchEvent(new KeyboardEvent("keyup"));
       releasing = false;
     });
-    try {
-      const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose()); // falls back to the DOM renderer
-      t.loadAddon(webgl);
-    } catch {
-      // No WebGL2: the DOM renderer keeps working.
-    }
+    if (shown) useGpu(t);
 
     const fitIfVisible = () => {
       if (host && host.clientWidth > 0 && host.clientHeight > 0) fit.fit();

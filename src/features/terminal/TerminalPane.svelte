@@ -22,7 +22,11 @@ import { describeState, isBusy } from "./state";
 import Terminal from "./Terminal.svelte";
 import { type TerminalSession } from "./terminal-session.svelte";
 
-let { session, active }: { session: TerminalSession; active: boolean } = $props();
+let {
+  session,
+  active,
+  shown = true,
+}: { session: TerminalSession; active: boolean; shown?: boolean } = $props();
 
 const phase = $derived(session.state);
 const info = $derived(describeState(phase));
@@ -155,7 +159,7 @@ function onStripKey(e: KeyboardEvent) {
   class:broadcasting={broadcast.includes(session.key)}
   data-broadcasting={broadcast.includes(session.key) ? "" : undefined}
 >
-  <Terminal {session} {active} />
+  <Terminal {session} {active} {shown} />
   {#if session.sticky}
     {@const st = session.sticky}
     <!-- Scrolled back into the output of a command: the command stays pinned on top. -->
