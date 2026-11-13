@@ -1,8 +1,10 @@
 <script lang="ts">
+import { layout, type RailSide } from "$features/shell/layout.svelte";
 import { wrap } from "$features/vault/vault.svelte";
 import { commands, inTauri } from "$lib/ipc";
 import { chordOf } from "$lib/shortcuts";
 import Kbd from "$lib/ui/Kbd.svelte";
+import Segmented from "$lib/ui/Segmented.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import { updates } from "./updates.svelte";
 
@@ -56,6 +58,31 @@ function record(e: KeyboardEvent) {
   if (chord) void setHotkey(chord);
 }
 </script>
+
+<section class="mt-5 flex flex-col gap-3">
+  <h3 class="label-caps text-faint">Sidebar</h3>
+  <div class="field">
+    <span class="text-xs text-muted">Side</span>
+    <Segmented
+      label="Sidebar side"
+      options={[
+        { id: "left", label: "Left" },
+        { id: "right", label: "Right" },
+      ] as const}
+      value={layout.current.railSide}
+      onchange={(v: RailSide) => layout.update({ railSide: v })}
+    />
+  </div>
+  <label class="check">
+    <input
+      type="checkbox"
+      checked={layout.current.railAutoHide}
+      onchange={(e) => layout.update({ railAutoHide: e.currentTarget.checked })}
+    />
+    Hide the sidebar until the pointer reaches the edge
+  </label>
+  <p class="-mt-1 pl-6 text-xs text-faint">Also from the pin at the bottom of the sidebar. F11 toggles full screen.</p>
+</section>
 
 {#if inTauri}
   <section class="mt-5 flex flex-col gap-3">

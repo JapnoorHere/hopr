@@ -8,6 +8,7 @@ import { mount } from "svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import App from "./App.svelte";
 import { profiles } from "./features/profiles/profiles.svelte";
+import { layout } from "./features/shell/layout.svelte";
 import QuickTerminal from "./features/shell/QuickTerminal.svelte";
 import { prefs } from "./features/terminal/prefs.svelte";
 import { initSessionEvents } from "./features/terminal/terminal-session.svelte";
@@ -37,6 +38,7 @@ window.addEventListener("storage", (e) => {
   if (e.key !== null && !e.key.startsWith("hopr.")) return;
   appearance.reload();
   prefs.reload();
+  layout.reload();
   i18n.reload();
   shortcuts.reload();
 });

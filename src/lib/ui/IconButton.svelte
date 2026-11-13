@@ -7,7 +7,7 @@ interface Props {
   shortcut?: string;
   active?: boolean;
   disabled?: boolean;
-  tip?: "right" | "bottom" | "bottom-start" | "bottom-end" | "top";
+  tip?: "right" | "left" | "bottom" | "bottom-start" | "bottom-end" | "top";
   size?: number;
   onclick?: () => void;
   children: Snippet;
@@ -108,8 +108,16 @@ let {
   [data-tip="right"] {
     --tip-from: -4px 0;
   }
+  [data-tip="left"] {
+    --tip-from: 4px 0;
+  }
   [data-tip="top"] {
     --tip-from: 0 -3px;
+  }
+  [data-tip="left"] .tip {
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
   }
   [data-tip="right"] .tip {
     left: calc(100% + 8px);

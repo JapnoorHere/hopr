@@ -34,6 +34,8 @@
     "core:window:allow-destroy",
     "core:window:allow-set-theme",
     "core:window:allow-set-title",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
     "opener:allow-reveal-item-in-dir",
     "process:allow-restart",
     "dialog:allow-open"

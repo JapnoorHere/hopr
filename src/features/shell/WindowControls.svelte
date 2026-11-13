@@ -1,7 +1,8 @@
 <script lang="ts">
 /** Minimize, maximize/restore and close, for Hopr's frameless windows. */
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CopySimple, Minus, Square, X } from "phosphor-svelte";
+import { ArrowsIn, CopySimple, Minus, Square, X } from "phosphor-svelte";
+import { fullscreen } from "$lib/fullscreen.svelte";
 import { inTauri } from "$lib/ipc";
 
 const win = inTauri ? getCurrentWindow() : null;
@@ -31,14 +32,20 @@ $effect(() => {
     <button type="button" class="wc" aria-label="Minimize" onclick={() => win.minimize()}>
       <Minus size={14} />
     </button>
-    <button
-      type="button"
-      class="wc"
-      aria-label={maximized ? "Restore" : "Maximize"}
-      onclick={() => win.toggleMaximize()}
-    >
-      {#if maximized}<CopySimple size={13} />{:else}<Square size={12} />{/if}
-    </button>
+    {#if fullscreen.on}
+      <button type="button" class="wc" aria-label="Exit full screen (F11)" title="Exit full screen (F11)" onclick={() => fullscreen.toggle()}>
+        <ArrowsIn size={14} />
+      </button>
+    {:else}
+      <button
+        type="button"
+        class="wc"
+        aria-label={maximized ? "Restore" : "Maximize"}
+        onclick={() => win.toggleMaximize()}
+      >
+        {#if maximized}<CopySimple size={13} />{:else}<Square size={12} />{/if}
+      </button>
+    {/if}
     <button type="button" class="wc close" aria-label="Close" onclick={() => win.close()}>
       <X size={14} />
     </button>

@@ -8,6 +8,7 @@ import { history } from "$features/history/history.svelte";
 import { library } from "$features/hosts/library.svelte";
 import { palette } from "$features/palette/palette-state.svelte";
 import { files } from "$features/sftp/files.svelte";
+import { layout } from "$features/shell/layout.svelte";
 import { shell } from "$features/shell/shell.state.svelte";
 import { prefs } from "$features/terminal/prefs.svelte";
 import { sessions } from "$features/terminal/session.svelte";
@@ -16,6 +17,7 @@ import { vault } from "$features/vault/vault.svelte";
 import { appearance } from "$lib/design/appearance.svelte";
 import { THEMES } from "$lib/design/theme";
 import { saveText } from "$lib/download";
+import { fullscreen } from "$lib/fullscreen.svelte";
 import { inTauri, commands as ipc, type ShellProfile } from "$lib/ipc";
 import { type Command, shortcuts } from "$lib/shortcuts";
 import { readText, writeText } from "$lib/storage";
@@ -69,6 +71,27 @@ export function registerAppCommands(): () => void {
       run: () => sessions.showHome(),
     },
     { id: "host.new", title: "New host", group: "General", run: () => (library.editing = "new") },
+    // Window
+    {
+      id: "view.fullscreen",
+      title: "Toggle full screen",
+      group: "Window",
+      keys: ["F11"],
+      when: () => inTauri,
+      run: () => void fullscreen.toggle(),
+    },
+    {
+      id: "view.rail.autohide",
+      title: "Toggle sidebar auto-hide",
+      group: "Window",
+      run: () => layout.update({ railAutoHide: !layout.current.railAutoHide }),
+    },
+    {
+      id: "view.rail.side",
+      title: "Move sidebar to the other side",
+      group: "Window",
+      run: () => layout.update({ railSide: layout.current.railSide === "left" ? "right" : "left" }),
+    },
     {
       id: "keys",
       title: "Keys",
