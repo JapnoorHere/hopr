@@ -250,8 +250,8 @@ const hostName = $derived(library.host(hostId)?.label ?? "host");
 
     {#if tunnels.list.length === 0 && tunnels.editing === null}
       <p class="py-6 text-center text-sm text-muted">
-        No tunnels yet. Forward a database port, expose a local dev server to a host, or browse through a host with a
-        SOCKS proxy.
+        No tunnels yet. Reach a server's database from your computer, share a local dev server, or browse through a
+        host.
       </p>
     {/if}
 

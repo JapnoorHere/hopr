@@ -208,7 +208,7 @@ const missing = $derived(secretsIn(body).filter((n) => !snippets.secrets.include
 
     {#if snippets.list.length === 0 && snippets.editing === null}
       <p class="py-4 text-center text-sm text-muted">
-        Save commands you type often. Click one to run it in the focused terminal; it asks for its variables first.
+        Save commands you type often, then click one to run it.
       </p>
     {/if}
     {#each groups as [dir, list] (dir)}
@@ -243,8 +243,7 @@ const missing = $derived(secretsIn(body).filter((n) => !snippets.secrets.include
     <section class="mt-3" aria-label="Secrets">
       <h3 class="label-caps mb-1 text-faint">Secrets</h3>
       <p class="mb-2 text-xs text-muted">
-        Use as {"{{secret:name}}"}. Stored encrypted in the vault and typed straight into the terminal; Hopr's window
-        never sees them.
+        Use as {"{{secret:name}}"}. Stored encrypted and typed straight into the terminal.
       </p>
       {#each snippets.secrets as n (n)}
         <div class="row">

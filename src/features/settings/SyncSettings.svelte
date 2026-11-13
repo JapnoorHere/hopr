@@ -108,9 +108,8 @@ function ago(iso: string | null): string {
       </div>
     {:else}
       <p class="text-xs text-muted">
-        Keep hosts, keys, snippets, secrets and tunnels the same on your computers, through a folder you already sync
-        (OneDrive, Dropbox, a network share). Everything in it is encrypted with your sync passphrase; the folder's
-        provider can't read it.
+        Keep your hosts, keys and snippets the same on all your computers, through a folder you already sync (like
+        OneDrive or Dropbox). It's encrypted, so the folder's provider can't read it.
       </p>
       <form class="flex flex-col gap-2" onsubmit={enable} novalidate bind:this={form}>
         <div class="flex gap-2">

@@ -50,8 +50,7 @@ function exportAs(kind: "json" | "csv") {
 <Drawer title="Audit log" onclose={() => shell.close()}>
   <div class="flex flex-col gap-2 pt-2">
     <p class="text-xs text-muted">
-      Unlocks, connections, failed logins, host-key decisions, copied secrets, key deploys, exports and security
-      changes. Stored on this device only; never contains a secret.
+      Security events like unlocks, logins and copied secrets. Kept on this device only, never with a secret in it.
     </p>
     <div class="flex gap-2">
       <input class="input flex-1" bind:value={query} placeholder="Filter" aria-label="Filter audit log" spellcheck="false" />

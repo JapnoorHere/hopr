@@ -124,8 +124,7 @@ function size(bytes: number): string {
   <h3 class="label-caps text-faint">Backup</h3>
   {#if inTauri}
     <p class="text-xs text-muted">
-      Everything in your vault (hosts, keys, passwords, settings), encrypted with your master password. One is made
-      automatically each day; the last 7 are kept.
+      Your whole vault, encrypted with your master password. Hopr makes one every day and keeps the last 7.
     </p>
     <div class="flex flex-wrap gap-2">
       <button type="button" class="btn-ghost" disabled={busy} onclick={backupNow}>Back up now</button>

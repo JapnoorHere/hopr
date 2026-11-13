@@ -35,8 +35,7 @@ async function open(p: Profile) {
     <button type="button" class="btn-ghost" onclick={() => (editing = "new")}><Plus size={14} /> New profile</button>
   </div>
   <p class="-mt-1 text-xs text-muted">
-    Each profile is separate: its own hosts, keys, snippets, history, backups and master password. Switching
-    closes the open tabs and opens the other profile in the same window.
+    Each profile has its own hosts, keys, history and master password. Switching closes your open tabs.
   </p>
   {#if isQuickWindow}
     <p class="-mt-1 flex items-center gap-2 text-xs text-muted">

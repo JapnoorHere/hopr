@@ -112,8 +112,7 @@ const canType = $derived(sessions.active?.state.kind === "ready");
 
     <h3 class="label-caps mt-3 text-faint">Shell integration</h3>
     <p class="text-xs text-muted">
-      Lets Hopr see each command, its exit code and the current folder: exact history, exit markers, jumping between
-      prompts (Ctrl+Shift+↑/↓), the files drawer opening where you are, and a notification when a long command finishes.
+      Lets Hopr see each command and where you are, for exact history, exit codes and jumping between commands.
     </p>
     <div class="flex gap-2">
       <select class="input flex-1" bind:value={shellKind} aria-label="Shell">
@@ -133,7 +132,7 @@ const canType = $derived(sessions.active?.state.kind === "ready");
       rows="3"
       readonly
       value={SNIPPETS[shellKind]}
-      aria-label="Integration snippet"
+      aria-label="Setup command"
     ></textarea>
     <p class="text-xs text-faint">To keep it on, add this line to {STARTUP_FILES[shellKind]} on the host.</p>
   </section>

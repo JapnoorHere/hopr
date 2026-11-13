@@ -134,7 +134,7 @@ function on(e: Event): boolean {
     A pasted line break runs the command. When on, multi-line or very long pastes wait for you to confirm.
   </p>
   <label class="field">
-      <span class="text-xs text-muted">Server clipboard writes (OSC 52)</span>
+      <span class="text-xs text-muted">Let servers copy to my clipboard</span>
       <select class="input" value={p.osc52} onchange={(e) => prefs.update({ osc52: str(e) })}>
         <option value="ask">Ask</option>
         <option value="allow">Allow</option>
