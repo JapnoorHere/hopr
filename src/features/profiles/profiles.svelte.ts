@@ -97,12 +97,12 @@ class ProfilesStore {
 
 export const profiles = new ProfilesStore();
 
-/** What to show for a profile's name (the original data starts unnamed). */
+/** What to show for a profile's name (the original data starts unnamed: "Personal"). */
 export function profileName(p: Profile | null | undefined): string {
-  return p?.name || "Unnamed profile";
+  return p?.name || "Personal";
 }
 
 /** The avatar letter. */
 export function initial(p: Profile): string {
-  return (p.name.trim()[0] ?? "?").toUpperCase();
+  return (profileName(p).trim()[0] ?? "?").toUpperCase();
 }

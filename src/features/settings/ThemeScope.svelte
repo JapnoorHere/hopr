@@ -14,7 +14,7 @@ interface Props {
 
 let { onboarding = false }: Props = $props();
 
-// An unnamed profile reads as "this profile" rather than "Unnamed profile".
+// An unnamed profile reads as "this profile" rather than its default name.
 const named = $derived(profiles.active?.name ? profileName(profiles.active) : null);
 const Name = $derived(named ?? "This profile");
 const options = $derived<SegmentOption<LookTarget>[]>([

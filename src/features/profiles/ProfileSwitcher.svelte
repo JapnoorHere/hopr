@@ -60,7 +60,7 @@ function close() {
       {#each profiles.list as p (p.id)}
         <button type="button" role="menuitem" class="menu-item" onclick={() => pick(p)}>
           <ProfileAvatar profile={p} size={22} />
-          <span class="min-w-0 flex-1 truncate" class:italic={!p.name}>{profileName(p)}</span>
+          <span class="min-w-0 flex-1 truncate">{profileName(p)}</span>
           {#if p.id === profiles.current}<Check size={13} weight="bold" class="text-accent" />{/if}
           {#if profiles.switching === p.id}<span class="text-xs text-faint">Opening…</span>{/if}
         </button>

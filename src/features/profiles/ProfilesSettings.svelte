@@ -49,7 +49,7 @@ async function open(p: Profile) {
       <li class="row">
         <ProfileAvatar profile={p} size={32} />
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-sm text-fg" class:italic={!p.name}>{profileName(p)}</span>
+          <span class="block truncate text-sm text-fg">{profileName(p)}</span>
           <span class="block text-xs text-faint">
             {p.id === profiles.current ? "Open now" : since(p) ? `Created ${since(p)}` : "Your original data"}
           </span>

@@ -98,7 +98,7 @@ $effect(() => {
           >
             <span class="stripe"></span>
             <ProfileAvatar profile={p} size={64} />
-            <span class="name" class:unnamed={!p.name}>{profileName(p)}</span>
+            <span class="name">{profileName(p)}</span>
             <span class="meta">
               {#if profiles.switching === p.id}Opening…{:else if p.id === profiles.current}Last used{:else}&nbsp;{/if}
             </span>
@@ -243,10 +243,6 @@ $effect(() => {
     color: var(--text);
     white-space: nowrap;
     text-overflow: ellipsis;
-  }
-  .name.unnamed {
-    font-style: italic;
-    color: var(--text-muted);
   }
   .meta {
     font-size: 11.5px;

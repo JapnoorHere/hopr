@@ -15,8 +15,9 @@ import WindowControls from "./WindowControls.svelte";
   <div class="grid w-12 shrink-0 place-items-center text-accent" data-tauri-drag-region>
     <HoprMark size={20} />
   </div>
-  <!-- The profile chip shows outside terminal mode: the hosts screen and the lock screen. -->
-  {#if !profiles.picking && (!vault.unlocked || !sessions.activeTab)}<ProfileSwitcher />{/if}
+  <!-- The profile chip shows outside terminal mode (the hosts and lock screens), once there
+       is more than one profile to switch between; Settings → Profiles adds the second. -->
+  {#if !profiles.picking && profiles.list.length > 1 && (!vault.unlocked || !sessions.activeTab)}<ProfileSwitcher />{/if}
   {#if vault.unlocked}<TabStrip />{/if}
   <!-- The empty area right of the tabs doubles as the window drag region. -->
   <div class="min-w-0 flex-1" data-tauri-drag-region></div>
