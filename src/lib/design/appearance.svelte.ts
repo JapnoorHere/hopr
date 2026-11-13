@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { setThemedWindowIcon } from "$lib/icons/window-icon";
 import { inTauri } from "$lib/ipc";
 import {
   type Appearance,
@@ -119,6 +120,7 @@ class AppearanceStore {
       apply();
     }
     void this.#windowTheme();
+    void setThemedWindowIcon(this.spec);
   }
 
   /** Match the window frame to the theme's light or dark. */

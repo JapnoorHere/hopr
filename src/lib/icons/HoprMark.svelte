@@ -1,97 +1,121 @@
-<script lang="ts">
-/**
- * Hopr logo: a > prompt that hops (dots growing as they travel) onto an underscore cursor.
- * In the theme's accent colour (the app icon is white). At 24px and below it switches
- * to a heavier three-dot cut that stays crisp. `animated` plays it once: the prompt draws,
- * the dots hop in, the cursor blinks.
- * The app icon is drawn from the same shapes (src-tauri/icons/source/).
- */
-let { size = 20, animated = false }: { size?: number; animated?: boolean } = $props();
-const small = $derived(size <= 24);
+<script lang="ts" module>
+let next = 0;
 </script>
 
-<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="mark" class:animated>
-  {#if small}
-    <path
-      class="prompt"
-      pathLength="1"
-      d="M3.2 7.2L8.8 12L3.2 16.8"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="3.1"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <circle class="dot d1" cx="11.6" cy="7.9" r="1.45" opacity="0.7" />
-    <circle class="dot d2" cx="15" cy="5.7" r="1.75" opacity="0.88" />
-    <circle class="dot d3" cx="18.6" cy="8.3" r="2.05" />
-    <rect class="cursor" x="12.2" y="15.8" width="9.4" height="3.6" rx="1.8" />
-  {:else}
-    <path
-      class="prompt"
-      pathLength="1"
-      d="M3.4 7.6L8.6 12L3.4 16.4"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.8"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <circle class="dot d1" cx="10.9" cy="8.4" r="0.95" opacity="0.55" />
-    <circle class="dot d2" cx="13.2" cy="6.1" r="1.15" opacity="0.7" />
-    <circle class="dot d3" cx="16.1" cy="6" r="1.35" opacity="0.85" />
-    <circle class="dot d4" cx="18.3" cy="8.7" r="1.55" />
-    <rect class="cursor" x="12.6" y="16.2" width="8.4" height="3.1" rx="1.55" />
+<script lang="ts">
+/**
+ * Hopr logo: an arc that hops and lands on a cursor, in the colours of the theme in use.
+ * With a tile (the default from 28px): the tile is the theme's background, the arc its text
+ * colour, the cursor and glow its accent, so the logo always belongs to the screen it's on.
+ * Without a tile it's the bare mark in `currentColor` with an accent cursor, for tight spots.
+ * At 24px and below it uses the heavier small cut. `animated` plays it once: the arc draws,
+ * the cursor lands and blinks. The app icon is drawn from the same shapes (src-tauri/icons/source/).
+ */
+let {
+  size = 20,
+  animated = false,
+  tile = size >= 28,
+}: { size?: number; animated?: boolean; tile?: boolean } = $props();
+
+const id = `hopr-mark-${next++}`;
+const small = $derived(size <= 24);
+const arc = $derived(small ? "M200 790 C 270 250, 690 170, 770 610" : "M226 760 C 300 300, 650 210, 748 642");
+const cursor = $derived(small ? { x: 600, y: 700, w: 300, h: 128 } : { x: 648, y: 708, w: 226, h: 88 });
+</script>
+
+<svg width={size} height={size} viewBox="0 0 1024 1024" aria-hidden="true" class="mark" class:animated class:tile>
+  {#if tile}
+    <defs>
+      <linearGradient id="{id}-tile" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" class="tile-top" />
+        <stop offset="1" class="tile-bottom" />
+      </linearGradient>
+      <radialGradient id="{id}-glow" cx="0.74" cy="0.2" r="0.64">
+        <stop offset="0" class="glow-in" />
+        <stop offset="1" class="glow-out" />
+      </radialGradient>
+      <linearGradient id="{id}-arc" gradientUnits="userSpaceOnUse" x1="220" y1="0" x2="780" y2="0">
+        <stop offset="0" class="arc-from" />
+        <stop offset="0.45" class="arc-mid" />
+        <stop offset="1" class="arc-to" />
+      </linearGradient>
+    </defs>
+    <rect width="1024" height="1024" rx="232" fill="url(#{id}-tile)" />
+    <rect width="1024" height="1024" rx="232" fill="url(#{id}-glow)" />
+    <rect x="3" y="3" width="1018" height="1018" rx="229" class="edge" />
   {/if}
+  <path
+    class="arc"
+    pathLength="1"
+    d={arc}
+    fill="none"
+    stroke={tile ? `url(#${id}-arc)` : "currentColor"}
+    stroke-width={small ? 124 : 84}
+    stroke-linecap="round"
+  />
+  <rect class="cursor" x={cursor.x} y={cursor.y} width={cursor.w} height={cursor.h} rx={cursor.h / 2} />
 </svg>
 
 <style>
   .mark {
     color: var(--accent);
+    flex: none;
   }
-  .animated .prompt {
+  .cursor {
+    fill: var(--accent);
+  }
+  .tile .tile-top {
+    stop-color: color-mix(in oklab, var(--bg), var(--text) 9%);
+  }
+  .tile .tile-bottom {
+    stop-color: color-mix(in oklab, var(--bg), black 22%);
+  }
+  .tile .glow-in {
+    stop-color: var(--accent);
+    stop-opacity: 0.4;
+  }
+  .tile .glow-out {
+    stop-color: var(--accent);
+    stop-opacity: 0;
+  }
+  .tile .arc-from {
+    stop-color: var(--text);
+    stop-opacity: 0.1;
+  }
+  .tile .arc-mid {
+    stop-color: var(--text);
+    stop-opacity: 0.72;
+  }
+  .tile .arc-to {
+    stop-color: var(--text);
+  }
+  .edge {
+    fill: none;
+    stroke: var(--text);
+    stroke-opacity: 0.12;
+    stroke-width: 6;
+  }
+  .animated .arc {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
-    animation: mark-draw 380ms var(--ease-out) 120ms forwards;
-  }
-  .animated .dot {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: mark-pop 300ms var(--ease-bounce) backwards;
-  }
-  .animated .d1 {
-    animation-delay: 420ms;
-  }
-  .animated .d2 {
-    animation-delay: 510ms;
-  }
-  .animated .d3 {
-    animation-delay: 600ms;
-  }
-  .animated .d4 {
-    animation-delay: 690ms;
+    animation: mark-draw 520ms var(--ease-out) 120ms forwards;
   }
   .animated .cursor {
     transform-box: fill-box;
-    transform-origin: left center;
+    transform-origin: center;
     animation:
-      mark-land 320ms var(--ease-spring) 780ms backwards,
-      mark-blink 1s steps(1) 1.2s 2;
+      mark-land 340ms var(--ease-spring) 560ms backwards,
+      mark-blink 1s steps(1) 1s 2;
   }
   @keyframes mark-draw {
     to {
       stroke-dashoffset: 0;
     }
   }
-  @keyframes mark-pop {
-    from {
-      transform: scale(0);
-      opacity: 0;
-    }
-  }
   @keyframes mark-land {
     from {
-      transform: scaleX(0);
+      transform: scaleX(0.4);
+      opacity: 0;
     }
   }
   @keyframes mark-blink {
@@ -99,13 +123,13 @@ const small = $derived(size <= 24);
       opacity: 0.2;
     }
   }
-  :global(:root[data-motion="reduced"]) .animated .prompt,
-  :global(:root[data-motion="off"]) .animated .prompt {
+  :global(:root[data-motion="reduced"]) .animated .arc,
+  :global(:root[data-motion="off"]) .animated .arc {
     animation: none;
     stroke-dashoffset: 0;
   }
-  :global(:root[data-motion="reduced"]) .animated .dot,
-  :global(:root[data-motion="reduced"]) .animated .cursor {
+  :global(:root[data-motion="reduced"]) .animated .cursor,
+  :global(:root[data-motion="off"]) .animated .cursor {
     animation: none;
   }
 </style>
