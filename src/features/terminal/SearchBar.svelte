@@ -1,12 +1,13 @@
 <script lang="ts">
-import type { ISearchOptions, SearchAddon } from "@xterm/addon-search";
 import { ArrowDown, ArrowUp, X } from "phosphor-svelte";
 import { untrack } from "svelte";
+import type { SearchHighlight } from "$lib/design/highlight";
 import { rise, sink } from "$lib/motion";
+import type { FastSearch, FindOptions } from "./fast-search";
 
 interface Props {
-  addon: SearchAddon;
-  decorations: NonNullable<ISearchOptions["decorations"]>;
+  addon: FastSearch;
+  decorations: SearchHighlight;
   /** Most matches highlighted at once; past it the count shows "N+". */
   limit: number;
   /** What to search for on open (the selection, or the last search). */
@@ -30,14 +31,13 @@ let count = $state<{ index: number; total: number } | null>(null);
 let invalid = $state(false);
 let input: HTMLInputElement | undefined = $state();
 
-const opts = $derived<ISearchOptions>({ caseSensitive, wholeWord, regex, decorations });
+const opts = $derived<FindOptions>({ caseSensitive, wholeWord, regex, decorations });
 const missing = $derived(!!query && (invalid || count?.total === 0));
 const label = $derived.by(() => {
   if (!query || !count) return "";
   if (invalid) return "Invalid pattern";
   if (count.total === 0) return "No results";
-  // Past the highlight limit the addon reports no current index.
-  if (count.index < 0) return `${limit}+`;
+  if (count.index < 0) return `${count.total}`;
   return `${count.index + 1} / ${count.total}`;
 });
 
@@ -50,7 +50,7 @@ $effect(() => {
   return () => sub.dispose();
 });
 
-function run(next = true): void {
+function run(): void {
   invalid = false;
   if (!query) {
     addon.clearDecorations();
@@ -58,8 +58,7 @@ function run(next = true): void {
     return;
   }
   try {
-    if (next) addon.findNext(query, { ...opts, incremental: true });
-    else addon.findPrevious(query, opts);
+    addon.search(query, opts);
   } catch {
     invalid = true; // an unfinished regular expression
     count = { index: -1, total: 0 };
@@ -67,7 +66,7 @@ function run(next = true): void {
 }
 
 // Search as the query or options change: at once for the first character and option
-// toggles, otherwise when typing pauses (each search walks the whole scrollback).
+// toggles, otherwise when typing pauses. The scan itself runs in small slices.
 let timer: ReturnType<typeof setTimeout> | undefined;
 let searched = "";
 $effect(() => {

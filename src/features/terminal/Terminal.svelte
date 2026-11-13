@@ -2,7 +2,6 @@
 import "@xterm/xterm/css/xterm.css";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { FitAddon } from "@xterm/addon-fit";
-import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -20,6 +19,7 @@ import { isMac, motionLevel } from "$lib/platform";
 import { shortcuts } from "$lib/shortcuts";
 import { toast } from "$lib/ui/toast.svelte";
 import { lastLines } from "./buffer";
+import { FastSearch } from "./fast-search";
 import { attachGlideCursor, type GlideCursor } from "./glidecursor";
 import { attachShellIntegration } from "./integration";
 import { checkPaste, smartKey } from "./paste";
@@ -42,7 +42,7 @@ let {
 let host: HTMLDivElement;
 let term = $state.raw<Terminal | null>(null);
 let fitter = $state.raw<FitAddon | null>(null);
-let search = $state.raw<SearchAddon | null>(null);
+let search = $state.raw<FastSearch | null>(null);
 let searching = $state(false);
 let searchKey = $state(0);
 let searchInitial = $state("");
@@ -230,10 +230,8 @@ $effect(() => {
     });
     instance = t;
     const fit = new FitAddon();
-    const finder = new SearchAddon({ highlightLimit: HIGHLIGHT_LIMIT });
     const serializer = new SerializeAddon();
     t.loadAddon(fit);
-    t.loadAddon(finder);
     t.loadAddon(serializer);
     t.loadAddon(new Unicode11Addon());
     t.loadAddon(new WebLinksAddon(openLink));
@@ -346,7 +344,7 @@ $effect(() => {
 
     term = t;
     fitter = fit;
-    search = finder;
+    search = new FastSearch(t, HIGHLIGHT_LIMIT);
     void session.start(t.cols, t.rows);
   })();
 
@@ -356,6 +354,7 @@ $effect(() => {
     glide = null;
     observer?.disconnect();
     session.detach();
+    search?.dispose();
     instance?.dispose();
     term = null;
     fitter = null;
