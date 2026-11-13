@@ -10,6 +10,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { type ITerminalOptions, Terminal } from "@xterm/xterm";
 import { untrack } from "svelte";
 import { broadcast } from "$features/broadcast/broadcast.svelte";
+import { readClipboard } from "$lib/clipboard";
 import { appearance } from "$lib/design/appearance.svelte";
 import { searchHighlight } from "$lib/design/highlight";
 import { INVISIBLE, terminalTheme } from "$lib/design/palettes";
@@ -123,7 +124,7 @@ function onPaste(e: ClipboardEvent) {
 }
 
 async function pasteFromClipboard() {
-  const text = await navigator.clipboard.readText().catch(() => "");
+  const text = await readClipboard();
   if (!text) return;
   const check = checkPaste(text);
   if (check.confirm && prefs.current.confirmPaste) pendingPaste = { text, lines: check.lines };

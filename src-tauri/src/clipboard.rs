@@ -64,3 +64,26 @@ pub async fn copy_secret(text: String, clear_after_secs: u32) -> Result<(), AppE
     }
     Ok(())
 }
+
+/// Most text a paste reads (a larger clipboard is refused rather than flooding a terminal).
+const READ_MAX: usize = 16 * 1024 * 1024;
+
+/// The clipboard's text, read here so the web view never asks for clipboard permission.
+/// Empty when the clipboard holds no text.
+#[tauri::command]
+#[specta::specta]
+pub async fn clipboard_read_text() -> Result<String, AppError> {
+    let text = tokio::task::spawn_blocking(|| {
+        arboard::Clipboard::new()
+            .and_then(|mut c| c.get_text())
+            .unwrap_or_default()
+    })
+    .await
+    .map_err(|e| AppError::internal("Background task failed", e))?;
+    if text.len() > READ_MAX {
+        return Err(AppError::invalid(
+            "The clipboard holds too much text to paste",
+        ));
+    }
+    Ok(text)
+}

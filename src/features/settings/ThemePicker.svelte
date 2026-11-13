@@ -4,6 +4,7 @@
  * terminals; the custom theme starts from any built-in one and every colour can change.
  */
 import { ArrowCounterClockwise, ClipboardText, Copy, PaintBrush } from "phosphor-svelte";
+import { readClipboard } from "$lib/clipboard";
 import { appearance } from "$lib/design/appearance.svelte";
 import type { Ansi16 } from "$lib/design/palettes";
 import {
@@ -71,7 +72,7 @@ async function copyJson() {
 
 async function pasteJson() {
   try {
-    const parsed = parseCustom(JSON.parse(await navigator.clipboard.readText()));
+    const parsed = parseCustom(JSON.parse(await readClipboard()));
     if (!parsed) throw new Error("not a theme");
     appearance.update({ theme: "custom", custom: parsed });
     toast.success("Theme pasted");

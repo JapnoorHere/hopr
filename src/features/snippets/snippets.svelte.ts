@@ -8,6 +8,7 @@ import { library } from "$features/hosts/library.svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import type { TerminalSession } from "$features/terminal/terminal-session.svelte";
 import { wrap } from "$features/vault/vault.svelte";
+import { readClipboard } from "$lib/clipboard";
 import { commands, inTauri, type Snippet, type SnippetInput } from "$lib/ipc";
 import { flash } from "$lib/motion";
 import { toast } from "$lib/ui/toast.svelte";
@@ -138,9 +139,7 @@ class SnippetsStore {
   async fill() {
     const p = this.pending;
     if (!p) return;
-    const clip = usesClipboard(p.snippet.body)
-      ? await navigator.clipboard.readText().catch(() => "")
-      : "";
+    const clip = usesClipboard(p.snippet.body) ? await readClipboard() : "";
     const text = render(p.snippet.body, p.values, builtinsFor(p.session, clip));
     const confirm =
       p.snippet.runMode === "confirm"

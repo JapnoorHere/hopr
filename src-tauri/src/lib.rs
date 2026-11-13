@@ -54,6 +54,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             vault::vault_forget_device,
             vault::vault_activity,
             vault::vault_set_auto_lock,
+            clipboard::clipboard_read_text,
             vault::vault_set_clipboard_clear,
             library::library_get,
             library::hosts::host_create,

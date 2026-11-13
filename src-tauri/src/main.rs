@@ -1,5 +1,6 @@
-// Prevents an extra console window on Windows in release. Do not remove.
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// No console window on Windows, dev builds included (their logs still reach `pnpm tauri dev`,
+// which pipes them). Do not remove.
+#![windows_subsystem = "windows"]
 
 fn main() {
     hopr_lib::run();

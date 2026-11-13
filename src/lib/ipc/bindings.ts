@@ -50,6 +50,11 @@ export const commands = {
 	vaultActivity: () => __TAURI_INVOKE<void>("vault_activity"),
 	/**  Set the auto-lock timeout (0 = never). */
 	vaultSetAutoLock: (minutes: number) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_auto_lock", { minutes })),
+	/**
+	 *  The clipboard's text, read here so the web view never asks for clipboard permission.
+	 *  Empty when the clipboard holds no text.
+	 */
+	clipboardReadText: () => typedError<string, AppError>(__TAURI_INVOKE("clipboard_read_text")),
 	/**  Set how long a copied secret stays on the clipboard (0 = until replaced). */
 	vaultSetClipboardClear: (seconds: number) => typedError<null, AppError>(__TAURI_INVOKE("vault_set_clipboard_clear", { seconds })),
 	/**  Hosts, groups and keys in one call. */
