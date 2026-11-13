@@ -165,7 +165,8 @@ pub fn open_quick(app: &AppHandle) {
     // window there would wait on itself.
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let built = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+        let b = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()));
+        let built = crate::webview::apply(b, &app)
             .title("Hopr quick terminal")
             .inner_size(900.0, 520.0)
             .min_inner_size(480.0, 280.0)
@@ -270,7 +271,9 @@ pub fn show_main(app: &AppHandle) {
     // Built off the event-loop thread, like the quick terminal.
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        match WebviewWindowBuilder::from_config(&app, &config).and_then(|b| b.build()) {
+        let built = WebviewWindowBuilder::from_config(&app, &config)
+            .and_then(|b| crate::webview::apply(b, &app).build());
+        match built {
             Ok(w) => winmgr::show_when_painted(w),
             Err(e) => eprintln!("hopr: main window failed: {e}"),
         }

@@ -92,6 +92,9 @@ const canType = $derived(sessions.active?.state.kind === "ready");
       />
       Record every new session
     </label>
+    <p class="-mt-1 pl-6 text-xs text-faint">
+      Each recording stops at 63 MB. Past 1 GB in total, the oldest are deleted.
+    </p>
     <label class="field">
       <span class="text-xs text-muted">Notify when a long command finishes in the background</span>
       <select

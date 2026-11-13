@@ -273,7 +273,8 @@ pub fn build_window(app: &AppHandle, label: &str, at: Option<(f64, f64)>) {
     let app = app.clone();
     let name = label.to_owned();
     tauri::async_runtime::spawn(async move {
-        let mut b = WebviewWindowBuilder::new(&app, &name, WebviewUrl::App("index.html".into()))
+        let b = WebviewWindowBuilder::new(&app, &name, WebviewUrl::App("index.html".into()));
+        let mut b = crate::webview::apply(b, &app)
             .title("Hopr")
             .min_inner_size(720.0, 460.0)
             .decorations(false)

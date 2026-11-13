@@ -48,6 +48,8 @@ pub(crate) struct Who {
 pub(crate) struct Recorder {
     pub name: String,
     pub writer: CastWriter<BufWriter<File>>,
+    /// Output bytes written so far (a recording stops at [`crate::recording::MAX_FILE`]).
+    pub written: u64,
 }
 
 /// Per-session bookkeeping beside the actor: output sink, recording, counters.

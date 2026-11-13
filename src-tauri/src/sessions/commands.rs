@@ -161,10 +161,14 @@ pub async fn session_open(
                 .fetch_add(bytes.len() as u64, Ordering::Relaxed);
             if let Ok(mut rec) = batch_live.rec.lock()
                 && let Some(r) = rec.as_mut()
-                && r.writer.output(&bytes).is_err()
             {
-                // Disk full or similar: stop instead of failing on every chunk.
-                *rec = None;
+                r.written += bytes.len() as u64;
+                // Disk full or similar, or as big as a replay can open: stop here instead
+                // of failing on every chunk or filling the disk.
+                if r.written > crate::recording::MAX_FILE || r.writer.output(&bytes).is_err() {
+                    let _ = r.writer.flush();
+                    *rec = None;
+                }
             }
             match batch_live.sink.lock().as_deref_mut() {
                 Ok(Sink::Window(ch)) => ch.send(RawBytes(bytes)).is_ok(),

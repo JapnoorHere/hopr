@@ -18,6 +18,10 @@ use crate::state::AppState;
 
 /// Largest recording the replay will load.
 const MAX_READ: u64 = 64 * 1024 * 1024;
+/// A recording stops when its output reaches this (the replay can still open it).
+pub const MAX_FILE: u64 = MAX_READ - 1024 * 1024;
+/// All recordings together; past this the oldest are deleted when a new one starts.
+const MAX_TOTAL: u64 = 1024 * 1024 * 1024;
 
 fn io_err(what: &str, e: &std::io::Error) -> AppError {
     AppError::new(ErrorCode::Storage, what.to_owned()).with_detail(e.to_string())
@@ -72,6 +76,8 @@ pub fn start(state: &AppState, live: &Live) -> Result<String, AppError> {
     let dir = dir(state);
     std::fs::create_dir_all(&dir)
         .map_err(|e| io_err("Couldn't create the recordings folder", &e))?;
+    // Room for this one under the total, oldest recordings going first.
+    prune(&dir, MAX_TOTAL.saturating_sub(MAX_FILE));
     let now = OffsetDateTime::now_utc();
     let stamp = format!(
         "{:04}{:02}{:02}-{:02}{:02}{:02}",
@@ -106,6 +112,7 @@ pub fn start(state: &AppState, live: &Live) -> Result<String, AppError> {
     *rec = Some(Recorder {
         name: name.clone(),
         writer,
+        written: 0,
     });
     Ok(name)
 }
@@ -158,6 +165,32 @@ fn ends(path: &Path) -> std::io::Result<(String, String)> {
         .unwrap_or_default()
         .to_owned();
     Ok((first, last))
+}
+
+/// Delete the oldest recordings until together they take at most `keep` bytes. One still
+/// being written can't be deleted (it is open) and is skipped.
+fn prune(dir: &Path, keep: u64) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut files: Vec<(std::time::SystemTime, u64, PathBuf)> = entries
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".cast"))
+        .filter_map(|e| {
+            let m = e.metadata().ok()?;
+            Some((m.modified().ok()?, m.len(), e.path()))
+        })
+        .collect();
+    let mut total: u64 = files.iter().map(|f| f.1).sum();
+    files.sort_by_key(|f| f.0);
+    for (_, len, path) in files {
+        if total <= keep {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            total -= len;
+        }
+    }
 }
 
 /// Recordings, newest first.
@@ -268,7 +301,33 @@ pub async fn recording_export(
 
 #[cfg(test)]
 mod tests {
-    use super::slug;
+    use super::{prune, slug};
+
+    #[test]
+    fn prune_deletes_the_oldest_until_under_the_limit() {
+        let dir = std::env::temp_dir().join(format!("hopr-rec-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (i, name) in ["a.cast", "b.cast", "c.cast"].iter().enumerate() {
+            std::fs::write(dir.join(name), vec![b'x'; 100]).unwrap();
+            let t = std::time::SystemTime::UNIX_EPOCH
+                + std::time::Duration::from_secs(1_000 + i as u64);
+            std::fs::File::options()
+                .write(true)
+                .open(dir.join(name))
+                .unwrap()
+                .set_modified(t)
+                .unwrap();
+        }
+        std::fs::write(dir.join("notes.txt"), vec![b'x'; 500]).unwrap();
+        prune(&dir, 200);
+        assert!(!dir.join("a.cast").exists(), "oldest deleted");
+        assert!(dir.join("b.cast").exists() && dir.join("c.cast").exists());
+        assert!(
+            dir.join("notes.txt").exists(),
+            "only recordings are touched"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn slugs_are_file_safe() {

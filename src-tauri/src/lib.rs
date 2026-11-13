@@ -19,6 +19,7 @@ mod sync;
 mod tunnels;
 mod updates;
 mod vault;
+mod webview;
 mod winmgr;
 mod workspaces;
 
@@ -277,6 +278,7 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
             sftp::edit::clear_temp();
+            webview::clear_stale_caches(app.handle());
             // HOPR_DATA_DIR lets tests (and portable installs) keep data out of the user's profile.
             let custom = std::env::var_os("HOPR_DATA_DIR");
             let root = match &custom {
