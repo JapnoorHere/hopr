@@ -11,6 +11,7 @@ import { library } from "$features/hosts/library.svelte";
 import { palette } from "$features/palette/palette-state.svelte";
 import { files } from "$features/sftp/files.svelte";
 import { transfers } from "$features/sftp/transfers.svelte";
+import { type DrawerId, shell } from "$features/shell/shell.state.svelte";
 import { snippets } from "$features/snippets/snippets.svelte";
 import { syncStore } from "$features/sync/sync.svelte";
 import { tunnels } from "$features/tunnels/tunnels.svelte";
@@ -131,6 +132,11 @@ export function installDebugHooks() {
       focused: () => sessions.active?.key ?? null,
       zoomed: () => sessions.activeTab?.zoomed ?? null,
       paletteOpen: () => palette.open,
+      showPalette: () => palette.show(),
+      /** Open a side panel (screenshots), or close it with null. */
+      drawer: (id: DrawerId | null) => {
+        shell.drawer = id;
+      },
       fontSize: () => prefs.current.fontSize,
       setPrefs: (patch: Partial<typeof prefs.current>) => prefs.update(patch),
       /** Open the search bar on the active terminal (the selection or last search prefills it). */
