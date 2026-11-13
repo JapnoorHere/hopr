@@ -83,6 +83,9 @@ const canType = $derived(sessions.active?.state.kind === "ready");
         oninput={() => (error = null)}
       ></textarea>
       <FieldError message={error} />
+      <span class="text-xs text-faint">
+        Commands with passwords, tokens, API keys or keys in them are never saved, whatever this list says.
+      </span>
     </label>
     <label class="flex items-center gap-2 text-sm">
       <input

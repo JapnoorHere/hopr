@@ -31,19 +31,49 @@ pub struct NewCommand<'a> {
     pub duration_ms: Option<u32>,
 }
 
+/// Commands that likely hold a secret, never saved whatever the user's own patterns say
+/// (history is stored unencrypted). Same glob form as the user's patterns.
+pub const ALWAYS_EXCLUDED: &[&str] = &[
+    "*password*",
+    "*passwd*",
+    "*passphrase*",
+    "*secret*",
+    "*token*",
+    "*credential*",
+    "*api_key*",
+    "*api-key*",
+    "*apikey*",
+    "*access_key*",
+    "*private_key*",
+    "*authorization:*",
+    "*bearer *",
+    "*sshpass *",
+    "*mysql* -p*",
+    "*://*:*@*",
+    "*-----begin*",
+    "*ghp_*",
+    "*github_pat_*",
+    "*glpat-*",
+    "*xoxb-*",
+    "*xoxp-*",
+    "*akia*",
+];
+
 /// Whether a command must not be saved: blank, typed with a leading space (like bash's
-/// `ignorespace`) when `ignore_space` is on, or matching an exclude pattern. Patterns are
-/// case-insensitive globs over the whole command where `*` matches anything.
+/// `ignorespace`) when `ignore_space` is on, likely holding a secret
+/// ([`ALWAYS_EXCLUDED`]), or matching an exclude pattern. Patterns are case-insensitive
+/// globs over the whole command where `*` matches anything.
 pub fn is_excluded(command: &str, ignore_space: bool, patterns: &[String]) -> bool {
     if command.trim().is_empty() || (ignore_space && command.starts_with(' ')) {
         return true;
     }
     let cmd = command.trim().to_lowercase();
-    patterns
-        .iter()
-        .map(|p| p.trim().to_lowercase())
-        .filter(|p| !p.is_empty())
-        .any(|p| glob(&p, &cmd))
+    ALWAYS_EXCLUDED.iter().any(|p| glob(p, &cmd))
+        || patterns
+            .iter()
+            .map(|p| p.trim().to_lowercase())
+            .filter(|p| !p.is_empty())
+            .any(|p| glob(&p, &cmd))
 }
 
 fn glob(pattern: &str, text: &str) -> bool {
@@ -337,6 +367,25 @@ mod tests {
         assert!(!is_excluded("lsblk", false, &["ls".to_owned()]));
         assert!(is_excluded("lsblk", false, &["ls*".to_owned()]));
         assert!(!is_excluded("ab", false, &["a*b*b".to_owned()]));
+    }
+
+    #[test]
+    fn secrets_are_never_saved_whatever_the_patterns() {
+        for cmd in [
+            "mysql -u root -pS3cret db",
+            "curl -H 'Authorization: Bearer abc' https://api.example.com",
+            "export GITHUB_TOKEN=ghp_abc123",
+            "git clone https://me:hunter2@git.example.com/repo.git",
+            "sshpass -p hunter2 ssh box",
+            "aws configure set aws_access_key_id AKIAXXXXXXXX",
+            "echo \"-----BEGIN OPENSSH PRIVATE KEY-----\"",
+            "export API_KEY=xyz",
+        ] {
+            assert!(is_excluded(cmd, false, &[]), "{cmd}");
+        }
+        for cmd in ["ls -la", "git push", "mysql -u root db", "ssh me@box", "docker ps"] {
+            assert!(!is_excluded(cmd, false, &[]), "{cmd}");
+        }
     }
 
     #[tokio::test]
