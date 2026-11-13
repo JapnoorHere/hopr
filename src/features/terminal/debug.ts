@@ -9,6 +9,7 @@ import { grouprun } from "$features/grouprun/grouprun.svelte";
 import { type HistoryTab, history } from "$features/history/history.svelte";
 import { library } from "$features/hosts/library.svelte";
 import { palette } from "$features/palette/palette-state.svelte";
+import { profiles } from "$features/profiles/profiles.svelte";
 import { files } from "$features/sftp/files.svelte";
 import { transfers } from "$features/sftp/transfers.svelte";
 import { type DrawerId, shell } from "$features/shell/shell.state.svelte";
@@ -133,6 +134,13 @@ export function installDebugHooks() {
       zoomed: () => sessions.activeTab?.zoomed ?? null,
       paletteOpen: () => palette.open,
       showPalette: () => palette.show(),
+      /** Profiles (screenshots and tests): make one, open the picker, list them. */
+      createProfile: async (name: string) => (await profiles.create(name, "#7dd3c0")).ok,
+      showProfiles: () => {
+        profiles.fromMenu = true;
+        profiles.picking = true;
+      },
+      profileNames: () => profiles.list.map((p) => p.name),
       /** Open a side panel (screenshots), or close it with null. */
       drawer: (id: DrawerId | null) => {
         shell.drawer = id;

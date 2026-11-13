@@ -1,9 +1,9 @@
 <script lang="ts">
 /**
- * Create or edit a profile: a name the person chooses and an avatar colour. Editing also
- * offers delete, guarded by typing the profile's name.
+ * Create or edit a profile: a name the person chooses and an avatar colour. Deleting is
+ * separate (ProfileDeleteDialog), so Enter here only ever saves.
  */
-import { Trash, X } from "phosphor-svelte";
+import { X } from "phosphor-svelte";
 import { PROFILE_COLORS } from "$lib/design/themes";
 import type { Profile } from "$lib/ipc";
 import { sink, springIn } from "$lib/motion";
@@ -12,7 +12,7 @@ import FieldError from "$lib/ui/FieldError.svelte";
 import Modal from "$lib/ui/Modal.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
-import { profileName, profiles } from "./profiles.svelte";
+import { profiles } from "./profiles.svelte";
 
 let { profile = null, onclose }: { profile?: Profile | null; onclose: () => void } = $props();
 
@@ -26,17 +26,15 @@ let color = $state<string>(
 );
 let error = $state<string | null>(null);
 let busy = $state(false);
-let deleting = $state(false);
-let confirmName = $state("");
 
 const preview = $derived<Profile>({
   id: profile?.id ?? "new",
-  name: name.trim() || "?",
+  // Unnamed default profile: shown as "Personal", like everywhere else. A new one: "?".
+  name: name.trim() || (profile && !profile.name ? "" : "?"),
   color,
   createdAt: 0,
   look: null,
 });
-const isOpen = $derived(profile?.id === profiles.current);
 
 async function submit(open: boolean) {
   error = null;
@@ -64,19 +62,6 @@ async function submit(open: boolean) {
   }
   busy = false;
   toast.success(`Profile “${r.data.name}” created`);
-  onclose();
-}
-
-async function remove() {
-  if (!profile) return;
-  busy = true;
-  const r = await profiles.remove(profile.id);
-  busy = false;
-  if (!r.ok) {
-    error = r.error.message;
-    return;
-  }
-  toast.success(`Deleted “${profileName(profile)}”`);
   onclose();
 }
 </script>
@@ -126,36 +111,6 @@ async function remove() {
       </div>
     </div>
 
-    {#if profile}
-      <div class="danger-zone">
-        {#if !deleting}
-          <button type="button" class="link-danger" disabled={isOpen} onclick={() => (deleting = true)}>
-            <Trash size={13} /> Delete profile…
-          </button>
-          {#if isOpen}<span class="text-xs text-faint">It's open now; switch to another profile to delete it.</span>{/if}
-        {:else}
-          <p class="text-xs text-muted">
-            This deletes <b class="text-fg">{profileName(profile)}</b>'s hosts, keys, snippets, history and backups on
-            this computer. Type its name to confirm.
-          </p>
-          <div class="mt-2 flex gap-2">
-            <input
-              class="input flex-1"
-              bind:value={confirmName}
-              placeholder={profileName(profile)}
-              aria-label="Type the profile name to confirm"
-              spellcheck="false"
-            />
-            <button
-              type="button"
-              class="btn-danger"
-              disabled={busy || confirmName.trim() !== profileName(profile)}
-              onclick={remove}>Delete</button
-            >
-          </div>
-        {/if}
-      </div>
-    {/if}
 
     <footer class="mt-6 flex justify-end gap-2">
       <button type="button" class="btn-ghost" onclick={onclose}>Cancel</button>
@@ -189,24 +144,5 @@ async function remove() {
   .close:hover {
     color: var(--text);
     background: var(--surface-3);
-  }
-  .danger-zone {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 20px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-  }
-  .link-danger {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    width: fit-content;
-    font-size: 13px;
-    color: var(--danger);
-  }
-  .link-danger:disabled {
-    opacity: 0.45;
   }
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
 /** Settings > Profiles: every profile, with edit and open, and the start-up picker toggle. */
-import { ArrowRight, PencilSimple, Plus } from "phosphor-svelte";
+import { ArrowRight, PencilSimple, Plus, Trash } from "phosphor-svelte";
 import { sessions } from "$features/terminal/session.svelte";
 import type { Profile } from "$lib/ipc";
 import { commands } from "$lib/ipc";
@@ -8,10 +8,12 @@ import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import { isQuickWindow } from "$lib/window";
 import ProfileAvatar from "./ProfileAvatar.svelte";
+import ProfileDeleteDialog from "./ProfileDeleteDialog.svelte";
 import ProfileDialog from "./ProfileDialog.svelte";
 import { profileName, profiles } from "./profiles.svelte";
 
 let editing = $state<Profile | null | "new">(null);
+let deleting = $state<Profile | null>(null);
 let confirming = $state<Profile | null>(null);
 
 const since = (p: Profile) =>
@@ -56,6 +58,11 @@ async function open(p: Profile) {
         <button type="button" class="btn-ghost" aria-label="Edit {profileName(p)}" onclick={() => (editing = p)}>
           <PencilSimple size={14} /> Edit
         </button>
+        {#if p.id !== profiles.current}
+          <button type="button" class="btn-ghost danger-ghost" aria-label="Delete {profileName(p)}" title="Delete" onclick={() => (deleting = p)}>
+            <Trash size={14} />
+          </button>
+        {/if}
         {#if p.id !== profiles.current && !isQuickWindow}
           <button type="button" class="btn-ghost" onclick={() => open(p)}>
             {profiles.switching === p.id ? "Opening…" : "Open"}
@@ -85,8 +92,14 @@ async function open(p: Profile) {
 {#if editing}
   <ProfileDialog profile={editing === "new" ? null : editing} onclose={() => (editing = null)} />
 {/if}
+{#if deleting}
+  <ProfileDeleteDialog profile={deleting} onclose={() => (deleting = null)} />
+{/if}
 
 <style>
+  .danger-ghost:hover {
+    color: var(--danger);
+  }
   .list {
     display: flex;
     flex-direction: column;

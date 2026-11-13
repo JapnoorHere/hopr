@@ -4,7 +4,7 @@
  * switcher. Each tile is drawn in that profile's own theme on the plain background. Picking the open profile carries
  * on; another one opens in place.
  */
-import { DotsThree, Plus, X } from "phosphor-svelte";
+import { DotsThree, PencilSimple, Plus, Trash, X } from "phosphor-svelte";
 import { fade } from "svelte/transition";
 import { sessions } from "$features/terminal/session.svelte";
 import { lookSpec, themeStyle } from "$lib/design/themes";
@@ -13,8 +13,10 @@ import type { Profile } from "$lib/ipc";
 import { blurFade, stagger } from "$lib/motion";
 import { motion } from "$lib/platform";
 import ConfirmBar from "$lib/ui/ConfirmBar.svelte";
+import Menu from "$lib/ui/Menu.svelte";
 import { toast } from "$lib/ui/toast.svelte";
 import ProfileAvatar from "./ProfileAvatar.svelte";
+import ProfileDeleteDialog from "./ProfileDeleteDialog.svelte";
 import ProfileDialog from "./ProfileDialog.svelte";
 import { profileName, profiles } from "./profiles.svelte";
 
@@ -22,6 +24,9 @@ import { profileName, profiles } from "./profiles.svelte";
 let { dismissible = false }: { dismissible?: boolean } = $props();
 
 let editing = $state<Profile | null | "new">(null);
+let deleting = $state<Profile | null>(null);
+/** The profile whose ⋯ menu is open. */
+let menuFor = $state<string | null>(null);
 /** Switching away with tabs open asks first. */
 let confirming = $state<Profile | null>(null);
 let grid = $state<HTMLDivElement>();
@@ -40,7 +45,8 @@ function close() {
 }
 
 function onkey(e: KeyboardEvent) {
-  if (editing) return;
+  // A dialog or menu on top handles its own keys (Esc closes it, not the picker).
+  if (editing || deleting || menuFor) return;
   const tiles = [...(grid?.querySelectorAll<HTMLElement>("[data-tile]") ?? [])];
   const at = tiles.indexOf(document.activeElement as HTMLElement);
   if (e.key === "Escape") {
@@ -103,15 +109,26 @@ $effect(() => {
               {#if profiles.switching === p.id}Opening…{:else if p.id === profiles.current}Last used{:else}&nbsp;{/if}
             </span>
           </button>
-          <button
-            type="button"
-            class="more"
-            aria-label="Edit {profileName(p)}"
-            title="Edit"
-            onclick={() => (editing = p)}
-          >
-            <DotsThree size={16} weight="bold" />
-          </button>
+          <div class="more-wrap" class:shown={menuFor === p.id}>
+            <Menu
+              label="{profileName(p)} options"
+              width="170px"
+              open={menuFor === p.id}
+              onopenchange={(o) => (menuFor = o ? p.id : null)}
+            >
+              {#snippet trigger(props)}
+                <button type="button" class="more" aria-label="Options for {profileName(p)}" title="Options" {...props}>
+                  <DotsThree size={16} weight="bold" />
+                </button>
+              {/snippet}
+              <button type="button" role="menuitem" class="menu-item" onclick={() => (editing = p)}>
+                <PencilSimple size={14} /> Edit…
+              </button>
+              <button type="button" role="menuitem" class="menu-item danger" onclick={() => (deleting = p)}>
+                <Trash size={14} /> Delete…
+              </button>
+            </Menu>
+          </div>
         </div>
       {/each}
       <div class="tile-wrap" in:blurFade={{ y: 10, delay: 120 + stagger(profiles.list.length), duration: 260 }}>
@@ -145,6 +162,9 @@ $effect(() => {
 
 {#if editing}
   <ProfileDialog profile={editing === "new" ? null : editing} onclose={() => (editing = null)} />
+{/if}
+{#if deleting}
+  <ProfileDeleteDialog profile={deleting} onclose={() => (deleting = null)} />
 {/if}
 
 <style>
@@ -261,10 +281,13 @@ $effect(() => {
     background: var(--surface-2);
     border-radius: 999px;
   }
-  .more {
+  .more-wrap {
     position: absolute;
     top: 8px;
     right: 8px;
+    z-index: 2;
+  }
+  .more {
     display: grid;
     place-items: center;
     width: 26px;
@@ -276,6 +299,7 @@ $effect(() => {
     transition: opacity var(--dur-fast) var(--ease-out);
   }
   .tile-wrap:hover .more,
+  .more-wrap.shown .more,
   .more:focus-visible {
     opacity: 1;
   }
